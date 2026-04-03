@@ -1,11 +1,12 @@
 const String backendBaseUrl = String.fromEnvironment(
   'BACKEND_BASE_URL',
-  defaultValue: 'http://10.0.2.2:3000',
+  defaultValue: 'https://rkfuelsapi.vercel.app',
 );
 
 const String googleWebClientId = String.fromEnvironment(
   'GOOGLE_WEB_CLIENT_ID',
-  defaultValue: '',
+  defaultValue:
+      '62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com',
 );
 
 const String googleClientId = String.fromEnvironment(

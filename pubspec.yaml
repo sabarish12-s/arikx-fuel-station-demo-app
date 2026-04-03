@@ -36,10 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^4.1.1
   firebase_messaging: ^16.0.2
-  google_sign_in: ^7.2.0
-  flutter_secure_storage: ^9.2.4
+  google_sign_in: ^6.2.1
   http: ^1.2.2
   font_awesome_flutter: ^10.7.0
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
@@ -53,6 +53,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.6
+  image: ^4.5.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -97,6 +98,18 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
+  web:
+    generate: true
+    image_path: assets/images/hp_logo.png
+    background_color: "#E9EEF7"
+    theme_color: "#1E5CBA"
+  windows:
+    generate: true
+    image_path: assets/images/hp_logo.png
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: assets/images/hp_logo.png
   image_path: assets/images/hp_logo.png
   adaptive_icon_background: "#DCE6FF"
   adaptive_icon_foreground: assets/images/hp_logo.png

@@ -2,6 +2,7 @@ class AccessRequest {
   const AccessRequest({
     required this.id,
     required this.userId,
+    required this.stationId,
     required this.name,
     required this.email,
     required this.roleRequested,
@@ -11,6 +12,7 @@ class AccessRequest {
 
   final String id;
   final String userId;
+  final String stationId;
   final String name;
   final String email;
   final String roleRequested;
@@ -21,6 +23,7 @@ class AccessRequest {
     return AccessRequest(
       id: json['id']?.toString() ?? '',
       userId: json['userId']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? 'station-hq-01',
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       roleRequested: json['roleRequested']?.toString() ?? 'sales',

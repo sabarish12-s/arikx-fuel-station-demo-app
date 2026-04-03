@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
@@ -24,5 +26,24 @@ class ApiClient {
   Future<http.Response> post(String path, {Object? body}) async {
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     return http.post(uri, headers: await authorizedHeaders(), body: body);
+  }
+
+  Future<http.Response> patch(String path, {Object? body}) async {
+    final Uri uri = Uri.parse('$backendBaseUrl$path');
+    return http.patch(uri, headers: await authorizedHeaders(), body: body);
+  }
+
+  Future<http.Response> put(String path, {Object? body}) async {
+    final Uri uri = Uri.parse('$backendBaseUrl$path');
+    return http.put(uri, headers: await authorizedHeaders(), body: body);
+  }
+
+  Future<http.Response> delete(String path) async {
+    final Uri uri = Uri.parse('$backendBaseUrl$path');
+    return http.delete(uri, headers: await authorizedHeaders());
+  }
+
+  Map<String, dynamic> decodeObject(http.Response response) {
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }

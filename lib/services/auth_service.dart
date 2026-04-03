@@ -1,40 +1,131 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../models/auth_models.dart';
+import 'native_config_service.dart';
 import 'notification_service.dart';
 
 class AuthService {
   static const String _jwtKey = 'jwt_token';
   static const String _userKey = 'auth_user';
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
-  static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  static bool _googleInitialized = false;
+  static GoogleSignIn? _googleSignIn;
+  static String? _resolvedServerClientId;
+  static String? _resolvedClientId;
 
-  Future<void> _initializeGoogle() async {
-    if (_googleInitialized) {
-      return;
+  static bool get isGoogleSignInSupported {
+    if (kIsWeb) {
+      return true;
     }
-    await _googleSignIn.initialize(
-      clientId: googleClientId.isEmpty ? null : googleClientId,
-      serverClientId: googleWebClientId.isEmpty ? null : googleWebClientId,
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.android => true,
+      TargetPlatform.iOS => true,
+      TargetPlatform.macOS => true,
+      _ => false,
+    };
+  }
+
+  Future<SharedPreferences> _prefs() {
+    return SharedPreferences.getInstance();
+  }
+
+  Future<GoogleSignIn> _getGoogleSignIn() async {
+    if (_googleSignIn != null) {
+      return _googleSignIn!;
+    }
+
+    _resolvedServerClientId =
+        googleWebClientId.isNotEmpty
+            ? googleWebClientId
+            : await NativeConfigService.defaultWebClientId();
+    _resolvedClientId =
+        kIsWeb
+            ? (_resolvedServerClientId?.isNotEmpty ?? false)
+                ? _resolvedServerClientId
+                : null
+            : (googleClientId.isEmpty ? null : googleClientId);
+
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        (_resolvedServerClientId == null || _resolvedServerClientId!.isEmpty)) {
+      throw Exception(
+        'Google Sign-In is not configured in Firebase for Android. Add Google Sign-In, add the Android SHA1, and download a fresh google-services.json.',
+      );
+    }
+
+    _googleSignIn = GoogleSignIn(
+      clientId: _resolvedClientId,
+      serverClientId: _resolvedServerClientId,
     );
-    _googleInitialized = true;
+    return _googleSignIn!;
+  }
+
+  Future<void> _persistAuth(AuthResponse authResponse) async {
+    if (authResponse.token.isEmpty) {
+      throw Exception('JWT token missing in backend response.');
+    }
+    final SharedPreferences prefs = await _prefs();
+    await prefs.setString(_jwtKey, authResponse.token);
+    await prefs.setString(_userKey, jsonEncode(authResponse.user.toJson()));
+  }
+
+  String _extractBackendError(http.Response response) {
+    try {
+      final Object? decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final String message = decoded['message']?.toString().trim() ?? '';
+        final String error = decoded['error']?.toString().trim() ?? '';
+
+        if (error.contains('Cloud Firestore API has not been used') ||
+            error.contains('PERMISSION_DENIED')) {
+          return 'Backend Firebase access is not enabled for this project yet. The API server needs Firebase storage/auth access fixed.';
+        }
+
+        if (message.isNotEmpty && error.isNotEmpty) {
+          return '$message: $error';
+        }
+        if (message.isNotEmpty) {
+          return message;
+        }
+        if (error.isNotEmpty) {
+          return error;
+        }
+      }
+    } catch (_) {
+      // Fall back to the raw response body below.
+    }
+
+    final String body = response.body.trim();
+    if (body.isNotEmpty) {
+      return body;
+    }
+    return 'Authentication failed with status ${response.statusCode}.';
   }
 
   Future<AuthResponse> signInWithGoogle() async {
-    await _initializeGoogle();
-    final GoogleSignInAccount account = await _googleSignIn.authenticate();
-    final String? idToken = account.authentication.idToken;
+    if (!isGoogleSignInSupported) {
+      throw Exception(
+        'Google Sign-In is not available on Windows desktop in this app. Use the web version in Chrome or Edge.',
+      );
+    }
+
+    final GoogleSignIn googleSignIn = await _getGoogleSignIn();
+    final GoogleSignInAccount? account = await googleSignIn.signIn();
+    if (account == null) {
+      throw Exception('Google Sign-In was cancelled.');
+    }
+
+    final GoogleSignInAuthentication authentication =
+        await account.authentication;
+    final String? idToken = authentication.idToken;
     if (idToken == null || idToken.isEmpty) {
       throw Exception(
-        'Google ID token is empty. Check GOOGLE_WEB_CLIENT_ID setup.',
+        'Google ID token is empty. Check Firebase Google Sign-In OAuth setup.',
       );
     }
 
@@ -53,38 +144,33 @@ class AuthService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Auth failed: ${response.statusCode} ${response.body}');
+      throw Exception(_extractBackendError(response));
     }
 
     final Map<String, dynamic> json =
         jsonDecode(response.body) as Map<String, dynamic>;
     final AuthResponse authResponse = AuthResponse.fromJson(json);
-
-    if (authResponse.token.isEmpty) {
-      throw Exception('JWT token missing in backend response.');
-    }
-    await _storage.write(key: _jwtKey, value: authResponse.token);
-    await _storage.write(
-      key: _userKey,
-      value: jsonEncode(authResponse.user.toJson()),
-    );
+    await _persistAuth(authResponse);
     return authResponse;
   }
 
   Future<bool> hasJwtToken() async {
-    final String? token = await _storage.read(key: _jwtKey);
+    final SharedPreferences prefs = await _prefs();
+    final String? token = prefs.getString(_jwtKey);
     return token != null && token.isNotEmpty;
   }
 
   Future<String?> readJwtToken() async {
-    return _storage.read(key: _jwtKey);
+    final SharedPreferences prefs = await _prefs();
+    return prefs.getString(_jwtKey);
   }
 
   Future<void> signOut() async {
-    await _storage.delete(key: _jwtKey);
-    await _storage.delete(key: _userKey);
+    final SharedPreferences prefs = await _prefs();
+    await prefs.remove(_jwtKey);
+    await prefs.remove(_userKey);
     try {
-      await _googleSignIn.signOut();
+      await _googleSignIn?.signOut();
     } catch (_) {
       if (kDebugMode) {
         print('Google sign out ignored.');
@@ -93,7 +179,8 @@ class AuthService {
   }
 
   Future<AuthUser?> readCurrentUser() async {
-    final String? raw = await _storage.read(key: _userKey);
+    final SharedPreferences prefs = await _prefs();
+    final String? raw = prefs.getString(_userKey);
     if (raw == null || raw.isEmpty) {
       return null;
     }
@@ -103,5 +190,38 @@ class AuthService {
     } catch (_) {
       return null;
     }
+  }
+
+  Future<AuthUser?> refreshCurrentUser() async {
+    final String? token = await readJwtToken();
+    if (token == null || token.isEmpty) {
+      return null;
+    }
+
+    final Uri uri = Uri.parse('$backendBaseUrl/auth/me');
+    final http.Response response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 401) {
+      await signOut();
+      return null;
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_extractBackendError(response));
+    }
+
+    final Map<String, dynamic> json =
+        jsonDecode(response.body) as Map<String, dynamic>;
+    final AuthUser user = AuthUser.fromJson(
+      json['user'] as Map<String, dynamic>? ?? const {},
+    );
+    final SharedPreferences prefs = await _prefs();
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
+    return user;
   }
 }

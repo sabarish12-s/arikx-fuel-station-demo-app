@@ -12,7 +12,20 @@
           "package_name": "com.rk.fuels.rk_fuels"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "62828412342-u83qbofqfotqaff56e0m88r57ad03u5l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rk.fuels.rk_fuels",
+            "certificate_hash": "88d32d02e888f5e8ba22bbf7eb91c93f8324a6dc"
+          }
+        },
+        {
+          "client_id": "62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAIKy1Cn4xkNQ_ZeNq04aIG9wZ43x_1a78"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "62828412342-uca1djfp0qabfej0ehkhpe8e8l4hei28.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.rk.fuels.rkFuels"
+              }
+            }
+          ]
         }
       }
     }

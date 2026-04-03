@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/auth_models.dart';
 import '../navigation/app_router.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_logo.dart';
 
 class PendingApprovalScreen extends StatelessWidget {
-  const PendingApprovalScreen({super.key});
+  const PendingApprovalScreen({super.key, this.user});
+
+  final AuthUser? user;
 
   @override
   Widget build(BuildContext context) {
@@ -44,14 +47,10 @@ class PendingApprovalScreen extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      Icons.local_gas_station,
-                      color: Color(0xFF1E5CBA),
-                      size: 34,
-                    ),
+                    AppLogo(size: 34),
                     SizedBox(width: 8),
                     Text(
-                      'FuelFlow',
+                      'RK Fuels',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w900,
@@ -76,31 +75,41 @@ class PendingApprovalScreen extends StatelessWidget {
                   ],
                 ),
                 child: Column(
-                  children: const [
+                  children: [
                     CircleAvatar(
                       radius: 38,
-                      backgroundColor: Color(0x33E5CEFF),
+                      backgroundColor: user?.status == 'rejected'
+                          ? const Color(0x33FCA5A5)
+                          : const Color(0x33E5CEFF),
                       child: Icon(
-                        Icons.info_outline_rounded,
+                        user?.status == 'rejected'
+                            ? Icons.block_outlined
+                            : Icons.info_outline_rounded,
                         size: 36,
-                        color: Color(0xFF695781),
+                        color: user?.status == 'rejected'
+                            ? const Color(0xFFB91C1C)
+                            : const Color(0xFF695781),
                       ),
                     ),
-                    SizedBox(height: 18),
+                    const SizedBox(height: 18),
                     Text(
-                      'Access Request Sent',
+                      user?.status == 'rejected'
+                          ? 'Access Request Rejected'
+                          : 'Access Request Sent',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 29,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
                     ),
-                    SizedBox(height: 10),
+                    const SizedBox(height: 10),
                     Text(
-                      'Your account is waiting for approval from the station administrator.',
+                      user?.status == 'rejected'
+                          ? 'Your request was rejected by station management. Please contact the superadmin.'
+                          : 'Your account is waiting for approval from the station administrator.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 16,
                         color: Color(0xFF55606E),
                         height: 1.35,
@@ -114,7 +123,7 @@ class PendingApprovalScreen extends StatelessWidget {
                 future: AuthService().readCurrentUser(),
                 builder: (context, snapshot) {
                   final String email =
-                      snapshot.data?.email ?? 'user@example.com';
+                      user?.email ?? snapshot.data?.email ?? 'user@example.com';
                   return Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 14,

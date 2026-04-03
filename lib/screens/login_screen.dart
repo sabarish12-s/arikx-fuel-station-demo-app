@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/auth_models.dart';
 import '../navigation/app_router.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +17,29 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
   bool _loading = false;
   String? _error;
+  bool get _googleSupported => AuthService.isGoogleSignInSupported;
+
+  String _friendlyError(Object error) {
+    final raw = error.toString();
+    if (raw.contains('clientConfigurationError') ||
+        raw.contains('serverClientId must be provided') ||
+        raw.contains('GOOGLE_WEB_CLIENT_ID') ||
+        raw.contains('Google Sign-In is not configured in Firebase')) {
+      return 'Google Sign-In is not configured in Firebase for this Android app yet.';
+    }
+    if (raw.contains('Google Sign-In was cancelled')) {
+      return 'Google Sign-In was cancelled.';
+    }
+    if (raw.contains('MissingPluginException') ||
+        raw.contains('not available on Windows desktop')) {
+      return 'Google Sign-In is not available in the Windows desktop app. Use the web version in Chrome or Edge.';
+    }
+    if (raw.contains('No credentials available') ||
+        raw.contains('no credential available')) {
+      return 'No Google account is available on this device. Add a Google account and try again.';
+    }
+    return raw.replaceFirst('Exception: ', '');
+  }
 
   Future<void> _continueWithGoogle() async {
     setState(() {
@@ -33,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } catch (e) {
       setState(() {
-        _error = e.toString();
+        _error = _friendlyError(e);
       });
     } finally {
       if (mounted) {
@@ -61,20 +85,10 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 16),
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF7EA2F5), Color(0xFF4E7DE8)],
-                    ),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Image.asset('assets/images/hp_logo.png'),
-                  ),
+                const SizedBox(
+                  width: 150,
+                  height: 150,
+                  child: AppLogo(),
                 ),
                 const SizedBox(height: 22),
                 const Text(
@@ -104,7 +118,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     children: [
                       GestureDetector(
-                        onTap: _loading ? null : _continueWithGoogle,
+                        onTap:
+                            (_loading || !_googleSupported)
+                                ? null
+                                : _continueWithGoogle,
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
@@ -112,7 +129,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             vertical: 20,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color:
+                                _googleSupported
+                                    ? Colors.white
+                                    : const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(40),
                             boxShadow: const [
                               BoxShadow(
@@ -134,7 +154,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: Text(
                                   _loading
                                       ? 'Signing in...'
-                                      : 'Continue with\nGoogle',
+                                      : _googleSupported
+                                      ? 'Continue with\nGoogle'
+                                      : 'Use Web for\nGoogle Sign-In',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 28,
@@ -156,6 +178,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           fontSize: 16,
                         ),
                       ),
+                      if (!_googleSupported) ...[
+                        const SizedBox(height: 12),
+                        const Text(
+                          'On Windows desktop, sign in from the web app in Chrome or Edge.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -195,7 +229,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: Color(0xFFB91C1C)),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFB91C1C),
+                        fontSize: 15,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 const Text(

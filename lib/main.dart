@@ -48,7 +48,7 @@ class _StartupRouterState extends State<_StartupRouter> {
     if (!hasToken) {
       return null;
     }
-    return _authService.readCurrentUser();
+    return _authService.refreshCurrentUser();
   }
 
   @override

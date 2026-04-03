@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/access_request.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_logo.dart';
 import 'login_screen.dart';
 
 class SuperAdminRequestsScreen extends StatefulWidget {
@@ -38,7 +39,13 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Superadmin Requests'),
+        title: const Row(
+          children: [
+            AppLogo(size: 26),
+            SizedBox(width: 8),
+            Text('Superadmin Requests'),
+          ],
+        ),
         actions: [
           IconButton(
             onPressed: () async {

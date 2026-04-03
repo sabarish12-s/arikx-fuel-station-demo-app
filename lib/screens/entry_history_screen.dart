@@ -1,0 +1,124 @@
+import 'package:flutter/material.dart';
+
+import '../models/domain_models.dart';
+import '../services/sales_service.dart';
+import '../utils/formatters.dart';
+
+class EntryHistoryScreen extends StatefulWidget {
+  const EntryHistoryScreen({super.key});
+
+  @override
+  State<EntryHistoryScreen> createState() => _EntryHistoryScreenState();
+}
+
+class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
+  final SalesService _salesService = SalesService();
+  late Future<List<ShiftEntryModel>> _future;
+  String _month = currentMonthKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _salesService.fetchEntries(month: _month);
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _salesService.fetchEntries(month: _month);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Entry History')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              controller: TextEditingController(text: _month),
+              decoration: InputDecoration(
+                labelText: 'Month (YYYY-MM)',
+                suffixIcon: IconButton(
+                  onPressed: _reload,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ),
+              onChanged: (value) => _month = value,
+            ),
+          ),
+          Expanded(
+            child: FutureBuilder<List<ShiftEntryModel>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('${snapshot.error}'));
+                }
+                final entries = snapshot.data ?? [];
+                if (entries.isEmpty) {
+                  return const Center(child: Text('No entries for this month.'));
+                }
+                return ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${formatDateLabel(entry.date)} - ${formatShiftLabel(entry.shift)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 17,
+                                  ),
+                                ),
+                              ),
+                              Chip(label: Text(entry.status)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Petrol ${formatLiters(entry.totals.sold.petrol)} - Diesel ${formatLiters(entry.totals.sold.diesel)}',
+                          ),
+                          Text(
+                            'Revenue ${formatCurrency(entry.revenue)} - Profit ${formatCurrency(entry.profit)}',
+                          ),
+                          if (entry.varianceNote.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                entry.varianceNote,
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
