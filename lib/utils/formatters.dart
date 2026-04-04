@@ -6,6 +6,43 @@ String formatLiters(double value) => '${value.toStringAsFixed(2)} L';
 
 String formatCompactNumber(double value) => value.toStringAsFixed(0);
 
+const Map<String, String> _pumpSideNames = {
+  'pump1': 'road side',
+  'pump2': 'middle',
+  'pump3': 'office side',
+};
+
+String _defaultPumpName(String pumpId) {
+  switch (pumpId.toLowerCase()) {
+    case 'pump1':
+      return 'Pump 1';
+    case 'pump2':
+      return 'Pump 2';
+    case 'pump3':
+      return 'Pump 3';
+    default:
+      return pumpId;
+  }
+}
+
+String formatPumpLabel(String pumpId, [String? label]) {
+  final normalizedId = pumpId.trim().toLowerCase();
+  final baseLabel =
+      label != null && label.trim().isNotEmpty
+          ? label.trim()
+          : _defaultPumpName(normalizedId);
+  final sideName = _pumpSideNames[normalizedId];
+  if (sideName == null || sideName.isEmpty) {
+    return baseLabel;
+  }
+
+  final suffix = '($sideName)';
+  if (baseLabel.toLowerCase().contains(suffix.toLowerCase())) {
+    return baseLabel;
+  }
+  return '$baseLabel $suffix';
+}
+
 String formatShiftLabel(String shift) {
   switch (shift) {
     case 'morning':

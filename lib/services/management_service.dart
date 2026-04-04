@@ -17,8 +17,19 @@ class ManagementService {
     return ManagementDashboardModel.fromJson(_apiClient.decodeObject(response));
   }
 
-  Future<List<ShiftEntryModel>> fetchEntries({String? month}) async {
-    final String suffix = month == null ? '' : '?month=$month';
+  Future<List<ShiftEntryModel>> fetchEntries({
+    String? month,
+    bool approvedOnly = false,
+  }) async {
+    final params = <String, String>{};
+    if (month != null && month.isNotEmpty) {
+      params['month'] = month;
+    }
+    if (approvedOnly) {
+      params['approvedOnly'] = 'true';
+    }
+    final String suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/entries$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load management entries: ${response.body}');
@@ -65,7 +76,9 @@ class ManagementService {
   }
 
   Future<ShiftEntryModel> approveEntry(String entryId) async {
-    final response = await _apiClient.post('/management/entries/$entryId/approve');
+    final response = await _apiClient.post(
+      '/management/entries/$entryId/approve',
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to approve entry: ${response.body}');
     }
@@ -88,9 +101,8 @@ class ManagementService {
     if (toDate != null && toDate.isNotEmpty) {
       params['to'] = toDate;
     }
-    final String suffix = params.isEmpty
-        ? ''
-        : '?${Uri(queryParameters: params).query}';
+    final String suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/reports/monthly$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load monthly report: ${response.body}');

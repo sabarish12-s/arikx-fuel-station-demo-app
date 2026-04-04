@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "62828412342-lk7n5h34h1i08sik3m5gdap2me32720v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.rk.fuels.rk_fuels",
+            "certificate_hash": "277a6cfacf8cd8e1f3686d97b3fdbb97d5ce0f9a"
+          }
+        },
+        {
           "client_id": "62828412342-u83qbofqfotqaff56e0m88r57ad03u5l.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

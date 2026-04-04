@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
-import '../services/management_service.dart';
 import '../utils/formatters.dart';
 
 class StationSettingsScreen extends StatefulWidget {
   const StationSettingsScreen({
     super.key,
     required this.canEdit,
+    this.embedded = false,
+    this.onBack,
   });
 
   final bool canEdit;
+  final bool embedded;
+  final VoidCallback? onBack;
 
   @override
   State<StationSettingsScreen> createState() => _StationSettingsScreenState();
@@ -19,8 +22,7 @@ class StationSettingsScreen extends StatefulWidget {
 
 class _StationSettingsScreenState extends State<StationSettingsScreen> {
   final InventoryService _inventoryService = InventoryService();
-  final ManagementService _managementService = ManagementService();
-  late Future<_StationSettingsData> _future;
+  late Future<StationConfigModel> _future;
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _codeController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
@@ -28,6 +30,9 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
   final Map<String, TextEditingController> _controllers = {};
   bool _seeded = false;
   bool _isEditing = false;
+
+  String _limitKey(String pumpId, String fuelKey) =>
+      '${pumpId}_${fuelKey}_limit';
 
   @override
   void initState() {
@@ -47,28 +52,8 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     super.dispose();
   }
 
-  Future<_StationSettingsData> _load() async {
-    final results = await Future.wait([
-      _inventoryService.fetchStationConfig(),
-      _managementService.fetchEntries(month: currentMonthKey()),
-    ]);
-    final station = results[0] as StationConfigModel;
-    final entries = results[1] as List<ShiftEntryModel>;
-    final today = DateTime.now().toIso8601String().split('T').first;
-    final todaysEntries = entries.where((entry) => entry.date == today).toList();
-    final pumpSales = <String, PumpReadings>{};
-    for (final pump in station.pumps) {
-      double petrol = 0;
-      double diesel = 0;
-      double twoT = 0;
-      for (final entry in todaysEntries) {
-        petrol += entry.soldByPump[pump.id]?.petrol ?? 0;
-        diesel += entry.soldByPump[pump.id]?.diesel ?? 0;
-        twoT += entry.soldByPump[pump.id]?.twoT ?? 0;
-      }
-      pumpSales[pump.id] = PumpReadings(petrol: petrol, diesel: diesel, twoT: twoT);
-    }
-    return _StationSettingsData(station: station, pumpSales: pumpSales);
+  Future<StationConfigModel> _load() async {
+    return _inventoryService.fetchStationConfig();
   }
 
   void _seedControllers(StationConfigModel station) {
@@ -80,10 +65,32 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     _cityController.text = station.city;
     _shiftsController.text = '1 daily entry';
     for (final pump in station.pumps) {
-      _controllers.putIfAbsent(
-        '${pump.id}_label',
-        () => TextEditingController(text: pump.label),
-      );
+      final labelKey = '${pump.id}_label';
+      final labelController =
+          _controllers[labelKey] ?? TextEditingController(text: pump.label);
+      labelController.text = pump.label;
+      _controllers[labelKey] = labelController;
+      final limits =
+          station.meterLimits[pump.id] ??
+          const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
+      final petrolKey = _limitKey(pump.id, 'petrol');
+      final petrolController =
+          _controllers[petrolKey] ??
+          TextEditingController(text: limits.petrol.toStringAsFixed(2));
+      petrolController.text = limits.petrol.toStringAsFixed(2);
+      _controllers[petrolKey] = petrolController;
+      final dieselKey = _limitKey(pump.id, 'diesel');
+      final dieselController =
+          _controllers[dieselKey] ??
+          TextEditingController(text: limits.diesel.toStringAsFixed(2));
+      dieselController.text = limits.diesel.toStringAsFixed(2);
+      _controllers[dieselKey] = dieselController;
+      final twoTKey = _limitKey(pump.id, 'twoT');
+      final twoTController =
+          _controllers[twoTKey] ??
+          TextEditingController(text: limits.twoT.toStringAsFixed(2));
+      twoTController.text = limits.twoT.toStringAsFixed(2);
+      _controllers[twoTKey] = twoTController;
     }
     _seeded = true;
   }
@@ -107,28 +114,51 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       name: _nameController.text.trim(),
       code: _codeController.text.trim(),
       city: _cityController.text.trim(),
-      shifts: _shiftsController.text
-          .contains('daily')
-          ? const ['daily']
-          : const ['daily'],
-      pumps: station.pumps
-          .map(
-            (pump) => StationPumpModel(
-              id: pump.id,
-              label: _controllers['${pump.id}_label']?.text.trim() ?? pump.label,
-            ),
-          )
-          .toList(),
+      shifts:
+          _shiftsController.text.contains('daily')
+              ? const ['daily']
+              : const ['daily'],
+      pumps:
+          station.pumps
+              .map(
+                (pump) => StationPumpModel(
+                  id: pump.id,
+                  label:
+                      _controllers['${pump.id}_label']?.text.trim() ??
+                      pump.label,
+                ),
+              )
+              .toList(),
       baseReadings: station.baseReadings,
+      meterLimits: {
+        for (final pump in station.pumps)
+          pump.id: PumpReadings(
+            petrol:
+                double.tryParse(
+                  _controllers[_limitKey(pump.id, 'petrol')]?.text ?? '',
+                ) ??
+                0,
+            diesel:
+                double.tryParse(
+                  _controllers[_limitKey(pump.id, 'diesel')]?.text ?? '',
+                ) ??
+                0,
+            twoT:
+                double.tryParse(
+                  _controllers[_limitKey(pump.id, 'twoT')]?.text ?? '',
+                ) ??
+                0,
+          ),
+      },
     );
 
     await _inventoryService.saveStationConfig(updated);
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Station settings saved.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Station settings saved.')));
     setState(() {
       _isEditing = false;
       _seeded = false;
@@ -138,286 +168,331 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final content = FutureBuilder<StationConfigModel>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('${snapshot.error}'));
+        }
+        final station = snapshot.data!;
+        _seedControllers(station);
+
+        return RefreshIndicator(
+          onRefresh: _reload,
+          child: ListView(
+            padding: const EdgeInsets.all(18),
+            children: [
+              if (widget.embedded)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: widget.onBack,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                      ),
+                      const Expanded(
+                        child: Text(
+                          'Station Settings',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF293340),
+                          ),
+                        ),
+                      ),
+                      if (widget.canEdit)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              if (_isEditing) {
+                                _isEditing = false;
+                                _resetFromStation(station);
+                              } else {
+                                _isEditing = true;
+                              }
+                            });
+                          },
+                          child: Text(_isEditing ? 'Cancel' : 'Edit'),
+                        ),
+                    ],
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Station Overview',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                _isEditing
+                                    ? const Color(0xFFE0E7FF)
+                                    : const Color(0xFFE5F7EE),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            _isEditing ? 'Editing' : 'View only',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  _isEditing
+                                      ? const Color(0xFF1E40AF)
+                                      : const Color(0xFF047857),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Pump count is fixed. This screen is for viewing first, then editing station details only when needed.',
+                      style: const TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _nameController,
+                      enabled: widget.canEdit && _isEditing,
+                      decoration: const InputDecoration(
+                        labelText: 'Station Name',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _cityController,
+                      enabled: widget.canEdit && _isEditing,
+                      decoration: const InputDecoration(labelText: 'City'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _codeController,
+                      enabled: widget.canEdit && _isEditing,
+                      decoration: const InputDecoration(labelText: 'Code'),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _shiftsController,
+                      enabled: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Entry cycle',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Fixed pumps: ${station.pumps.map((pump) => formatPumpLabel(pump.id, pump.label)).join(', ')}',
+                      style: const TextStyle(
+                        color: Color(0xFF55606E),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Pump Labels',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF293340),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Only pump names are managed here. Sales details are not shown in station settings.',
+                      style: TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 16),
+                    ...station.pumps.map(
+                      (pump) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: TextField(
+                          controller: _controllers['${pump.id}_label'],
+                          enabled: widget.canEdit && _isEditing,
+                          decoration: InputDecoration(
+                            labelText:
+                                '${formatPumpLabel(pump.id, pump.label)} label',
+                            prefixIcon: const Icon(
+                              Icons.local_gas_station_rounded,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Daily Meter Limits',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF293340),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Set the maximum daily meter sale per pump. Use 0 to keep the limit disabled.',
+                      style: TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 16),
+                    ...station.pumps.map((pump) {
+                      final supportsTwoT = pump.id == 'pump2';
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 14),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              formatPumpLabel(pump.id, pump.label),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF293340),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller:
+                                  _controllers[_limitKey(pump.id, 'petrol')],
+                              enabled: widget.canEdit && _isEditing,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: const InputDecoration(
+                                labelText: 'Petrol daily meter limit',
+                                prefixIcon: Icon(Icons.speed_rounded),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller:
+                                  _controllers[_limitKey(pump.id, 'diesel')],
+                              enabled: widget.canEdit && _isEditing,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: const InputDecoration(
+                                labelText: 'Diesel daily meter limit',
+                                prefixIcon: Icon(Icons.speed_rounded),
+                              ),
+                            ),
+                            if (supportsTwoT) ...[
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller:
+                                    _controllers[_limitKey(pump.id, 'twoT')],
+                                enabled: widget.canEdit && _isEditing,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: '2T oil daily meter limit',
+                                  prefixIcon: Icon(Icons.speed_rounded),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              if (widget.canEdit && _isEditing)
+                FilledButton(
+                  onPressed: () => _save(station),
+                  child: const Text('Save Station Settings'),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (widget.embedded) {
+      return content;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Station Settings'),
         actions: [
           if (widget.canEdit)
-            FutureBuilder<_StationSettingsData>(
+            FutureBuilder<StationConfigModel>(
               future: _future,
               builder: (context, snapshot) {
-                final station = snapshot.data?.station;
+                final station = snapshot.data;
                 return TextButton(
-                  onPressed: station == null
-                      ? null
-                      : () {
-                          setState(() {
-                            if (_isEditing) {
-                              _isEditing = false;
-                              _resetFromStation(station);
-                            } else {
-                              _isEditing = true;
-                            }
-                          });
-                        },
+                  onPressed:
+                      station == null
+                          ? null
+                          : () {
+                            setState(() {
+                              if (_isEditing) {
+                                _isEditing = false;
+                                _resetFromStation(station);
+                              } else {
+                                _isEditing = true;
+                              }
+                            });
+                          },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
             ),
         ],
       ),
-      body: FutureBuilder<_StationSettingsData>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('${snapshot.error}'));
-          }
-          final data = snapshot.data!;
-          final station = data.station;
-          _seedControllers(station);
-
-          return RefreshIndicator(
-            onRefresh: _reload,
-            child: ListView(
-              padding: const EdgeInsets.all(18),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Station Overview',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _isEditing
-                                  ? const Color(0xFFE0E7FF)
-                                  : const Color(0xFFE5F7EE),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              _isEditing ? 'Editing' : 'View only',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: _isEditing
-                                    ? const Color(0xFF1E40AF)
-                                    : const Color(0xFF047857),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Pump count is fixed. This screen is for viewing first, then editing station details only when needed.',
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: _nameController,
-                        enabled: widget.canEdit && _isEditing,
-                        decoration: const InputDecoration(labelText: 'Station Name'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _cityController,
-                        enabled: widget.canEdit && _isEditing,
-                        decoration: const InputDecoration(labelText: 'City'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _codeController,
-                        enabled: widget.canEdit && _isEditing,
-                        decoration: const InputDecoration(labelText: 'Code'),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: _shiftsController,
-                        enabled: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Entry cycle',
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Fixed pumps: ${station.pumps.map((pump) => pump.label).join(', ')}',
-                        style: const TextStyle(
-                          color: Color(0xFF55606E),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...station.pumps.map(
-                  (pump) {
-                    final sales = data.pumpSales[pump.id] ??
-                        const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  pump.id.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF55606E),
-                                    letterSpacing: 1,
-                                  ),
-                                ),
-                              ),
-                              const Icon(
-                                Icons.local_gas_station_rounded,
-                                color: Color(0xFF1E5CBA),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: _controllers['${pump.id}_label'],
-                            enabled: widget.canEdit && _isEditing,
-                            decoration: InputDecoration(
-                              labelText: '${pump.id} label',
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          const Text(
-                            'Today\'s Sales',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF293340),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _PumpSalesCard(
-                                  title: 'Petrol',
-                                  value: formatLiters(sales.petrol),
-                                  color: const Color(0xFF1E5CBA),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _PumpSalesCard(
-                                  title: 'Diesel',
-                                  value: formatLiters(sales.diesel),
-                                  color: const Color(0xFF006C5C),
-                                ),
-                              ),
-                              if (pump.id == 'pump2') ...[
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _PumpSalesCard(
-                                    title: '2T Oil',
-                                    value: formatLiters(sales.twoT),
-                                    color: const Color(0xFFB45309),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-                if (widget.canEdit && _isEditing)
-                  FilledButton(
-                    onPressed: () => _save(station),
-                    child: const Text('Save Station Settings'),
-                  ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _StationSettingsData {
-  const _StationSettingsData({
-    required this.station,
-    required this.pumpSales,
-  });
-
-  final StationConfigModel station;
-  final Map<String, PumpReadings> pumpSales;
-}
-
-class _PumpSalesCard extends StatelessWidget {
-  const _PumpSalesCard({
-    required this.title,
-    required this.value,
-    required this.color,
-  });
-
-  final String title;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF55606E),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-            ),
-          ),
-        ],
-      ),
+      body: content,
     );
   }
 }

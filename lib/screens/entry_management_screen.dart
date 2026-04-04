@@ -16,6 +16,20 @@ class EntryManagementScreen extends StatefulWidget {
 class _EntryManagementScreenState extends State<EntryManagementScreen> {
   final ManagementService _managementService = ManagementService();
   final SalesService _salesService = SalesService();
+  static const List<String> _monthNames = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   final TextEditingController _monthController = TextEditingController(
     text: currentMonthKey(),
   );
@@ -52,6 +66,160 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     await _future;
   }
 
+  String _formatMonthFilter(String raw) {
+    final parts = raw.trim().split('-');
+    if (parts.length != 2) {
+      return raw.trim().isEmpty ? 'No month selected' : raw.trim();
+    }
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null || month < 1 || month > 12) {
+      return raw.trim();
+    }
+    return '${_monthNames[month - 1]} $year';
+  }
+
+  Future<void> _openMonthFilterDialog() async {
+    final now = DateTime.now();
+    final parts = _monthController.text.trim().split('-');
+    int selectedYear = int.tryParse(parts.firstOrNull ?? '') ?? now.year;
+    int selectedMonth =
+        int.tryParse(parts.length > 1 ? parts[1] : '') ?? now.month;
+
+    final applied = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final years = List<int>.generate(
+              now.year - 2024 + 1,
+              (index) => now.year - index,
+            );
+            return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              title: const Text('Filter Entries'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choose the month you want to view.',
+                      style: TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 18),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedMonth,
+                      decoration: const InputDecoration(
+                        labelText: 'Month',
+                        filled: true,
+                      ),
+                      items: List.generate(
+                        _monthNames.length,
+                        (index) => DropdownMenuItem<int>(
+                          value: index + 1,
+                          child: Text(_monthNames[index]),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setDialogState(() {
+                          selectedMonth = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<int>(
+                      initialValue: selectedYear,
+                      decoration: const InputDecoration(
+                        labelText: 'Year',
+                        filled: true,
+                      ),
+                      items:
+                          years
+                              .map(
+                                (year) => DropdownMenuItem<int>(
+                                  value: year,
+                                  child: Text('$year'),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setDialogState(() {
+                          selectedYear = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FF),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        'Selected period: ${_monthNames[selectedMonth - 1]} $selectedYear',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF293340),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    final current = currentMonthKey();
+                    final currentParts = current.split('-');
+                    final currentYear =
+                        int.tryParse(currentParts[0]) ?? now.year;
+                    final currentMonth =
+                        int.tryParse(currentParts[1]) ?? now.month;
+                    setDialogState(() {
+                      selectedYear = currentYear;
+                      selectedMonth = currentMonth;
+                    });
+                  },
+                  child: const Text('This Month'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  icon: const Icon(Icons.filter_alt_rounded),
+                  label: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (applied != true) {
+      return;
+    }
+
+    final month = selectedMonth.toString().padLeft(2, '0');
+    _monthController.text = '$selectedYear-$month';
+    await _reload();
+  }
+
   DailyEntryDraft _draftFromEntry(ShiftEntryModel entry) {
     return DailyEntryDraft(
       date: entry.date,
@@ -68,7 +236,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
   Future<String?> _pickEntryDate({String? initialDate}) async {
     final initial =
-        DateTime.tryParse(initialDate ?? '') ?? DateTime.tryParse(currentMonthKey()) ?? DateTime.now();
+        DateTime.tryParse(initialDate ?? '') ??
+        DateTime.tryParse(currentMonthKey()) ??
+        DateTime.now();
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -106,9 +276,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         title: 'Daily Admin Entry',
         initialDate: date,
         openingReadings: dashboard.openingReadings,
-        initialDraft: dashboard.selectedEntry == null
-            ? null
-            : _draftFromEntry(dashboard.selectedEntry!),
+        initialDraft:
+            dashboard.selectedEntry == null
+                ? null
+                : _draftFromEntry(dashboard.selectedEntry!),
         allowDateEdit: false,
       );
       if (draft == null) {
@@ -206,7 +377,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     await _reload();
   }
 
-  Future<void> _editEntry(ShiftEntryModel entry, StationConfigModel station) async {
+  Future<void> _editEntry(
+    ShiftEntryModel entry,
+    StationConfigModel station,
+  ) async {
     final draft = await showDailyEntryEditorDialog(
       context: context,
       station: station,
@@ -289,6 +463,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             final approvedCount =
                 entries.where((entry) => entry.status == 'approved').length;
             final flaggedCount = entries.where((entry) => entry.flagged).length;
+            final selectedMonthLabel = _formatMonthFilter(
+              _monthController.text,
+            );
 
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
@@ -320,9 +497,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         style: TextStyle(color: Colors.white70, height: 1.4),
                       ),
                       const SizedBox(height: 18),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                      GridView.count(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 1.55,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
                         children: [
                           _DashboardChip(
                             label: 'Revenue today',
@@ -412,22 +593,69 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _monthController,
-                          decoration: const InputDecoration(
-                            labelText: 'Month (YYYY-MM)',
-                            filled: true,
-                          ),
+                      const Text(
+                        'Entry Filter',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        onPressed: _reload,
-                        icon: const Icon(Icons.filter_alt_rounded),
-                        label: const Text('Apply'),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Open the popup to choose a month and refresh the list.',
+                        style: TextStyle(color: Color(0xFF55606E)),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_month_rounded,
+                              color: Color(0xFF1E5CBA),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Current period',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF55606E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    selectedMonthLabel,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF293340),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            FilledButton.icon(
+                              onPressed: _openMonthFilterDialog,
+                              icon: const Icon(Icons.filter_alt_rounded),
+                              label: const Text('Filter'),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -445,103 +673,112 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     ),
                   )
                 else
-                  ...entries
-                      .reversed
-                      .map(
-                        (entry) => Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                  ...entries.reversed.map((entry) {
+                    final submittedLabel =
+                        entry.submittedByName.trim().isNotEmpty
+                            ? entry.submittedByName.trim()
+                            : entry.submittedBy.trim();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      formatDateLabel(entry.date),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 18,
-                                      ),
-                                    ),
+                              Expanded(
+                                child: Text(
+                                  formatDateLabel(entry.date),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 18,
                                   ),
-                                  Chip(label: Text(entry.status)),
-                                ],
+                                ),
                               ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 14,
-                                runSpacing: 8,
-                                children: [
-                                  Text(
-                                    'Petrol ${formatLiters(entry.totals.sold.petrol)}',
-                                  ),
-                                  Text(
-                                    'Diesel ${formatLiters(entry.totals.sold.diesel)}',
-                                  ),
-                                  Text(
-                                    '2T Oil ${formatLiters(entry.totals.sold.twoT)}',
-                                  ),
-                                  Text(
-                                    'Revenue ${formatCurrency(entry.revenue)}',
-                                  ),
-                                  Text(
-                                    'Collected ${formatCurrency(entry.paymentTotal)}',
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
+                              Chip(label: Text(entry.status)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 14,
+                            runSpacing: 8,
+                            children: [
                               Text(
-                                'Submitted by ${entry.submittedBy}',
-                                style: const TextStyle(color: Color(0xFF55606E)),
+                                'Petrol ${formatLiters(entry.totals.sold.petrol)}',
                               ),
-                              if (entry.pumpAttendants.values.any((name) => name.isNotEmpty))
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    entry.pumpAttendants.entries
-                                        .where((item) => item.value.isNotEmpty)
-                                        .map((item) => '${item.key}: ${item.value}')
-                                        .join('  •  '),
-                                    style: const TextStyle(
-                                      color: Color(0xFF55606E),
-                                    ),
-                                  ),
+                              Text(
+                                'Diesel ${formatLiters(entry.totals.sold.diesel)}',
+                              ),
+                              if (entry.totals.sold.twoT > 0)
+                                Text(
+                                  '2T Oil ${formatLiters(entry.totals.sold.twoT)}',
                                 ),
-                              if (entry.varianceNote.isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    entry.varianceNote,
-                                    style: const TextStyle(
-                                      color: Color(0xFFB91C1C),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  OutlinedButton(
-                                    onPressed: () =>
-                                        _editEntry(entry, data.dashboard.station),
-                                    child: const Text('Edit Entry'),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  if (entry.status != 'approved')
-                                    FilledButton(
-                                      onPressed: () => _approveEntry(entry),
-                                      child: const Text('Approve'),
-                                    ),
-                                ],
+                              Text('Revenue ${formatCurrency(entry.revenue)}'),
+                              Text(
+                                'Collected ${formatCurrency(entry.paymentTotal)}',
                               ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Submitted by $submittedLabel',
+                            style: const TextStyle(color: Color(0xFF55606E)),
+                          ),
+                          if (entry.pumpAttendants.values.any(
+                            (name) => name.isNotEmpty,
+                          ))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                entry.pumpAttendants.entries
+                                    .where((item) => item.value.isNotEmpty)
+                                    .map(
+                                      (item) =>
+                                          '${formatPumpLabel(item.key)}: ${item.value}',
+                                    )
+                                    .join('  •  '),
+                                style: const TextStyle(
+                                  color: Color(0xFF55606E),
+                                ),
+                              ),
+                            ),
+                          if (entry.varianceNote.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                entry.varianceNote,
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              OutlinedButton(
+                                onPressed:
+                                    () => _editEntry(
+                                      entry,
+                                      data.dashboard.station,
+                                    ),
+                                child: const Text('Edit Entry'),
+                              ),
+                              const SizedBox(width: 10),
+                              if (entry.status != 'approved')
+                                FilledButton(
+                                  onPressed: () => _approveEntry(entry),
+                                  child: const Text('Approve'),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
+                    );
+                  }),
               ],
             );
           },
@@ -552,20 +789,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 }
 
 class _EntryManagementData {
-  const _EntryManagementData({
-    required this.entries,
-    required this.dashboard,
-  });
+  const _EntryManagementData({required this.entries, required this.dashboard});
 
   final List<ShiftEntryModel> entries;
   final SalesDashboardModel dashboard;
 }
 
 class _DashboardChip extends StatelessWidget {
-  const _DashboardChip({
-    required this.label,
-    required this.value,
-  });
+  const _DashboardChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -646,10 +877,7 @@ class _StatCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Color(0xFF55606E)),
-          ),
+          Text(subtitle, style: const TextStyle(color: Color(0xFF55606E))),
         ],
       ),
     );

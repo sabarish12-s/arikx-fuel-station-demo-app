@@ -85,11 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 16),
-                const SizedBox(
-                  width: 150,
-                  height: 150,
-                  child: AppLogo(),
-                ),
+                const SizedBox(width: 150, height: 150, child: AppLogo()),
                 const SizedBox(height: 22),
                 const Text(
                   'Fuel Station\nManager',
@@ -103,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Manage fuel sales and stock easily',
+                  'Manage fuel sales and meter readings easily',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 18, color: Color(0xFF6B7280)),
                 ),

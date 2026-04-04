@@ -59,7 +59,9 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                 }
                 final entries = snapshot.data ?? [];
                 if (entries.isEmpty) {
-                  return const Center(child: Text('No entries for this month.'));
+                  return const Center(
+                    child: Text('No entries for this month.'),
+                  );
                 }
                 return ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -97,13 +99,18 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                           Text(
                             'Revenue ${formatCurrency(entry.revenue)} - Collected ${formatCurrency(entry.paymentTotal)}',
                           ),
-                          if (entry.pumpAttendants.values.any((name) => name.isNotEmpty))
+                          if (entry.pumpAttendants.values.any(
+                            (name) => name.isNotEmpty,
+                          ))
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
                                 entry.pumpAttendants.entries
                                     .where((item) => item.value.isNotEmpty)
-                                    .map((item) => '${item.key}: ${item.value}')
+                                    .map(
+                                      (item) =>
+                                          '${formatPumpLabel(item.key)}: ${item.value}',
+                                    )
                                     .join('  •  '),
                                 style: const TextStyle(
                                   color: Color(0xFF55606E),

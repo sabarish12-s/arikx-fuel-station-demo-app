@@ -51,61 +51,76 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final bool? shouldSave = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Staff Member'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  title: const Text('Add Staff Member'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(labelText: 'Name'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: emailController,
+                          decoration: const InputDecoration(labelText: 'Email'),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: role,
+                          items:
+                              canManageSuperAdmins
+                                  ? const [
+                                    DropdownMenuItem(
+                                      value: 'sales',
+                                      child: Text('Sales'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admin',
+                                      child: Text('Admin'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'superadmin',
+                                      child: Text('Superadmin'),
+                                    ),
+                                  ]
+                                  : const [
+                                    DropdownMenuItem(
+                                      value: 'sales',
+                                      child: Text('Sales'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admin',
+                                      child: Text('Admin'),
+                                    ),
+                                  ],
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setDialogState(() => role = value);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Save'),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: role,
-                  items: canManageSuperAdmins
-                      ? const [
-                          DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                          DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                          DropdownMenuItem(
-                            value: 'superadmin',
-                            child: Text('Superadmin'),
-                          ),
-                        ]
-                      : const [
-                          DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                          DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                        ],
-                  onChanged: (value) {
-                    if (value == null) {
-                      return;
-                    }
-                    setDialogState(() => role = value);
-                  },
-                ),
-              ],
-            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
     );
 
     if (shouldSave != true) {
@@ -120,9 +135,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Staff member saved.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Staff member saved.')));
     await _reload();
   }
 
@@ -142,22 +157,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${request.email} rejected.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${request.email} rejected.')));
     await _reload();
   }
 
   Future<void> _bulkApprove(List<AccessRequest> requests) async {
-    final selected = requests
-        .where((request) => _selectedRequestIds.contains(request.id))
-        .map(
-          (request) => {
-            'requestId': request.id,
-            'role': _requestRoles[request.id] ?? request.roleRequested,
-          },
-        )
-        .toList();
+    final selected =
+        requests
+            .where((request) => _selectedRequestIds.contains(request.id))
+            .map(
+              (request) => {
+                'requestId': request.id,
+                'role': _requestRoles[request.id] ?? request.roleRequested,
+              },
+            )
+            .toList();
     if (selected.isEmpty) {
       return;
     }
@@ -178,22 +194,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Pending Requests'),
-        content: Text(
-          'Delete ${_selectedRequestIds.length} pending request(s) and remove those pending users?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Pending Requests'),
+            content: Text(
+              'Delete ${_selectedRequestIds.length} pending request(s) and remove those pending users?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (shouldDelete != true) {
@@ -205,7 +222,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_selectedRequestIds.length} requests deleted.')),
+      SnackBar(
+        content: Text('${_selectedRequestIds.length} requests deleted.'),
+      ),
     );
     await _reload();
   }
@@ -218,29 +237,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     setState(() {
       _editingUserIds.remove(user.id);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${user.email} updated to $role.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${user.email} updated to $role.')));
     await _reload();
   }
 
   Future<void> _deleteStaff(ManagedUser user) async {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Staff Member'),
-        content: Text('Remove ${user.email} from staff access?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Staff Member'),
+            content: Text('Remove ${user.email} from staff access?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (shouldDelete != true) {
@@ -251,9 +271,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${user.email} deleted.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${user.email} deleted.')));
     await _reload();
   }
 
@@ -278,9 +298,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return ListView(
-            children: [Center(child: Text('${snapshot.error}'))],
-          );
+          return ListView(children: [Center(child: Text('${snapshot.error}'))]);
         }
 
         final overview = snapshot.data!;
@@ -289,7 +307,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         final users = overview.users;
         final canManageSuperAdmins = overview.permissions.canManageSuperAdmins;
         final allSelected =
-            requests.isNotEmpty && _selectedRequestIds.length == requests.length;
+            requests.isNotEmpty &&
+            _selectedRequestIds.length == requests.length;
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
@@ -337,10 +356,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   title: 'Pending',
                   value: '${summary.pendingRequests}',
                 ),
-                _SummaryCard(
-                  title: 'Admins',
-                  value: '${summary.adminCount}',
-                ),
+                _SummaryCard(title: 'Admins', value: '${summary.adminCount}'),
               ],
             ),
             const SizedBox(height: 22),
@@ -349,16 +365,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const Expanded(
                   child: Text(
                     'Pending Requests',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   ),
                 ),
                 if (requests.isNotEmpty)
                   TextButton(
-                    onPressed: () =>
-                        _toggleSelectAllRequests(requests, !allSelected),
+                    onPressed:
+                        () => _toggleSelectAllRequests(requests, !allSelected),
                     child: Text(allSelected ? 'Clear All' : 'Select All'),
                   ),
               ],
@@ -427,31 +440,32 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         initialValue: selectedRole,
-                        items: canManageSuperAdmins
-                            ? const [
-                                DropdownMenuItem(
-                                  value: 'sales',
-                                  child: Text('Sales'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'admin',
-                                  child: Text('Admin'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'superadmin',
-                                  child: Text('Superadmin'),
-                                ),
-                              ]
-                            : const [
-                                DropdownMenuItem(
-                                  value: 'sales',
-                                  child: Text('Sales'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'admin',
-                                  child: Text('Admin'),
-                                ),
-                              ],
+                        items:
+                            canManageSuperAdmins
+                                ? const [
+                                  DropdownMenuItem(
+                                    value: 'sales',
+                                    child: Text('Sales'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'admin',
+                                    child: Text('Admin'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'superadmin',
+                                    child: Text('Superadmin'),
+                                  ),
+                                ]
+                                : const [
+                                  DropdownMenuItem(
+                                    value: 'sales',
+                                    child: Text('Sales'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'admin',
+                                    child: Text('Admin'),
+                                  ),
+                                ],
                         onChanged: (value) {
                           if (value == null) {
                             return;
@@ -465,7 +479,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       Row(
                         children: [
                           FilledButton(
-                            onPressed: () => _approveRequest(request, selectedRole),
+                            onPressed:
+                                () => _approveRequest(request, selectedRole),
                             child: const Text('Approve'),
                           ),
                           const SizedBox(width: 10),
@@ -489,36 +504,25 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               final selectedRole = _staffRoles[user.id] ?? user.role;
               final isEditing = _editingUserIds.contains(user.id);
               final isSelf =
-                  user.email.toLowerCase() == widget.currentUser.email.toLowerCase();
+                  user.email.toLowerCase() ==
+                  widget.currentUser.email.toLowerCase();
               final canManage =
                   !isSelf &&
                   (user.role != 'superadmin' || canManageSuperAdmins);
               final roleItems =
                   user.role == 'superadmin' || canManageSuperAdmins
                       ? const [
-                          DropdownMenuItem(
-                            value: 'sales',
-                            child: Text('Sales'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'admin',
-                            child: Text('Admin'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'superadmin',
-                            child: Text('Superadmin'),
-                          ),
-                        ]
+                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                        DropdownMenuItem(
+                          value: 'superadmin',
+                          child: Text('Superadmin'),
+                        ),
+                      ]
                       : const [
-                          DropdownMenuItem(
-                            value: 'sales',
-                            child: Text('Sales'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'admin',
-                            child: Text('Admin'),
-                          ),
-                        ];
+                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                      ];
 
               return _SectionCard(
                 child: Column(
@@ -544,20 +548,35 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       'Station ${user.stationId}',
                       style: const TextStyle(color: Color(0xFF55606E)),
                     ),
+                    Text(
+                      'Added on ${formatDateLabel(user.createdAt.toIso8601String())}',
+                      style: const TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    if (user.requestCreatedAt != null)
+                      Text(
+                        'Requested on ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
+                        style: const TextStyle(color: Color(0xFF55606E)),
+                      ),
+                    if (user.reviewedAt != null)
+                      Text(
+                        'Reviewed on ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
+                        style: const TextStyle(color: Color(0xFF55606E)),
+                      ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: selectedRole,
                       items: roleItems,
-                      onChanged: isEditing && canManage
-                          ? (value) {
-                              if (value == null) {
-                                return;
+                      onChanged:
+                          isEditing && canManage
+                              ? (value) {
+                                if (value == null) {
+                                  return;
+                                }
+                                setState(() {
+                                  _staffRoles[user.id] = value;
+                                });
                               }
-                              setState(() {
-                                _staffRoles[user.id] = value;
-                              });
-                            }
-                          : null,
+                              : null,
                     ),
                     const SizedBox(height: 12),
                     if (canManage && !isEditing)
@@ -611,10 +630,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     );
 
     if (widget.embedded) {
-      return RefreshIndicator(
-        onRefresh: _reload,
-        child: content,
-      );
+      return RefreshIndicator(onRefresh: _reload, child: content);
     }
 
     return Scaffold(
@@ -630,19 +646,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           );
         },
       ),
-      body: RefreshIndicator(
-        onRefresh: _reload,
-        child: content,
-      ),
+      body: RefreshIndicator(onRefresh: _reload, child: content),
     );
   }
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-  });
+  const _SummaryCard({required this.title, required this.value});
 
   final String title;
   final String value;

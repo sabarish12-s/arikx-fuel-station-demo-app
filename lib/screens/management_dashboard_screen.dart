@@ -64,10 +64,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           final data = snapshot.data!;
           const int totalEntries = 1;
           final double completionRatio = data.entriesCompleted > 0 ? 1 : 0;
-          final double totalVolume = data.petrolSold + data.dieselSold + data.twoTSold;
-          final double profitRatio = data.revenue <= 0
-              ? 0
-              : (data.profit / data.revenue).clamp(0, 1).toDouble();
+          final double totalVolume =
+              data.petrolSold + data.dieselSold + data.twoTSold;
+          final double profitRatio =
+              data.revenue <= 0
+                  ? 0
+                  : (data.profit / data.revenue).clamp(0, 1).toDouble();
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
@@ -211,46 +213,24 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                       subtitle: 'Today by volume',
                       child: SizedBox(
                         height: 180,
-                        child: totalVolume <= 0
-                            ? const Center(child: Text('No fuel movement yet'))
-                            : Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  PieChart(
-                                    PieChartData(
-                                      sectionsSpace: 3,
-                                      centerSpaceRadius: 40,
-                                      sections: [
-                                        PieChartSectionData(
-                                          value: data.petrolSold,
-                                          color: const Color(0xFF1E5CBA),
-                                          title:
-                                              '${((data.petrolSold / totalVolume) * 100).round()}%',
-                                          radius: 42,
-                                          titleStyle: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        PieChartSectionData(
-                                          value: data.dieselSold,
-                                          color: const Color(0xFF0F9D58),
-                                          title:
-                                              '${((data.dieselSold / totalVolume) * 100).round()}%',
-                                          radius: 42,
-                                          titleStyle: const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                        if (data.twoTSold > 0)
+                        child:
+                            totalVolume <= 0
+                                ? const Center(
+                                  child: Text('No fuel movement yet'),
+                                )
+                                : Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    PieChart(
+                                      PieChartData(
+                                        sectionsSpace: 3,
+                                        centerSpaceRadius: 40,
+                                        sections: [
                                           PieChartSectionData(
-                                            value: data.twoTSold,
-                                            color: const Color(0xFFB45309),
+                                            value: data.petrolSold,
+                                            color: const Color(0xFF1E5CBA),
                                             title:
-                                                '${((data.twoTSold / totalVolume) * 100).round()}%',
+                                                '${((data.petrolSold / totalVolume) * 100).round()}%',
                                             radius: 42,
                                             titleStyle: const TextStyle(
                                               color: Colors.white,
@@ -258,30 +238,55 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                                               fontSize: 12,
                                             ),
                                           ),
+                                          PieChartSectionData(
+                                            value: data.dieselSold,
+                                            color: const Color(0xFF0F9D58),
+                                            title:
+                                                '${((data.dieselSold / totalVolume) * 100).round()}%',
+                                            radius: 42,
+                                            titleStyle: const TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          if (data.twoTSold > 0)
+                                            PieChartSectionData(
+                                              value: data.twoTSold,
+                                              color: const Color(0xFFB45309),
+                                              title:
+                                                  '${((data.twoTSold / totalVolume) * 100).round()}%',
+                                              radius: 42,
+                                              titleStyle: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text(
+                                          'Total',
+                                          style: TextStyle(
+                                            color: Color(0xFF55606E),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        Text(
+                                          formatLiters(totalVolume),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            color: Color(0xFF293340),
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text(
-                                        'Total',
-                                        style: TextStyle(
-                                          color: Color(0xFF55606E),
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      Text(
-                                        formatLiters(totalVolume),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          color: Color(0xFF293340),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
                       ),
                     ),
                   ),
@@ -314,14 +319,19 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                                           'Flagged',
                                         ];
                                         final index = value.toInt();
-                                        if (index < 0 || index >= labels.length) {
+                                        if (index < 0 ||
+                                            index >= labels.length) {
                                           return const SizedBox.shrink();
                                         }
                                         return Padding(
-                                          padding: const EdgeInsets.only(top: 8),
+                                          padding: const EdgeInsets.only(
+                                            top: 8,
+                                          ),
                                           child: Text(
                                             labels[index],
-                                            style: const TextStyle(fontSize: 11),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
                                           ),
                                         );
                                       },
@@ -345,11 +355,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                                     x: 1,
                                     barRods: [
                                       BarChartRodData(
-                                        toY: totalEntries == 0
-                                            ? 0
-                                            : (approvedEntryCount(data) /
-                                                      totalEntries) *
-                                                  100,
+                                        toY:
+                                            totalEntries == 0
+                                                ? 0
+                                                : (approvedEntryCount(data) /
+                                                        totalEntries) *
+                                                    100,
                                         width: 22,
                                         borderRadius: BorderRadius.circular(8),
                                         color: const Color(0xFF1E5CBA),
@@ -360,10 +371,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                                     x: 2,
                                     barRods: [
                                       BarChartRodData(
-                                        toY: totalEntries == 0
-                                            ? 0
-                                            : (data.flaggedCount / totalEntries) *
-                                                  100,
+                                        toY:
+                                            totalEntries == 0
+                                                ? 0
+                                                : (data.flaggedCount /
+                                                        totalEntries) *
+                                                    100,
                                         width: 22,
                                         borderRadius: BorderRadius.circular(8),
                                         color: const Color(0xFFB91C1C),
@@ -403,30 +416,33 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   children: [
                     _DashboardAction(
                       title: 'Entry Management',
-                      subtitle: 'Review, edit, approve, or add live daily entries',
+                      subtitle:
+                          'Review, edit, approve, or add live daily entries',
                       icon: Icons.edit_note_rounded,
                       onTap: widget.onOpenEntries,
                     ),
                     const SizedBox(height: 10),
                     _DashboardAction(
                       title: 'Monthly Reports',
-                      subtitle: 'Open charts, date filters, exports, and sharing',
+                      subtitle:
+                          'Open charts, date filters, exports, and sharing',
                       icon: Icons.bar_chart_rounded,
                       onTap: widget.onOpenReports,
                     ),
                     const SizedBox(height: 10),
                     _DashboardAction(
                       title: 'Inventory Dashboard',
-                      subtitle: 'Track current stock and selling prices',
+                      subtitle: 'Track meter-based sales and selling prices',
                       icon: Icons.local_gas_station_rounded,
                       onTap: widget.onOpenInventory,
                     ),
                     const SizedBox(height: 10),
                     _DashboardAction(
                       title: 'Settings',
-                      subtitle: widget.user.role == 'superadmin'
-                          ? 'Manage users, pricing, fuel types, and station setup'
-                          : 'Manage station setup, pricing, and fuel catalog',
+                      subtitle:
+                          widget.user.role == 'superadmin'
+                              ? 'Manage users, pricing, fuel types, and station setup'
+                              : 'Manage station setup, pricing, and fuel catalog',
                       icon: Icons.settings_rounded,
                       onTap: widget.onOpenSettings ?? widget.onOpenUsers,
                     ),
@@ -438,19 +454,22 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 title: 'Recent Entries Snapshot',
                 subtitle: 'Visual revenue bars with live review status',
                 child: Column(
-                  children: data.recentEntries.isEmpty
-                      ? const [Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Text('No recent entries yet'),
-                        )]
-                      : data.recentEntries
-                          .map(
-                            (entry) => _RecentEntryTile(
-                              entry: entry,
-                              maxRevenue: maxRevenue(data),
+                  children:
+                      data.recentEntries.isEmpty
+                          ? const [
+                            Padding(
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: Text('No recent entries yet'),
                             ),
-                          )
-                          .toList(),
+                          ]
+                          : data.recentEntries
+                              .map(
+                                (entry) => _RecentEntryTile(
+                                  entry: entry,
+                                  maxRevenue: maxRevenue(data),
+                                ),
+                              )
+                              .toList(),
                 ),
               ),
             ],
@@ -461,7 +480,9 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   }
 
   int approvedEntryCount(ManagementDashboardModel data) {
-    return data.recentEntries.where((entry) => entry.status == 'approved').length;
+    return data.recentEntries
+        .where((entry) => entry.status == 'approved')
+        .length;
   }
 
   double maxRevenue(ManagementDashboardModel data) {
@@ -476,10 +497,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 }
 
 class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
-    required this.label,
-    required this.value,
-  });
+  const _HeroMetric({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -594,10 +612,7 @@ class _ChartCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Color(0xFF55606E)),
-          ),
+          Text(subtitle, style: const TextStyle(color: Color(0xFF55606E))),
           const SizedBox(height: 16),
           child,
         ],
@@ -607,10 +622,7 @@ class _ChartCard extends StatelessWidget {
 }
 
 class _LegendRow extends StatelessWidget {
-  const _LegendRow({
-    required this.color,
-    required this.label,
-  });
+  const _LegendRow({required this.color, required this.label});
 
   final Color color;
   final String label;
@@ -698,19 +710,17 @@ class _DashboardAction extends StatelessWidget {
 }
 
 class _RecentEntryTile extends StatelessWidget {
-  const _RecentEntryTile({
-    required this.entry,
-    required this.maxRevenue,
-  });
+  const _RecentEntryTile({required this.entry, required this.maxRevenue});
 
   final ShiftEntryModel entry;
   final double maxRevenue;
 
   @override
   Widget build(BuildContext context) {
-    final Color statusColor = entry.flagged
-        ? const Color(0xFFB91C1C)
-        : entry.status == 'approved'
+    final Color statusColor =
+        entry.flagged
+            ? const Color(0xFFB91C1C)
+            : entry.status == 'approved'
             ? const Color(0xFF0F9D58)
             : const Color(0xFF1E5CBA);
     final double ratio = (entry.revenue / maxRevenue).clamp(0, 1).toDouble();
@@ -737,7 +747,10 @@ class _RecentEntryTile extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),

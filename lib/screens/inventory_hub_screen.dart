@@ -27,14 +27,18 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     final results = await Future.wait([
       _inventoryService.fetchStationConfig(),
       _inventoryService.fetchPrices(),
-      _managementService.fetchEntries(month: currentMonthKey()),
+      _managementService.fetchEntries(
+        month: currentMonthKey(),
+        approvedOnly: true,
+      ),
     ]);
 
     final station = results[0] as StationConfigModel;
     final prices = results[1] as List<FuelPriceModel>;
     final entries = results[2] as List<ShiftEntryModel>;
     final today = DateTime.now().toIso8601String().split('T').first;
-    final todaysEntries = entries.where((entry) => entry.date == today).toList();
+    final todaysEntries =
+        entries.where((entry) => entry.date == today).toList();
     final latestEntry = entries.isEmpty ? null : entries.last;
 
     final currentPetrol = latestEntry?.totals.closing.petrol ?? 0;
@@ -51,7 +55,11 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
         diesel += entry.soldByPump[pump.id]?.diesel ?? 0;
         twoT += entry.soldByPump[pump.id]?.twoT ?? 0;
       }
-      pumpSales[pump.id] = PumpReadings(petrol: petrol, diesel: diesel, twoT: twoT);
+      pumpSales[pump.id] = PumpReadings(
+        petrol: petrol,
+        diesel: diesel,
+        twoT: twoT,
+      );
     }
 
     final priceMap = {for (final price in prices) price.fuelTypeId: price};
@@ -164,8 +172,8 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     const SizedBox(height: 6),
                     Text(
                       data.latestEntry == null
-                          ? 'No completed shift entry yet for station-level stock.'
-                          : 'Latest stock update: ${formatDateLabel(data.latestEntry!.date)}',
+                          ? 'No approved meter update yet for station-level readings.'
+                          : 'Latest approved meter update: ${formatDateLabel(data.latestEntry!.date)}',
                       style: const TextStyle(color: Color(0xFF55606E)),
                     ),
                     const SizedBox(height: 14),
@@ -199,67 +207,66 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Pump cards now track current sales only. No pump stock is shown anywhere.',
+                      'Pump cards now track current sales from meter readings only.',
                       style: TextStyle(color: Color(0xFF55606E)),
                     ),
                     const SizedBox(height: 14),
-                    ...data.station.pumps.map(
-                      (pump) {
-                        final sales = data.pumpSales[pump.id] ??
-                            const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FF),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                pump.label,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 18,
-                                  color: Color(0xFF293340),
-                                ),
+                    ...data.station.pumps.map((pump) {
+                      final sales =
+                          data.pumpSales[pump.id] ??
+                          const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              formatPumpLabel(pump.id, pump.label),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                                color: Color(0xFF293340),
                               ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _PumpMetric(
-                                      label: 'Petrol sold',
-                                      value: formatLiters(sales.petrol),
-                                      color: const Color(0xFF1E5CBA),
-                                    ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _PumpMetric(
+                                    label: 'Petrol sold',
+                                    value: formatLiters(sales.petrol),
+                                    color: const Color(0xFF1E5CBA),
                                   ),
-                                  const SizedBox(width: 12),
-                              Expanded(
-                                child: _PumpMetric(
-                                  label: 'Diesel sold',
-                                  value: formatLiters(sales.diesel),
-                                  color: const Color(0xFF006C5C),
                                 ),
-                              ),
-                              if (pump.id == 'pump2') ...[
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _PumpMetric(
-                                    label: '2T oil sold',
-                                    value: formatLiters(sales.twoT),
-                                    color: const Color(0xFFB45309),
+                                    label: 'Diesel sold',
+                                    value: formatLiters(sales.diesel),
+                                    color: const Color(0xFF006C5C),
                                   ),
                                 ),
+                                if (pump.id == 'pump2') ...[
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _PumpMetric(
+                                      label: '2T oil sold',
+                                      value: formatLiters(sales.twoT),
+                                      color: const Color(0xFFB45309),
+                                    ),
+                                  ),
+                                ],
                               ],
-                            ],
-                          ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),

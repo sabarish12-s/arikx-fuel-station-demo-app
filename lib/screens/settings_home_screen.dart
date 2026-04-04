@@ -7,10 +7,7 @@ import 'station_settings_screen.dart';
 import 'user_management_screen.dart';
 
 class SettingsHomeScreen extends StatefulWidget {
-  const SettingsHomeScreen({
-    super.key,
-    required this.user,
-  });
+  const SettingsHomeScreen({super.key, required this.user});
 
   final AuthUser user;
 
@@ -31,92 +28,126 @@ class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_panel == _SettingsPanel.userManagement) {
-      return UserManagementScreen(
-        currentUser: widget.user,
-        embedded: true,
-        onBack: () {
-          setState(() {
-            _panel = _SettingsPanel.home;
-          });
-        },
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(18),
-      children: [
-        const Text(
-          'Manage station setup, pricing, fuel catalog, and access controls.',
-          style: TextStyle(color: Color(0xFF55606E)),
-        ),
-        const SizedBox(height: 16),
-        _SettingsTile(
-          title: 'Station Settings',
-          subtitle: _canEditStationSettings
-              ? 'View station setup first, then edit labels and shifts when needed'
-              : 'View station layout, shifts, and fixed pump configuration',
-          icon: Icons.settings_suggest_outlined,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    StationSettingsScreen(canEdit: _canEditStationSettings),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        _SettingsTile(
-          title: 'Fuel Price Settings',
-          subtitle: _canEditPrices
-              ? 'Update cost and selling prices'
-              : 'View current fuel prices',
-          icon: Icons.payments_outlined,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => FuelPriceSettingsScreen(canEdit: _canEditPrices),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        _SettingsTile(
-          title: 'Fuel Type Manager',
-          subtitle: _canEditFuelTypes
-              ? 'Maintain the active fuel catalog'
-              : 'View available fuel types',
-          icon: Icons.category_outlined,
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) =>
-                    FuelTypeManagerScreen(canEdit: _canEditFuelTypes),
-              ),
-            );
-          },
-        ),
-        if (_isSuperAdmin) ...[
-          const SizedBox(height: 12),
-          _SettingsTile(
-            title: 'User Management',
-            subtitle: 'Approve requests and manage staff access',
-            icon: Icons.manage_accounts_outlined,
-            onTap: () {
-              setState(() {
-                _panel = _SettingsPanel.userManagement;
-              });
-            },
-          ),
-        ],
-      ],
+    return PopScope(
+      canPop: _panel == _SettingsPanel.home,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || _panel == _SettingsPanel.home) {
+          return;
+        }
+        setState(() {
+          _panel = _SettingsPanel.home;
+        });
+      },
+      child: _buildCurrentPanel(),
     );
+  }
+
+  Widget _buildCurrentPanel() {
+    switch (_panel) {
+      case _SettingsPanel.stationSettings:
+        return StationSettingsScreen(
+          canEdit: _canEditStationSettings,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.fuelPriceSettings:
+        return FuelPriceSettingsScreen(
+          canEdit: _canEditPrices,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.fuelTypeManager:
+        return FuelTypeManagerScreen(
+          canEdit: _canEditFuelTypes,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.userManagement:
+        return UserManagementScreen(
+          currentUser: widget.user,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.home:
+        return ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            const Text(
+              'Manage station setup, pricing, fuel catalog, and access controls.',
+              style: TextStyle(color: Color(0xFF55606E)),
+            ),
+            const SizedBox(height: 16),
+            _SettingsTile(
+              title: 'Station Settings',
+              subtitle:
+                  _canEditStationSettings
+                      ? 'View station setup first, then edit labels and shifts when needed'
+                      : 'View station layout, shifts, and fixed pump configuration',
+              icon: Icons.settings_suggest_outlined,
+              onTap: () {
+                setState(() {
+                  _panel = _SettingsPanel.stationSettings;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _SettingsTile(
+              title: 'Fuel Price Settings',
+              subtitle:
+                  _canEditPrices
+                      ? 'Update cost and selling prices'
+                      : 'View current fuel prices',
+              icon: Icons.payments_outlined,
+              onTap: () {
+                setState(() {
+                  _panel = _SettingsPanel.fuelPriceSettings;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _SettingsTile(
+              title: 'Fuel Type Manager',
+              subtitle:
+                  _canEditFuelTypes
+                      ? 'Maintain the active fuel catalog'
+                      : 'View available fuel types',
+              icon: Icons.category_outlined,
+              onTap: () {
+                setState(() {
+                  _panel = _SettingsPanel.fuelTypeManager;
+                });
+              },
+            ),
+            if (_isSuperAdmin) ...[
+              const SizedBox(height: 12),
+              _SettingsTile(
+                title: 'User Management',
+                subtitle: 'Approve requests and manage staff access',
+                icon: Icons.manage_accounts_outlined,
+                onTap: () {
+                  setState(() {
+                    _panel = _SettingsPanel.userManagement;
+                  });
+                },
+              ),
+            ],
+          ],
+        );
+    }
+  }
+
+  void _showHome() {
+    setState(() {
+      _panel = _SettingsPanel.home;
+    });
   }
 }
 
 enum _SettingsPanel {
   home,
+  stationSettings,
+  fuelPriceSettings,
+  fuelTypeManager,
   userManagement,
 }
 
