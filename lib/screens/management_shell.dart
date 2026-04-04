@@ -3,15 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_logo.dart';
-import 'fuel_price_settings_screen.dart';
-import 'fuel_type_manager_screen.dart';
 import 'inventory_hub_screen.dart';
 import 'management_dashboard_screen.dart';
 import 'entry_management_screen.dart';
 import 'login_screen.dart';
 import 'monthly_report_screen.dart';
 import 'settings_home_screen.dart';
-import 'user_management_screen.dart';
 
 class ManagementShell extends StatefulWidget {
   const ManagementShell({super.key, required this.user});
@@ -25,9 +22,27 @@ class ManagementShell extends StatefulWidget {
 class _ManagementShellState extends State<ManagementShell> {
   int _index = 0;
 
-  bool get _isSuperAdmin => widget.user.role == 'superadmin';
-
   Future<void> _logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (shouldLogout != true) {
+      return;
+    }
     await AuthService().signOut();
     if (!mounted) {
       return;
@@ -48,36 +63,13 @@ class _ManagementShellState extends State<ManagementShell> {
         onOpenInventory: () => setState(() => _index = 3),
         onOpenUsers: () => setState(() => _index = 4),
         onOpenSettings: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const SettingsHomeScreen()),
-          );
+          setState(() => _index = 4);
         },
       ),
       const EntryManagementScreen(),
       const MonthlyReportScreen(),
-      InventoryHubScreen(
-        canManage: _isSuperAdmin,
-        onOpenFuelTypes: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => FuelTypeManagerScreen(canEdit: _isSuperAdmin),
-            ),
-          );
-        },
-        onOpenPrices: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => FuelPriceSettingsScreen(canEdit: _isSuperAdmin),
-            ),
-          );
-        },
-        onOpenSettings: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const SettingsHomeScreen()),
-          );
-        },
-      ),
-      _isSuperAdmin ? const UserManagementScreen() : const SettingsHomeScreen(),
+      const InventoryHubScreen(),
+      SettingsHomeScreen(user: widget.user),
     ];
 
     return Scaffold(
@@ -129,7 +121,7 @@ class _ManagementShellState extends State<ManagementShell> {
           ),
           NavigationDestination(
             icon: Icon(Icons.manage_accounts_outlined),
-            label: 'Access',
+            label: 'Settings',
           ),
         ],
       ),
@@ -139,15 +131,15 @@ class _ManagementShellState extends State<ManagementShell> {
   String _titleForIndex(int index) {
     switch (index) {
       case 1:
-        return 'Entry Management';
+        return 'Entries';
       case 2:
-        return 'Monthly Report';
+        return 'Reports';
       case 3:
         return 'Inventory';
       case 4:
-        return _isSuperAdmin ? 'Users & Settings' : 'Station Settings';
+        return 'Settings';
       default:
-        return 'RK Fuels Admin';
+        return 'Dashboard';
     }
   }
 }

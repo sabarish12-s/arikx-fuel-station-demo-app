@@ -10,6 +10,27 @@ class AccountScreen extends StatelessWidget {
 
   final AuthUser user;
 
+  Future<bool> _confirmLogout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Logout'),
+        content: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    return shouldLogout == true;
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -43,6 +64,10 @@ class AccountScreen extends StatelessWidget {
         const SizedBox(height: 16),
         FilledButton.icon(
           onPressed: () async {
+            final shouldLogout = await _confirmLogout(context);
+            if (!shouldLogout) {
+              return;
+            }
             await AuthService().signOut();
             if (!context.mounted) return;
             Navigator.of(context).pushAndRemoveUntil(

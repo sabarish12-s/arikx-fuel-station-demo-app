@@ -89,4 +89,17 @@ class InventoryService {
       _apiClient.decodeObject(response)['station'] as Map<String, dynamic>,
     );
   }
+
+  Future<StationConfigModel> saveStationConfig(StationConfigModel station) async {
+    final response = await _apiClient.put(
+      '/inventory/station-config',
+      body: jsonEncode(station.toJson()),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to save station config: ${response.body}');
+    }
+    return StationConfigModel.fromJson(
+      _apiClient.decodeObject(response)['station'] as Map<String, dynamic>,
+    );
+  }
 }

@@ -72,15 +72,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   color: Color(0xFF55606E),
                 ),
               ),
-              const SizedBox(height: 6),
-              const Text(
-                'Sales Dashboard',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF293340),
-                ),
-              ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(20),
@@ -128,6 +119,12 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                             value: formatLiters(data.dieselSold),
                           ),
                         ),
+                        Expanded(
+                          child: _MiniMetric(
+                            label: '2T Oil Sold',
+                            value: formatLiters(data.twoTSold),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -141,8 +138,8 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                         ),
                         Expanded(
                           child: _MiniMetric(
-                            label: 'Shifts Done',
-                            value: '${data.shiftsCompleted}/3',
+                            label: 'Entries Done',
+                            value: '${data.entriesCompleted}/1',
                           ),
                         ),
                       ],
@@ -152,9 +149,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               ),
               const SizedBox(height: 18),
               _ActionCard(
-                title: 'Enter Closing Stock',
+                title: 'Enter Daily Sales',
                 subtitle:
-                    'Next shift: ${formatShiftLabel(data.nextShift)} for ${formatDateLabel(data.date)}',
+                    'Create or review the daily entry for ${formatDateLabel(data.date)}',
                 icon: Icons.propane_tank_outlined,
                 iconBg: const Color(0xFF88F6DD),
                 onTap: widget.onOpenClosingStock,
@@ -177,7 +174,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               ),
               const SizedBox(height: 20),
               const Text(
-                'Live Shift Status',
+                'Today\'s Entry Status',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
@@ -207,7 +204,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          formatShiftLabel(entry.shift),
+                          'Daily Entry',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: entry.flagged
@@ -222,14 +219,16 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${formatLiters(entry.totals.sold.petrol)} petrol, ${formatLiters(entry.totals.sold.diesel)} diesel',
+                              '${formatLiters(entry.totals.sold.petrol)} petrol, ${formatLiters(entry.totals.sold.diesel)} diesel, ${formatLiters(entry.totals.sold.twoT)} 2T oil',
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF293340),
                               ),
                             ),
                             Text(
-                              entry.flagged ? entry.varianceNote : entry.status,
+                              entry.flagged
+                                  ? entry.varianceNote
+                                  : 'Collected ${formatCurrency(entry.paymentTotal)} - ${entry.status}',
                               style: const TextStyle(
                                 color: Color(0xFF55606E),
                                 fontSize: 12,

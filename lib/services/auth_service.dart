@@ -74,6 +74,31 @@ class AuthService {
     await prefs.setString(_userKey, jsonEncode(authResponse.user.toJson()));
   }
 
+  Future<void> _clearGoogleSession({bool revoke = false}) async {
+    final GoogleSignIn? googleSignIn = _googleSignIn;
+    if (googleSignIn == null) {
+      return;
+    }
+
+    if (revoke) {
+      try {
+        await googleSignIn.disconnect();
+      } catch (_) {
+        // Ignore disconnect failures and still try signOut below.
+      }
+    }
+
+    try {
+      await googleSignIn.signOut();
+    } catch (_) {
+      if (kDebugMode) {
+        print('Google sign out ignored.');
+      }
+    }
+
+    _googleSignIn = null;
+  }
+
   String _extractBackendError(http.Response response) {
     try {
       final Object? decoded = jsonDecode(response.body);
@@ -114,8 +139,10 @@ class AuthService {
       );
     }
 
-    final GoogleSignIn googleSignIn = await _getGoogleSignIn();
-    final GoogleSignInAccount? account = await googleSignIn.signIn();
+    await _getGoogleSignIn();
+    await _clearGoogleSession();
+    final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();
+    final GoogleSignInAccount? account = await freshGoogleSignIn.signIn();
     if (account == null) {
       throw Exception('Google Sign-In was cancelled.');
     }
@@ -169,13 +196,7 @@ class AuthService {
     final SharedPreferences prefs = await _prefs();
     await prefs.remove(_jwtKey);
     await prefs.remove(_userKey);
-    try {
-      await _googleSignIn?.signOut();
-    } catch (_) {
-      if (kDebugMode) {
-        print('Google sign out ignored.');
-      }
-    }
+    await _clearGoogleSession(revoke: true);
   }
 
   Future<AuthUser?> readCurrentUser() async {

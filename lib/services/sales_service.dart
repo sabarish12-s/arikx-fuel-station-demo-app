@@ -10,7 +10,12 @@ class SalesService {
   final ApiClient _apiClient;
 
   Future<SalesDashboardModel> fetchDashboard() async {
-    final response = await _apiClient.get('/sales/dashboard');
+    return fetchDashboardForDate();
+  }
+
+  Future<SalesDashboardModel> fetchDashboardForDate({String? date}) async {
+    final String suffix = date == null ? '' : '?date=$date';
+    final response = await _apiClient.get('/sales/dashboard$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load sales dashboard: ${response.body}');
     }
@@ -40,21 +45,71 @@ class SalesService {
 
   Future<ShiftEntryModel> submitEntry({
     required String date,
-    required String shift,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, String> pumpAttendants,
+    required Map<String, bool> pumpTesting,
+    required Map<String, PumpPaymentBreakdownModel> pumpPayments,
+    required Map<String, double> pumpCollections,
+    required PaymentBreakdownModel paymentBreakdown,
+    required List<CreditEntryModel> creditEntries,
+    String mismatchReason = '',
   }) async {
     final response = await _apiClient.post(
       '/sales/entries',
       body: jsonEncode({
         'date': date,
-        'shift': shift,
         'closingReadings': closingReadings.map(
           (key, value) => MapEntry(key, value.toJson()),
         ),
+        'pumpAttendants': pumpAttendants,
+        'pumpTesting': pumpTesting,
+        'pumpPayments': pumpPayments.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpCollections': pumpCollections,
+        'paymentBreakdown': paymentBreakdown.toJson(),
+        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'mismatchReason': mismatchReason,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to submit entry: ${response.body}');
+    }
+    final json = _apiClient.decodeObject(response);
+    return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
+  }
+
+  Future<ShiftEntryModel> previewEntry({
+    required String date,
+    required Map<String, PumpReadings> closingReadings,
+    required Map<String, String> pumpAttendants,
+    required Map<String, bool> pumpTesting,
+    required Map<String, PumpPaymentBreakdownModel> pumpPayments,
+    required Map<String, double> pumpCollections,
+    required PaymentBreakdownModel paymentBreakdown,
+    required List<CreditEntryModel> creditEntries,
+    String mismatchReason = '',
+  }) async {
+    final response = await _apiClient.post(
+      '/sales/entries/preview',
+      body: jsonEncode({
+        'date': date,
+        'closingReadings': closingReadings.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpAttendants': pumpAttendants,
+        'pumpTesting': pumpTesting,
+        'pumpPayments': pumpPayments.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpCollections': pumpCollections,
+        'paymentBreakdown': paymentBreakdown.toJson(),
+        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'mismatchReason': mismatchReason,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to preview entry: ${response.body}');
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);

@@ -31,7 +31,6 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Entry History')),
       body: Column(
         children: [
           Padding(
@@ -81,7 +80,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${formatDateLabel(entry.date)} - ${formatShiftLabel(entry.shift)}',
+                                  formatDateLabel(entry.date),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 17,
@@ -93,11 +92,25 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Petrol ${formatLiters(entry.totals.sold.petrol)} - Diesel ${formatLiters(entry.totals.sold.diesel)}',
+                            'Petrol ${formatLiters(entry.totals.sold.petrol)} - Diesel ${formatLiters(entry.totals.sold.diesel)} - 2T Oil ${formatLiters(entry.totals.sold.twoT)}',
                           ),
                           Text(
-                            'Revenue ${formatCurrency(entry.revenue)} - Profit ${formatCurrency(entry.profit)}',
+                            'Revenue ${formatCurrency(entry.revenue)} - Collected ${formatCurrency(entry.paymentTotal)}',
                           ),
+                          if (entry.pumpAttendants.values.any((name) => name.isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                entry.pumpAttendants.entries
+                                    .where((item) => item.value.isNotEmpty)
+                                    .map((item) => '${item.key}: ${item.value}')
+                                    .join('  •  '),
+                                style: const TextStyle(
+                                  color: Color(0xFF55606E),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                           if (entry.varianceNote.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 8),

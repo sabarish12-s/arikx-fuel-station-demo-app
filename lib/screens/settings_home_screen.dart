@@ -1,84 +1,178 @@
 import 'package:flutter/material.dart';
 
-import '../models/domain_models.dart';
-import '../services/inventory_service.dart';
-import '../utils/formatters.dart';
+import '../models/auth_models.dart';
+import 'fuel_price_settings_screen.dart';
+import 'fuel_type_manager_screen.dart';
+import 'station_settings_screen.dart';
+import 'user_management_screen.dart';
 
 class SettingsHomeScreen extends StatefulWidget {
-  const SettingsHomeScreen({super.key});
+  const SettingsHomeScreen({
+    super.key,
+    required this.user,
+  });
+
+  final AuthUser user;
 
   @override
   State<SettingsHomeScreen> createState() => _SettingsHomeScreenState();
 }
 
 class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
-  final InventoryService _inventoryService = InventoryService();
-  late Future<StationConfigModel> _future;
+  bool get _isSuperAdmin => widget.user.role == 'superadmin';
+  bool get _canEditFuelTypes =>
+      widget.user.role == 'admin' || widget.user.role == 'superadmin';
+  bool get _canEditPrices =>
+      widget.user.role == 'admin' || widget.user.role == 'superadmin';
+  bool get _canEditStationSettings =>
+      widget.user.role == 'admin' || widget.user.role == 'superadmin';
 
-  @override
-  void initState() {
-    super.initState();
-    _future = _inventoryService.fetchStationConfig();
-  }
+  _SettingsPanel _panel = _SettingsPanel.home;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings Home')),
-      body: FutureBuilder<StationConfigModel>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('${snapshot.error}'));
-          }
-          final station = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(18),
+    if (_panel == _SettingsPanel.userManagement) {
+      return UserManagementScreen(
+        currentUser: widget.user,
+        embedded: true,
+        onBack: () {
+          setState(() {
+            _panel = _SettingsPanel.home;
+          });
+        },
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        const Text(
+          'Manage station setup, pricing, fuel catalog, and access controls.',
+          style: TextStyle(color: Color(0xFF55606E)),
+        ),
+        const SizedBox(height: 16),
+        _SettingsTile(
+          title: 'Station Settings',
+          subtitle: _canEditStationSettings
+              ? 'View station setup first, then edit labels and shifts when needed'
+              : 'View station layout, shifts, and fixed pump configuration',
+          icon: Icons.settings_suggest_outlined,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    StationSettingsScreen(canEdit: _canEditStationSettings),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          title: 'Fuel Price Settings',
+          subtitle: _canEditPrices
+              ? 'Update cost and selling prices'
+              : 'View current fuel prices',
+          icon: Icons.payments_outlined,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => FuelPriceSettingsScreen(canEdit: _canEditPrices),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          title: 'Fuel Type Manager',
+          subtitle: _canEditFuelTypes
+              ? 'Maintain the active fuel catalog'
+              : 'View available fuel types',
+          icon: Icons.category_outlined,
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    FuelTypeManagerScreen(canEdit: _canEditFuelTypes),
+              ),
+            );
+          },
+        ),
+        if (_isSuperAdmin) ...[
+          const SizedBox(height: 12),
+          _SettingsTile(
+            title: 'User Management',
+            subtitle: 'Approve requests and manage staff access',
+            icon: Icons.manage_accounts_outlined,
+            onTap: () {
+              setState(() {
+                _panel = _SettingsPanel.userManagement;
+              });
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+enum _SettingsPanel {
+  home,
+  userManagement,
+}
+
+class _SettingsTile extends StatelessWidget {
+  const _SettingsTile({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                ),
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFE9EEF7),
+                child: Icon(icon, color: const Color(0xFF1E5CBA)),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      station.name,
+                      title,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF293340),
                       ),
                     ),
-                    Text('${station.city} - ${station.code}'),
-                    const SizedBox(height: 14),
-                    Text('Shifts: ${station.shifts.map(formatShiftLabel).join(', ')}'),
-                    const SizedBox(height: 8),
-                    Text('Pumps: ${station.pumps.map((pump) => pump.label).join(', ')}'),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(color: Color(0xFF55606E)),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              ...station.baseReadings.entries.map(
-                (entry) => Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Text(
-                    '${entry.key}: Petrol ${formatLiters(entry.value.petrol)} - Diesel ${formatLiters(entry.value.diesel)}',
-                  ),
-                ),
-              ),
+              const Icon(Icons.chevron_right_rounded),
             ],
-          );
-        },
+          ),
+        ),
       ),
     );
   }

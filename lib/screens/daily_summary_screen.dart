@@ -23,76 +23,92 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Daily Summary')),
-      body: FutureBuilder<DailySummaryModel>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('${snapshot.error}'));
-          }
-          final data = snapshot.data!;
-          return ListView(
-            padding: const EdgeInsets.all(18),
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      formatDateLabel(data.date),
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w900,
-                      ),
+    return FutureBuilder<DailySummaryModel>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('${snapshot.error}'));
+        }
+        final data = snapshot.data!;
+        final entry = data.entries.isEmpty ? null : data.entries.first;
+
+        return ListView(
+          padding: const EdgeInsets.all(18),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formatDateLabel(data.date),
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 14),
-                    Text('Revenue ${formatCurrency(data.revenue)}'),
-                    Text('Profit ${formatCurrency(data.profit)}'),
-                    Text('Petrol sold ${formatLiters(data.petrolSold)}'),
-                    Text('Diesel sold ${formatLiters(data.dieselSold)}'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Shift Distribution',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 10),
-              ...data.distribution.map(
-                (item) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          formatShiftLabel(item.shift),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                  const SizedBox(height: 14),
+                  Text('Revenue ${formatCurrency(data.revenue)}'),
+                  Text('Collected ${formatCurrency(data.paymentTotal)}'),
+                  Text('Profit ${formatCurrency(data.profit)}'),
+                  Text('Petrol sold ${formatLiters(data.petrolSold)}'),
+                  Text('Diesel sold ${formatLiters(data.dieselSold)}'),
+                  Text('2T oil sold ${formatLiters(data.twoTSold)}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: entry == null
+                  ? const Text('No daily entry saved for this date.')
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payment Breakdown',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                      Text(formatCurrency(item.revenue)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Cash ${formatCurrency(entry.paymentBreakdown.cash)}',
+                        ),
+                        Text(
+                          'Check ${formatCurrency(entry.paymentBreakdown.check)}',
+                        ),
+                        Text(
+                          'UPI ${formatCurrency(entry.paymentBreakdown.upi)}',
+                        ),
+                        Text(
+                          'Credit ${formatCurrency(entry.creditEntries.fold<double>(0, (sum, item) => sum + item.amount))}',
+                        ),
+                        if (entry.varianceNote.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            entry.varianceNote,
+                            style: const TextStyle(color: Color(0xFFB91C1C)),
+                          ),
+                        ],
+                      ],
+                    ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

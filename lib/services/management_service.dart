@@ -32,6 +32,13 @@ class ManagementService {
   Future<ShiftEntryModel> updateEntry({
     required String entryId,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, String> pumpAttendants,
+    required Map<String, bool> pumpTesting,
+    required Map<String, PumpPaymentBreakdownModel> pumpPayments,
+    required Map<String, double> pumpCollections,
+    required PaymentBreakdownModel paymentBreakdown,
+    required List<CreditEntryModel> creditEntries,
+    String mismatchReason = '',
   }) async {
     final response = await _apiClient.patch(
       '/management/entries/$entryId',
@@ -39,6 +46,15 @@ class ManagementService {
         'closingReadings': closingReadings.map(
           (key, value) => MapEntry(key, value.toJson()),
         ),
+        'pumpAttendants': pumpAttendants,
+        'pumpTesting': pumpTesting,
+        'pumpPayments': pumpPayments.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpCollections': pumpCollections,
+        'paymentBreakdown': paymentBreakdown.toJson(),
+        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'mismatchReason': mismatchReason,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -57,8 +73,24 @@ class ManagementService {
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
   }
 
-  Future<MonthlyReportModel> fetchMonthlyReport({String? month}) async {
-    final String suffix = month == null ? '' : '?month=$month';
+  Future<MonthlyReportModel> fetchMonthlyReport({
+    String? month,
+    String? fromDate,
+    String? toDate,
+  }) async {
+    final params = <String, String>{};
+    if (month != null && month.isNotEmpty) {
+      params['month'] = month;
+    }
+    if (fromDate != null && fromDate.isNotEmpty) {
+      params['from'] = fromDate;
+    }
+    if (toDate != null && toDate.isNotEmpty) {
+      params['to'] = toDate;
+    }
+    final String suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/reports/monthly$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load monthly report: ${response.body}');

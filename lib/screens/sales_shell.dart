@@ -67,11 +67,11 @@ class _SalesShellState extends State<SalesShell> {
           ),
           NavigationDestination(
             icon: Icon(Icons.inventory_2_outlined),
-            label: 'Inventory',
+            label: 'Sales',
           ),
           NavigationDestination(
             icon: Icon(Icons.local_shipping_outlined),
-            label: 'Logistics',
+            label: 'History',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline_rounded),
@@ -85,13 +85,13 @@ class _SalesShellState extends State<SalesShell> {
   String _titleForIndex(int index) {
     switch (index) {
       case 1:
-        return 'Closing Stock';
+        return 'Sales';
       case 2:
-        return 'Entry History';
+        return 'History';
       case 3:
         return 'Account';
       default:
-        return 'RK Fuels';
+        return 'Dashboard';
     }
   }
 }
