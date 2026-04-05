@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/credit_service.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../widgets/daily_entry_dialogs.dart';
@@ -30,7 +31,9 @@ class EntryWorkflowScreen extends StatefulWidget {
 
 class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   final SalesService _salesService = SalesService();
+  final CreditService _creditService = CreditService();
   late DailyEntryDraft _draft;
+  List<CreditCustomerSummaryModel> _suggestedCustomers = const [];
   bool _submitting = false;
   String? _error;
 
@@ -38,6 +41,19 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   void initState() {
     super.initState();
     _draft = widget.initialDraft;
+    _loadSuggestedCustomers();
+  }
+
+  Future<void> _loadSuggestedCustomers() async {
+    try {
+      final customers = (await _creditService.fetchCustomers()).$2;
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _suggestedCustomers = customers;
+      });
+    } catch (_) {}
   }
 
   void _savePumpEdit(String pumpId, PumpEntryDraft pumpDraft) {
@@ -124,6 +140,21 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
         _issuedCreditTotal();
   }
 
+  Future<void> _editCreditEntries() async {
+    final result = await showCreditEntriesDialog(
+      context: context,
+      initialEntries: _draft.creditEntries,
+      expectedTotal: _pumpCreditTotal(),
+      suggestedCustomers: _suggestedCustomers,
+    );
+    if (!mounted || result == null) {
+      return;
+    }
+    setState(() {
+      _draft = _draft.copyWith(creditEntries: result);
+    });
+  }
+
   Future<void> _editPump(StationPumpModel pump) async {
     final result = await showPumpEntryDialog(
       context: context,
@@ -183,6 +214,19 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
         SnackBar(
           content: Text(
             'Enter collection for ${missingCollections.join(', ')} before review.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final pumpCreditTotal = _pumpCreditTotal();
+    final namedCreditTotal = _issuedCreditTotal();
+    if ((pumpCreditTotal - namedCreditTotal).abs() > 0.01) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Credit customer names must total ${formatCurrency(pumpCreditTotal)} before review.',
           ),
         ),
       );
@@ -440,6 +484,84 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                 _WorkflowTextRow(
                   label: 'Old credit collected',
                   value: formatCurrency(_collectionRecoveryTotal()),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FF),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Credit customer details',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _pumpCreditTotal() <= 0
+                            ? 'No pump credit entered yet. When credit sale is entered, add customer names here.'
+                            : 'Add customer-wise credit names for the pump credit total. Once approved, these names will be shown in Credit Ledger.',
+                        style: const TextStyle(
+                          color: Color(0xFF55606E),
+                          height: 1.4,
+                        ),
+                      ),
+                      if (_draft.creditEntries.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        ..._draft.creditEntries.map(
+                          (item) => Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.person_outline_rounded,
+                                  size: 18,
+                                  color: Color(0xFF1E5CBA),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      color: Color(0xFF293340),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  formatCurrency(item.amount),
+                                  style: const TextStyle(
+                                    color: Color(0xFF293340),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: _submitting ? null : _editCreditEntries,
+                          icon: const Icon(Icons.badge_outlined),
+                          label: Text(
+                            _draft.creditEntries.isNotEmpty
+                                ? 'Edit Credit Names'
+                                : 'Add Credit Names',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

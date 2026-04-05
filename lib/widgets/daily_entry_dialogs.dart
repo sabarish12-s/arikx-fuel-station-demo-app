@@ -1120,6 +1120,351 @@ Future<PaymentEntryDraft?> showPaymentEntryDialog({
   );
 }
 
+Future<List<CreditEntryModel>?> showCreditEntriesDialog({
+  required BuildContext context,
+  required List<CreditEntryModel> initialEntries,
+  required double expectedTotal,
+  List<CreditCustomerSummaryModel> suggestedCustomers = const [],
+}) async {
+  return showDialog<List<CreditEntryModel>>(
+    context: context,
+    barrierDismissible: false,
+    builder:
+        (_) => Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: _CreditEntriesDialog(
+            initialEntries: initialEntries,
+            expectedTotal: expectedTotal,
+            suggestedCustomers: suggestedCustomers,
+          ),
+        ),
+  );
+}
+
+class _CreditEntriesDialog extends StatefulWidget {
+  const _CreditEntriesDialog({
+    required this.initialEntries,
+    required this.expectedTotal,
+    required this.suggestedCustomers,
+  });
+
+  final List<CreditEntryModel> initialEntries;
+  final double expectedTotal;
+  final List<CreditCustomerSummaryModel> suggestedCustomers;
+
+  @override
+  State<_CreditEntriesDialog> createState() => _CreditEntriesDialogState();
+}
+
+class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
+  late List<_CreditEntryControllers> _creditControllers;
+
+  @override
+  void initState() {
+    super.initState();
+    _creditControllers =
+        widget.initialEntries.isEmpty
+            ? [_CreditEntryControllers()]
+            : widget.initialEntries
+                .map(
+                  (entry) => _CreditEntryControllers(
+                    customerId: entry.customerId,
+                    name: entry.name,
+                    amount: entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                  ),
+                )
+                .toList();
+  }
+
+  @override
+  void dispose() {
+    for (final item in _creditControllers) {
+      item.dispose();
+    }
+    super.dispose();
+  }
+
+  CreditCustomerSummaryModel? _findCustomerById(String? customerId) {
+    final lookup = customerId?.trim() ?? '';
+    if (lookup.isEmpty) {
+      return null;
+    }
+    for (final item in widget.suggestedCustomers) {
+      if (item.customer.id == lookup) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  void _addCreditEntry() {
+    setState(() {
+      _creditControllers = [..._creditControllers, _CreditEntryControllers()];
+    });
+  }
+
+  void _removeCreditEntry(int index) {
+    final removed = _creditControllers[index];
+    removed.dispose();
+    setState(() {
+      _creditControllers = [
+        ..._creditControllers.sublist(0, index),
+        ..._creditControllers.sublist(index + 1),
+      ];
+    });
+  }
+
+  double get _namedTotal => _creditControllers.fold<double>(0, (sum, item) {
+    return sum + (double.tryParse(item.amountController.text.trim()) ?? 0);
+  });
+
+  void _save() {
+    final rows =
+        _creditControllers
+            .map(
+              (item) => CreditEntryModel(
+                customerId: item.customerIdController.text.trim(),
+                name: item.nameController.text.trim(),
+                amount: double.tryParse(item.amountController.text.trim()) ?? 0,
+              ),
+            )
+            .where((item) => item.name.isNotEmpty && item.amount > 0)
+            .toList();
+    final namedTotal = rows.fold<double>(0, (sum, item) => sum + item.amount);
+    if (widget.expectedTotal > 0 && (namedTotal - widget.expectedTotal).abs() > 0.01) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Credit customer total must match ${formatCurrency(widget.expectedTotal)}.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (widget.expectedTotal <= 0 && rows.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pump credit is zero. Remove credit customer rows first.'),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).pop(rows);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customerItems =
+        widget.suggestedCustomers
+            .map(
+              (item) => DropdownMenuItem<String>(
+                value: item.customer.id,
+                child: Text(item.customer.name),
+              ),
+            )
+            .toList();
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: 560,
+        maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Credit Customer Details',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Enter customer-wise credit names totaling ${formatCurrency(widget.expectedTotal)}.',
+                        style: const TextStyle(color: Color(0xFF55606E)),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                  tooltip: 'Close',
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                20 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FF),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      widget.suggestedCustomers.isEmpty
+                          ? 'Type a new customer name for each credit row.'
+                          : 'Select an existing customer from the dropdown or type a new customer name.',
+                      style: const TextStyle(color: Color(0xFF55606E), height: 1.4),
+                    ),
+                  ),
+                  ...List.generate(_creditControllers.length, (index) {
+                    final item = _creditControllers[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FF),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Column(
+                        children: [
+                          DropdownButtonFormField<String>(
+                            initialValue:
+                                item.customerIdController.text.isEmpty
+                                    ? null
+                                    : item.customerIdController.text,
+                            decoration: const InputDecoration(
+                              labelText: 'Existing customer',
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                            items: customerItems,
+                            onChanged: (value) {
+                              setState(() {
+                                item.customerIdController.text = value ?? '';
+                                final selected = _findCustomerById(value);
+                                if (selected != null) {
+                                  item.nameController.text = selected.customer.name;
+                                }
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: item.nameController,
+                            onChanged: (value) {
+                              final selected = _findCustomerById(
+                                item.customerIdController.text,
+                              );
+                              if (selected != null &&
+                                  value.trim() != selected.customer.name.trim()) {
+                                item.customerIdController.text = '';
+                              }
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Customer name ${index + 1}',
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: item.amountController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Credit amount',
+                              filled: true,
+                              fillColor: Colors.white,
+                            ),
+                          ),
+                          if (_creditControllers.length > 1)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () => _removeCreditEntry(index),
+                                child: const Text('Remove'),
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  }),
+                  TextButton.icon(
+                    onPressed: _addCreditEntry,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add customer'),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF7ED),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Named credit total',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF9A3412),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          formatCurrency(_namedTotal),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF9A3412),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
+            child: Row(
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: _save,
+                  child: const Text('Save Credit Names'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _PumpEntryDialog extends StatefulWidget {
   const _PumpEntryDialog({
     required this.pump,
