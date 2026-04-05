@@ -102,52 +102,285 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     });
   }
 
-  Future<void> _downloadReport(MonthlyReportModel report) async {
+  static const List<String> _shortMonths = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+
+  String _formatDisplayDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')} ${_shortMonths[d.month - 1]} ${d.year}';
+
+  /// Opens the export dialog. shareMode=true triggers share instead of save.
+  Future<void> _openExportDialog({required bool shareMode}) async {
+    final now = DateTime.now();
+    // Default: current month
+    DateTime exportFrom = DateTime(now.year, now.month, 1);
+    DateTime exportTo = DateTime(now.year, now.month + 1, 0); // last day of month
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> pickFrom() async {
+              final picked = await showDatePicker(
+                context: dialogContext,
+                initialDate: exportFrom,
+                firstDate: DateTime(2024),
+                lastDate: DateTime(2100),
+                helpText: 'Select from date',
+              );
+              if (picked != null) {
+                setDialogState(() => exportFrom = picked);
+              }
+            }
+
+            Future<void> pickTo() async {
+              final picked = await showDatePicker(
+                context: dialogContext,
+                initialDate: exportTo.isBefore(exportFrom) ? exportFrom : exportTo,
+                firstDate: DateTime(2024),
+                lastDate: DateTime(2100),
+                helpText: 'Select to date',
+              );
+              if (picked != null) {
+                setDialogState(() => exportTo = picked);
+              }
+            }
+
+            void applyPreset(DateTime from, DateTime to) {
+              setDialogState(() {
+                exportFrom = from;
+                exportTo = to;
+              });
+            }
+
+            final thisMonthFrom = DateTime(now.year, now.month, 1);
+            final thisMonthTo = DateTime(now.year, now.month + 1, 0);
+            final lastMonthFrom = DateTime(now.year, now.month - 1, 1);
+            final lastMonthTo = DateTime(now.year, now.month, 0);
+            final ytdFrom = DateTime(now.year, 1, 1);
+            final ytdTo = now;
+
+            return AlertDialog(
+              title: Text(shareMode ? 'Share Report' : 'Export Report'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choose a date range for the export.',
+                      style: TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 16),
+                    // Quick presets
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ActionChip(
+                          label: const Text('This Month'),
+                          onPressed: () => applyPreset(thisMonthFrom, thisMonthTo),
+                        ),
+                        ActionChip(
+                          label: const Text('Last Month'),
+                          onPressed: () => applyPreset(lastMonthFrom, lastMonthTo),
+                        ),
+                        ActionChip(
+                          label: const Text('YTD'),
+                          onPressed: () => applyPreset(ytdFrom, ytdTo),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // From date
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: pickFrom,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_rounded,
+                              size: 18,
+                              color: Color(0xFF1E5CBA),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'FROM',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF55606E),
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDisplayDate(exportFrom),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // To date
+                    InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: pickTo,
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.event_rounded,
+                              size: 18,
+                              color: Color(0xFF1E5CBA),
+                            ),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'TO',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF55606E),
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDisplayDate(exportTo),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    if (exportTo.isBefore(exportFrom)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          backgroundColor: Color(0xFFB91C1C),
+                          content: Text('"To" date must be on or after "From" date.'),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop();
+                    await _runExport(
+                      from: exportFrom,
+                      to: exportTo,
+                      shareMode: shareMode,
+                    );
+                  },
+                  icon: Icon(shareMode ? Icons.share_rounded : Icons.download_rounded),
+                  label: Text(shareMode ? 'Share CSV' : 'Export CSV'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _runExport({
+    required DateTime from,
+    required DateTime to,
+    required bool shareMode,
+  }) async {
     setState(() => _exporting = true);
     try {
-      final file = await _reportExportService.exportMonthlyReport(
-        report: report,
-        title: _reportTitle(report),
+      final fromStr = _toApiDate(from);
+      final toStr = _toApiDate(to);
+      final report = await _managementService.fetchMonthlyReport(
+        fromDate: fromStr,
+        toDate: toStr,
       );
-      if (!mounted) {
-        return;
+      if (!mounted) return;
+
+      final fromLabel = _formatDisplayDate(from);
+      final toLabel = _formatDisplayDate(to);
+      final safeFrom = fromStr.replaceAll('-', '');
+      final safeTo = toStr.replaceAll('-', '');
+      final title = 'rk_fuels_report_${safeFrom}_$safeTo';
+
+      final file = await _reportExportService.exportReport(
+        report: report,
+        title: title,
+        fromLabel: fromLabel,
+        toLabel: toLabel,
+      );
+
+      if (!mounted) return;
+
+      if (shareMode) {
+        await _reportExportService.shareFile(
+          file,
+          text: 'RK Fuels report $fromLabel to $toLabel',
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Report saved to ${file.path}')),
+        );
       }
+    } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Report saved to ${file.path}')),
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
       );
     } finally {
-      if (mounted) {
-        setState(() => _exporting = false);
-      }
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
-  Future<void> _shareReport(MonthlyReportModel report) async {
-    setState(() => _exporting = true);
-    try {
-      final file = await _reportExportService.exportMonthlyReport(
-        report: report,
-        title: _reportTitle(report),
-      );
-      await _reportExportService.shareFile(
-        file,
-        text: 'RK Fuels report ${_reportTitle(report)}',
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _exporting = false);
-      }
-    }
-  }
-
-  String _reportTitle(MonthlyReportModel report) {
-    if (_fromDate != null || _toDate != null) {
-      final from = _fromDate == null ? 'start' : _toApiDate(_fromDate!);
-      final to = _toDate == null ? 'end' : _toApiDate(_toDate!);
-      return 'rk_fuels_report_${from}_$to';
-    }
-    return 'rk_fuels_report_${report.month}';
-  }
 
   void _clearRange() {
     setState(() {
@@ -282,12 +515,12 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
               runSpacing: 10,
               children: [
                 FilledButton.icon(
-                  onPressed: _exporting ? null : () => _downloadReport(report),
+                  onPressed: _exporting ? null : () => _openExportDialog(shareMode: false),
                   icon: const Icon(Icons.download_rounded),
                   label: Text(_exporting ? 'Preparing...' : 'Download Report'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: _exporting ? null : () => _shareReport(report),
+                  onPressed: _exporting ? null : () => _openExportDialog(shareMode: true),
                   icon: const Icon(Icons.share_rounded),
                   label: const Text('Share Report'),
                 ),

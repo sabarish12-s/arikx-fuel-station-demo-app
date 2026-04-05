@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_models.dart';
+import 'flag_threshold_settings_screen.dart';
 import 'fuel_price_settings_screen.dart';
 import 'fuel_type_manager_screen.dart';
+import 'opening_stock_settings_screen.dart';
 import 'station_settings_screen.dart';
 import 'user_management_screen.dart';
 
@@ -12,16 +14,23 @@ class SettingsHomeScreen extends StatefulWidget {
   final AuthUser user;
 
   @override
-  State<SettingsHomeScreen> createState() => _SettingsHomeScreenState();
+  State<SettingsHomeScreen> createState() => SettingsHomeScreenState();
+
+  /// Call this to navigate back to the settings home panel from outside.
+  static void resetToHome(GlobalKey<SettingsHomeScreenState> key) {
+    key.currentState?._showHome();
+  }
 }
 
-class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
+class SettingsHomeScreenState extends State<SettingsHomeScreen> {
   bool get _isSuperAdmin => widget.user.role == 'superadmin';
   bool get _canEditFuelTypes =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
   bool get _canEditPrices =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
   bool get _canEditStationSettings =>
+      widget.user.role == 'admin' || widget.user.role == 'superadmin';
+  bool get _canEditOpeningStock =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
 
   _SettingsPanel _panel = _SettingsPanel.home;
@@ -50,6 +59,12 @@ class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
           embedded: true,
           onBack: _showHome,
         );
+      case _SettingsPanel.openingStockSettings:
+        return OpeningStockSettingsScreen(
+          canEdit: _canEditOpeningStock,
+          embedded: true,
+          onBack: _showHome,
+        );
       case _SettingsPanel.fuelPriceSettings:
         return FuelPriceSettingsScreen(
           canEdit: _canEditPrices,
@@ -65,6 +80,12 @@ class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
       case _SettingsPanel.userManagement:
         return UserManagementScreen(
           currentUser: widget.user,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.flagThreshold:
+        return FlagThresholdSettingsScreen(
+          canEdit: _canEditStationSettings,
           embedded: true,
           onBack: _showHome,
         );
@@ -87,6 +108,20 @@ class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
               onTap: () {
                 setState(() {
                   _panel = _SettingsPanel.stationSettings;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _SettingsTile(
+              title: 'Opening Stock Settings',
+              subtitle:
+                  _canEditOpeningStock
+                      ? 'Set current opening reading for each pump'
+                      : 'View configured opening stock and pump readings',
+              icon: Icons.speed_outlined,
+              onTap: () {
+                setState(() {
+                  _panel = _SettingsPanel.openingStockSettings;
                 });
               },
             ),
@@ -118,6 +153,20 @@ class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
                 });
               },
             ),
+            const SizedBox(height: 12),
+            _SettingsTile(
+              title: 'Flag Threshold',
+              subtitle:
+                  _canEditStationSettings
+                      ? 'Set the mismatch amount that triggers an entry flag'
+                      : 'View the configured flag threshold',
+              icon: Icons.flag_outlined,
+              onTap: () {
+                setState(() {
+                  _panel = _SettingsPanel.flagThreshold;
+                });
+              },
+            ),
             if (_isSuperAdmin) ...[
               const SizedBox(height: 12),
               _SettingsTile(
@@ -146,8 +195,10 @@ class _SettingsHomeScreenState extends State<SettingsHomeScreen> {
 enum _SettingsPanel {
   home,
   stationSettings,
+  openingStockSettings,
   fuelPriceSettings,
   fuelTypeManager,
+  flagThreshold,
   userManagement,
 }
 

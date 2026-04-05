@@ -439,6 +439,80 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     await _reload();
   }
 
+  Future<bool> _confirmDeleteEntry(ShiftEntryModel entry) async {
+    final isApproved = entry.status == 'approved';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
+            content: Text(
+              isApproved
+                  ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
+                  : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFB91C1C),
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(isApproved ? 'Override Delete' : 'Delete'),
+              ),
+            ],
+          ),
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _deleteEntry(ShiftEntryModel entry) async {
+    final confirmed = await _confirmDeleteEntry(entry);
+    if (!confirmed) {
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+    });
+
+    try {
+      await _managementService.deleteEntry(entry.id);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            entry.status == 'approved'
+                ? 'Approved entry deleted and override applied.'
+                : 'Entry deleted.',
+          ),
+        ),
+      );
+      await _reload();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -462,7 +536,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             final entries = data.entries;
             final approvedCount =
                 entries.where((entry) => entry.status == 'approved').length;
-            final flaggedCount = entries.where((entry) => entry.flagged).length;
+            final flaggedCount = entries.where((entry) => entry.flagged && entry.status != 'approved').length;
             final selectedMonthLabel = _formatMonthFilter(
               _monthController.text,
             );
@@ -761,16 +835,36 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             children: [
                               OutlinedButton(
                                 onPressed:
-                                    () => _editEntry(
-                                      entry,
-                                      data.dashboard.station,
-                                    ),
+                                    _submitting
+                                        ? null
+                                        : () => _editEntry(
+                                          entry,
+                                          data.dashboard.station,
+                                        ),
                                 child: const Text('Edit Entry'),
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFB91C1C),
+                                ),
+                                onPressed:
+                                    _submitting
+                                        ? null
+                                        : () => _deleteEntry(entry),
+                                child: Text(
+                                  entry.status == 'approved'
+                                      ? 'Override Delete'
+                                      : 'Delete Entry',
+                                ),
                               ),
                               const SizedBox(width: 10),
                               if (entry.status != 'approved')
                                 FilledButton(
-                                  onPressed: () => _approveEntry(entry),
+                                  onPressed:
+                                      _submitting
+                                          ? null
+                                          : () => _approveEntry(entry),
                                   child: const Text('Approve'),
                                 ),
                             ],

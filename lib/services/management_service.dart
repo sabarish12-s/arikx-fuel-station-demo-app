@@ -9,8 +9,24 @@ class ManagementService {
 
   final ApiClient _apiClient;
 
-  Future<ManagementDashboardModel> fetchDashboard() async {
-    final response = await _apiClient.get('/management/dashboard');
+  Future<ManagementDashboardModel> fetchDashboard({
+    String? preset,
+    String? fromDate,
+    String? toDate,
+  }) async {
+    final params = <String, String>{};
+    if (preset != null && preset.isNotEmpty) {
+      params['preset'] = preset;
+    }
+    if (fromDate != null && fromDate.isNotEmpty) {
+      params['from'] = fromDate;
+    }
+    if (toDate != null && toDate.isNotEmpty) {
+      params['to'] = toDate;
+    }
+    final suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final response = await _apiClient.get('/management/dashboard$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to load dashboard: ${response.body}');
     }
@@ -84,6 +100,13 @@ class ManagementService {
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
+  }
+
+  Future<void> deleteEntry(String entryId) async {
+    final response = await _apiClient.delete('/management/entries/$entryId');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to delete entry: ${response.body}');
+    }
   }
 
   Future<MonthlyReportModel> fetchMonthlyReport({

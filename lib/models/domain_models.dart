@@ -448,6 +448,7 @@ class StationConfigModel {
     required this.pumps,
     required this.baseReadings,
     required this.meterLimits,
+    this.flagThreshold = 0.01,
   });
 
   final String id;
@@ -458,6 +459,7 @@ class StationConfigModel {
   final List<StationPumpModel> pumps;
   final Map<String, PumpReadings> baseReadings;
   final Map<String, PumpReadings> meterLimits;
+  final double flagThreshold;
 
   factory StationConfigModel.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> baseReadingsJson =
@@ -490,6 +492,7 @@ class StationConfigModel {
         (key, value) =>
             MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
       ),
+      flagThreshold: (json['flagThreshold'] as num?)?.toDouble() ?? 0.01,
     );
   }
 
@@ -507,6 +510,7 @@ class StationConfigModel {
       'meterLimits': meterLimits.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
+      'flagThreshold': flagThreshold,
     };
   }
 }
@@ -714,11 +718,144 @@ class SalesDashboardModel {
   }
 }
 
+class DashboardRangeModel {
+  const DashboardRangeModel({
+    required this.label,
+    required this.preset,
+    required this.fromDate,
+    required this.toDate,
+  });
+
+  final String label;
+  final String preset;
+  final String fromDate;
+  final String toDate;
+
+  bool get isSingleDay => fromDate == toDate;
+
+  factory DashboardRangeModel.fromJson(Map<String, dynamic> json) {
+    return DashboardRangeModel(
+      label: json['label']?.toString() ?? '',
+      preset: json['preset']?.toString() ?? 'today',
+      fromDate: json['fromDate']?.toString() ?? '',
+      toDate: json['toDate']?.toString() ?? '',
+    );
+  }
+}
+
+class PumpPerformanceModel {
+  const PumpPerformanceModel({
+    required this.pumpId,
+    required this.pumpLabel,
+    required this.liters,
+    required this.totalLiters,
+    required this.collectedAmount,
+    required this.computedSalesValue,
+    required this.variance,
+    required this.attendantsSeen,
+  });
+
+  final String pumpId;
+  final String pumpLabel;
+  final PumpReadings liters;
+  final double totalLiters;
+  final double collectedAmount;
+  final double computedSalesValue;
+  final double variance;
+  final List<String> attendantsSeen;
+
+  factory PumpPerformanceModel.fromJson(Map<String, dynamic> json) {
+    return PumpPerformanceModel(
+      pumpId: json['pumpId']?.toString() ?? '',
+      pumpLabel: json['pumpLabel']?.toString() ?? '',
+      liters: PumpReadings.fromJson(
+        json['liters'] as Map<String, dynamic>? ?? const {},
+      ),
+      totalLiters: (json['totalLiters'] as num?)?.toDouble() ?? 0,
+      collectedAmount: (json['collectedAmount'] as num?)?.toDouble() ?? 0,
+      computedSalesValue: (json['computedSalesValue'] as num?)?.toDouble() ?? 0,
+      variance: (json['variance'] as num?)?.toDouble() ?? 0,
+      attendantsSeen:
+          (json['attendantsSeen'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(),
+    );
+  }
+}
+
+class AttendantPerformanceModel {
+  const AttendantPerformanceModel({
+    required this.attendantName,
+    required this.liters,
+    required this.totalLiters,
+    required this.collectedAmount,
+    required this.computedSalesValue,
+    required this.variance,
+    required this.activeDays,
+    required this.pumpsWorked,
+  });
+
+  final String attendantName;
+  final PumpReadings liters;
+  final double totalLiters;
+  final double collectedAmount;
+  final double computedSalesValue;
+  final double variance;
+  final int activeDays;
+  final List<String> pumpsWorked;
+
+  factory AttendantPerformanceModel.fromJson(Map<String, dynamic> json) {
+    return AttendantPerformanceModel(
+      attendantName: json['attendantName']?.toString() ?? '',
+      liters: PumpReadings.fromJson(
+        json['liters'] as Map<String, dynamic>? ?? const {},
+      ),
+      totalLiters: (json['totalLiters'] as num?)?.toDouble() ?? 0,
+      collectedAmount: (json['collectedAmount'] as num?)?.toDouble() ?? 0,
+      computedSalesValue: (json['computedSalesValue'] as num?)?.toDouble() ?? 0,
+      variance: (json['variance'] as num?)?.toDouble() ?? 0,
+      activeDays: (json['activeDays'] as num?)?.toInt() ?? 0,
+      pumpsWorked:
+          (json['pumpsWorked'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(),
+    );
+  }
+}
+
+class DashboardTrendPointModel {
+  const DashboardTrendPointModel({
+    required this.date,
+    required this.totalLiters,
+    required this.collectedAmount,
+    required this.computedSalesValue,
+    required this.approvedEntries,
+  });
+
+  final String date;
+  final double totalLiters;
+  final double collectedAmount;
+  final double computedSalesValue;
+  final int approvedEntries;
+
+  factory DashboardTrendPointModel.fromJson(Map<String, dynamic> json) {
+    return DashboardTrendPointModel(
+      date: json['date']?.toString() ?? '',
+      totalLiters: (json['totalLiters'] as num?)?.toDouble() ?? 0,
+      collectedAmount: (json['collectedAmount'] as num?)?.toDouble() ?? 0,
+      computedSalesValue: (json['computedSalesValue'] as num?)?.toDouble() ?? 0,
+      approvedEntries: (json['approvedEntries'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class ManagementDashboardModel {
   const ManagementDashboardModel({
     required this.station,
     required this.today,
+    required this.range,
     required this.pendingRequests,
+    required this.varianceCount,
     required this.revenue,
     required this.paymentTotal,
     required this.profit,
@@ -727,6 +864,9 @@ class ManagementDashboardModel {
     required this.twoTSold,
     required this.flaggedCount,
     required this.entriesCompleted,
+    required this.pumpPerformance,
+    required this.attendantPerformance,
+    required this.trend,
     required this.recentEntries,
     required this.fuelTypes,
     required this.prices,
@@ -734,7 +874,9 @@ class ManagementDashboardModel {
 
   final StationConfigModel station;
   final String today;
+  final DashboardRangeModel range;
   final int pendingRequests;
+  final int varianceCount;
   final double revenue;
   final double paymentTotal;
   final double profit;
@@ -743,6 +885,9 @@ class ManagementDashboardModel {
   final double twoTSold;
   final int flaggedCount;
   final int entriesCompleted;
+  final List<PumpPerformanceModel> pumpPerformance;
+  final List<AttendantPerformanceModel> attendantPerformance;
+  final List<DashboardTrendPointModel> trend;
   final List<ShiftEntryModel> recentEntries;
   final List<FuelTypeModel> fuelTypes;
   final List<FuelPriceModel> prices;
@@ -754,7 +899,11 @@ class ManagementDashboardModel {
         json['station'] as Map<String, dynamic>? ?? const {},
       ),
       today: json['today']?.toString() ?? '',
+      range: DashboardRangeModel.fromJson(
+        json['range'] as Map<String, dynamic>? ?? const {},
+      ),
       pendingRequests: (json['pendingRequests'] as num?)?.toInt() ?? 0,
+      varianceCount: (json['varianceCount'] as num?)?.toInt() ?? 0,
       revenue: (totals['revenue'] as num?)?.toDouble() ?? 0,
       paymentTotal: (totals['paymentTotal'] as num?)?.toDouble() ?? 0,
       profit: (totals['profit'] as num?)?.toDouble() ?? 0,
@@ -766,6 +915,29 @@ class ManagementDashboardModel {
           (totals['entriesCompleted'] as num?)?.toInt() ??
           (totals['shiftsCompleted'] as num?)?.toInt() ??
           0,
+      pumpPerformance:
+          (json['pumpPerformance'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    PumpPerformanceModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+      attendantPerformance:
+          (json['attendantPerformance'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => AttendantPerformanceModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
+      trend:
+          (json['trend'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => DashboardTrendPointModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
       recentEntries:
           (json['recentEntries'] as List<dynamic>? ?? const [])
               .map(

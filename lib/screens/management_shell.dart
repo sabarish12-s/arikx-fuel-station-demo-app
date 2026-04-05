@@ -21,6 +21,7 @@ class ManagementShell extends StatefulWidget {
 
 class _ManagementShellState extends State<ManagementShell> {
   int _index = 0;
+  final _settingsKey = GlobalKey<SettingsHomeScreenState>();
 
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
@@ -56,20 +57,11 @@ class _ManagementShellState extends State<ManagementShell> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      ManagementDashboardScreen(
-        user: widget.user,
-        onOpenEntries: () => setState(() => _index = 1),
-        onOpenReports: () => setState(() => _index = 2),
-        onOpenInventory: () => setState(() => _index = 3),
-        onOpenUsers: () => setState(() => _index = 4),
-        onOpenSettings: () {
-          setState(() => _index = 4);
-        },
-      ),
+      ManagementDashboardScreen(user: widget.user),
       const EntryManagementScreen(),
       const MonthlyReportScreen(),
       const InventoryHubScreen(),
-      SettingsHomeScreen(user: widget.user),
+      SettingsHomeScreen(key: _settingsKey, user: widget.user),
     ];
 
     return Scaffold(
@@ -101,7 +93,13 @@ class _ManagementShellState extends State<ManagementShell> {
       body: IndexedStack(index: _index, children: screens),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
+        onDestinationSelected: (value) {
+          if (value == 4 && _index == 4) {
+            SettingsHomeScreen.resetToHome(_settingsKey);
+          } else {
+            setState(() => _index = value);
+          }
+        },
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.grid_view_rounded),
