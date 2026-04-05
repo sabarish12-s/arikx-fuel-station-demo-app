@@ -137,7 +137,11 @@ class InventoryService {
     final user = await _authService.readCurrentUser();
     final role = user?.role.trim().toLowerCase() ?? 'sales';
     if (role == 'sales') {
-      return _buildSalesInventoryDashboard();
+      try {
+        return await _buildSalesInventoryDashboard();
+      } catch (_) {
+        return _buildEmergencySalesInventoryDashboard();
+      }
     }
 
     final response = await _apiClient.get('/inventory/dashboard');
@@ -260,12 +264,22 @@ class InventoryService {
 
   Future<InventoryDashboardModel> _buildSalesInventoryDashboard() async {
     final station = await _loadStationForInventory();
-    final entries = await _salesService.fetchEntries(month: currentMonthKey());
+    final entries = await _loadSalesEntriesForInventory();
     final deliveries = await _safeFetchDeliveries();
     return _buildFallbackInventoryDashboard(
       station: station,
       entries: entries,
       deliveries: deliveries,
+    );
+  }
+
+  Future<InventoryDashboardModel> _buildEmergencySalesInventoryDashboard() async {
+    final dashboard = await _salesService.fetchDashboard();
+    final entries = _fallbackEntriesFromDashboard(dashboard);
+    return _buildFallbackInventoryDashboard(
+      station: dashboard.station,
+      entries: entries,
+      deliveries: const [],
     );
   }
 
@@ -336,6 +350,25 @@ class InventoryService {
       final dashboard = await _salesService.fetchDashboard();
       return dashboard.station;
     }
+  }
+
+  Future<List<ShiftEntryModel>> _loadSalesEntriesForInventory() async {
+    try {
+      return await _salesService.fetchEntries(month: currentMonthKey());
+    } catch (_) {
+      final dashboard = await _salesService.fetchDashboard();
+      return _fallbackEntriesFromDashboard(dashboard);
+    }
+  }
+
+  List<ShiftEntryModel> _fallbackEntriesFromDashboard(SalesDashboardModel dashboard) {
+    final entries = <ShiftEntryModel>[
+      ...dashboard.todaysEntries,
+      if (dashboard.selectedEntry != null &&
+          !dashboard.todaysEntries.any((item) => item.id == dashboard.selectedEntry!.id))
+        dashboard.selectedEntry!,
+    ];
+    return entries;
   }
 
   Future<List<DeliveryReceiptModel>> _safeFetchDeliveries() async {
