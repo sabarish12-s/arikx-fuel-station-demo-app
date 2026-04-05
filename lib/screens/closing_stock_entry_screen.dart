@@ -115,6 +115,8 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     if (draft == null) {
       return;
     }
+    final remainingCredits =
+        draft.creditEntries.where((item) => item.pumpId != pumpId).toList();
     setState(() {
       _draft = draft.copyWith(
         closingReadings: {
@@ -129,6 +131,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           ...draft.pumpCollections,
           pumpId: pumpDraft.payments.total,
         },
+        creditEntries: [...remainingCredits, ...pumpDraft.creditEntries],
       );
     });
   }
@@ -184,25 +187,6 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   double _amountCollectedTotal(DailyEntryDraft draft) {
     return _salesSettlementTotal(draft) + _collectionRecoveryTotal(draft);
-  }
-
-  Future<void> _editCreditEntries() async {
-    final draft = _draft;
-    if (draft == null) {
-      return;
-    }
-    final result = await showCreditEntriesDialog(
-      context: context,
-      initialEntries: draft.creditEntries,
-      expectedTotal: _pumpCreditTotal(draft),
-      suggestedCustomers: _suggestedCustomers,
-    );
-    if (!mounted || result == null) {
-      return;
-    }
-    setState(() {
-      _draft = draft.copyWith(creditEntries: result);
-    });
   }
 
   bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
@@ -275,7 +259,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
               upi: 0,
               credit: 0,
             ),
+        creditEntries:
+            draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
       ),
+      suggestedCustomers: _suggestedCustomers,
     );
     if (!mounted || result == null) {
       return;
@@ -849,16 +836,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                 ),
                               ],
                               const SizedBox(height: 10),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: OutlinedButton.icon(
-                                  onPressed: _submitting ? null : _editCreditEntries,
-                                  icon: const Icon(Icons.badge_outlined),
-                                  label: Text(
-                                    draft != null && draft.creditEntries.isNotEmpty
-                                        ? 'Edit Credit Names'
-                                        : 'Add Credit Names',
-                                  ),
+                              const Text(
+                                'Use Update Pump on the relevant pump to change credit customer names.',
+                                style: TextStyle(
+                                  color: Color(0xFF55606E),
+                                  height: 1.4,
                                 ),
                               ),
                             ],

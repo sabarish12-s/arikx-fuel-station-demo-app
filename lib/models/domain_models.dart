@@ -77,17 +77,20 @@ class PumpPaymentBreakdownModel {
 
 class CreditEntryModel {
   const CreditEntryModel({
+    this.pumpId = '',
     required this.customerId,
     required this.name,
     required this.amount,
   });
 
+  final String pumpId;
   final String customerId;
   final String name;
   final double amount;
 
   factory CreditEntryModel.fromJson(Map<String, dynamic> json) {
     return CreditEntryModel(
+      pumpId: json['pumpId']?.toString() ?? '',
       customerId: json['customerId']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
@@ -95,7 +98,12 @@ class CreditEntryModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {'customerId': customerId, 'name': name, 'amount': amount};
+    return {
+      'pumpId': pumpId,
+      'customerId': customerId,
+      'name': name,
+      'amount': amount,
+    };
   }
 }
 
@@ -244,12 +252,14 @@ class PumpEntryDraft {
     required this.closingReadings,
     required this.testing,
     required this.payments,
+    this.creditEntries = const [],
   });
 
   final String attendant;
   final PumpReadings? closingReadings;
   final PumpTestingModel testing;
   final PumpPaymentBreakdownModel payments;
+  final List<CreditEntryModel> creditEntries;
 
   bool get testingEnabled => testing.enabled;
 }

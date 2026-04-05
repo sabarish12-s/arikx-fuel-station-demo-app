@@ -1081,6 +1081,7 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
   required PumpReadings opening,
   required PumpReadings limit,
   required PumpEntryDraft initialDraft,
+  List<CreditCustomerSummaryModel> suggestedCustomers = const [],
 }) async {
   return showDialog<MapEntry<String, PumpEntryDraft>>(
     context: context,
@@ -1096,6 +1097,7 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
             opening: opening,
             limit: limit,
             initialDraft: initialDraft,
+            suggestedCustomers: suggestedCustomers,
           ),
         ),
   );
@@ -1471,12 +1473,14 @@ class _PumpEntryDialog extends StatefulWidget {
     required this.opening,
     required this.limit,
     required this.initialDraft,
+    required this.suggestedCustomers,
   });
 
   final StationPumpModel pump;
   final PumpReadings opening;
   final PumpReadings limit;
   final PumpEntryDraft initialDraft;
+  final List<CreditCustomerSummaryModel> suggestedCustomers;
 
   @override
   State<_PumpEntryDialog> createState() => _PumpEntryDialogState();
@@ -1495,6 +1499,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   late final TextEditingController _testingPetrolController;
   late final TextEditingController _testingDieselController;
   late bool _testingEnabled;
+  late List<_CreditEntryControllers> _creditEntryControllers;
 
   @override
   void initState() {
@@ -1552,6 +1557,18 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       text: _formatTestingQuantityInput(widget.initialDraft.testing.diesel),
     );
     _testingEnabled = widget.initialDraft.testingEnabled;
+    _creditEntryControllers =
+        widget.initialDraft.creditEntries.isEmpty
+            ? [_CreditEntryControllers()]
+            : widget.initialDraft.creditEntries
+                .map(
+                  (entry) => _CreditEntryControllers(
+                    customerId: entry.customerId,
+                    name: entry.name,
+                    amount: entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                  ),
+                )
+                .toList();
     _cashController.addListener(_refreshTotals);
     _checkController.addListener(_refreshTotals);
     _upiController.addListener(_refreshTotals);
@@ -1576,6 +1593,9 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     _creditController.dispose();
     _testingPetrolController.removeListener(_refreshTotals);
     _testingDieselController.removeListener(_refreshTotals);
+    for (final item in _creditEntryControllers) {
+      item.dispose();
+    }
     _testingPetrolController.dispose();
     _testingDieselController.dispose();
     super.dispose();
@@ -1672,6 +1692,60 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       _parseAmount(_upiController.text) +
       _parseAmount(_creditController.text);
 
+  double get _namedCreditTotal => _creditEntryControllers.fold<double>(0, (
+    sum,
+    item,
+  ) {
+    return sum + (double.tryParse(item.amountController.text.trim()) ?? 0);
+  });
+
+  CreditCustomerSummaryModel? _findCustomerById(String? customerId) {
+    final lookup = customerId?.trim() ?? '';
+    if (lookup.isEmpty) {
+      return null;
+    }
+    for (final item in widget.suggestedCustomers) {
+      if (item.customer.id == lookup) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  void _addCreditEntryRow() {
+    setState(() {
+      _creditEntryControllers = [
+        ..._creditEntryControllers,
+        _CreditEntryControllers(),
+      ];
+    });
+  }
+
+  void _removeCreditEntryRow(int index) {
+    final removed = _creditEntryControllers[index];
+    removed.dispose();
+    setState(() {
+      _creditEntryControllers = [
+        ..._creditEntryControllers.sublist(0, index),
+        ..._creditEntryControllers.sublist(index + 1),
+      ];
+    });
+  }
+
+  List<CreditEntryModel> _buildCreditEntries() {
+    return _creditEntryControllers
+        .map(
+          (item) => CreditEntryModel(
+            pumpId: widget.pump.id,
+            customerId: item.customerIdController.text.trim(),
+            name: item.nameController.text.trim(),
+            amount: double.tryParse(item.amountController.text.trim()) ?? 0,
+          ),
+        )
+        .where((item) => item.name.isNotEmpty && item.amount > 0)
+        .toList();
+  }
+
   void _savePump() {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) {
@@ -1682,6 +1756,31 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(testingError)));
+      return;
+    }
+
+    final creditAmount = _parseAmount(_creditController.text);
+    final namedCreditEntries = _buildCreditEntries();
+    final namedCreditTotal = namedCreditEntries.fold<double>(
+      0,
+      (sum, item) => sum + item.amount,
+    );
+    if (creditAmount > 0 && (creditAmount - namedCreditTotal).abs() > 0.01) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Credit customer names must total ${formatCurrency(creditAmount)} for this pump.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (creditAmount <= 0 && namedCreditEntries.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pump credit is zero. Remove the customer credit rows first.'),
+        ),
+      );
       return;
     }
 
@@ -1710,8 +1809,9 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
             cash: _parseAmount(_cashController.text),
             check: _parseAmount(_checkController.text),
             upi: _parseAmount(_upiController.text),
-            credit: _parseAmount(_creditController.text),
+            credit: creditAmount,
           ),
+          creditEntries: namedCreditEntries,
         ),
       ),
     );
@@ -1953,6 +2053,167 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                       validator:
                           (value) => _validateAmount('Credit', value ?? ''),
                     ),
+                    if (_parseAmount(_creditController.text) > 0) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Credit Customer Names',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF293340),
+                                    ),
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _addCreditEntryRow,
+                                  icon: const Icon(Icons.add_rounded),
+                                  label: const Text('Add'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Enter the customer names for this pump credit. These names will go to Credit Ledger after approval.',
+                              style: const TextStyle(
+                                color: Color(0xFF55606E),
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            ...List.generate(_creditEntryControllers.length, (index) {
+                              final item = _creditEntryControllers[index];
+                              final customerItems =
+                                  widget.suggestedCustomers
+                                      .map(
+                                        (customer) => DropdownMenuItem<String>(
+                                          value: customer.customer.id,
+                                          child: Text(customer.customer.name),
+                                        ),
+                                      )
+                                      .toList();
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 10),
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  children: [
+                                    DropdownButtonFormField<String>(
+                                      initialValue:
+                                          item.customerIdController.text.isEmpty
+                                              ? null
+                                              : item.customerIdController.text,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Existing customer',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                      ),
+                                      items: customerItems,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          item.customerIdController.text = value ?? '';
+                                          final selected = _findCustomerById(value);
+                                          if (selected != null) {
+                                            item.nameController.text =
+                                                selected.customer.name;
+                                          }
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextFormField(
+                                      controller: item.nameController,
+                                      decoration: InputDecoration(
+                                        labelText: 'Customer name ${index + 1}',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                      ),
+                                      onChanged: (value) {
+                                        final selected = _findCustomerById(
+                                          item.customerIdController.text,
+                                        );
+                                        if (selected != null &&
+                                            value.trim() !=
+                                                selected.customer.name.trim()) {
+                                          item.customerIdController.text = '';
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextFormField(
+                                      controller: item.amountController,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Credit amount',
+                                        filled: true,
+                                        fillColor: Colors.white,
+                                      ),
+                                      validator: (value) => _validateAmount(
+                                        'Credit amount',
+                                        value ?? '',
+                                      ),
+                                    ),
+                                    if (_creditEntryControllers.length > 1)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton(
+                                          onPressed: () => _removeCreditEntryRow(index),
+                                          child: const Text('Remove'),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF7ED),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Named credit total',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF9A3412),
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    formatCurrency(_namedCreditTotal),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF9A3412),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,

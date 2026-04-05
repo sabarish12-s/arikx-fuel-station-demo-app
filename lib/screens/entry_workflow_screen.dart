@@ -57,6 +57,8 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   void _savePumpEdit(String pumpId, PumpEntryDraft pumpDraft) {
+    final remainingCredits =
+        _draft.creditEntries.where((item) => item.pumpId != pumpId).toList();
     setState(() {
       _draft = _draft.copyWith(
         closingReadings: {
@@ -71,6 +73,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           ..._draft.pumpCollections,
           pumpId: pumpDraft.payments.total,
         },
+        creditEntries: [...remainingCredits, ...pumpDraft.creditEntries],
       );
     });
   }
@@ -140,21 +143,6 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
         _issuedCreditTotal();
   }
 
-  Future<void> _editCreditEntries() async {
-    final result = await showCreditEntriesDialog(
-      context: context,
-      initialEntries: _draft.creditEntries,
-      expectedTotal: _pumpCreditTotal(),
-      suggestedCustomers: _suggestedCustomers,
-    );
-    if (!mounted || result == null) {
-      return;
-    }
-    setState(() {
-      _draft = _draft.copyWith(creditEntries: result);
-    });
-  }
-
   Future<void> _editPump(StationPumpModel pump) async {
     final result = await showPumpEntryDialog(
       context: context,
@@ -179,7 +167,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
               upi: 0,
               credit: 0,
             ),
+        creditEntries:
+            _draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
       ),
+      suggestedCustomers: _suggestedCustomers,
     );
     if (!mounted || result == null) {
       return;
@@ -548,16 +539,11 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                         ),
                       ],
                       const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: OutlinedButton.icon(
-                          onPressed: _submitting ? null : _editCreditEntries,
-                          icon: const Icon(Icons.badge_outlined),
-                          label: Text(
-                            _draft.creditEntries.isNotEmpty
-                                ? 'Edit Credit Names'
-                                : 'Add Credit Names',
-                          ),
+                      const Text(
+                        'Use Update Pump on the relevant pump to change credit customer names.',
+                        style: TextStyle(
+                          color: Color(0xFF55606E),
+                          height: 1.4,
                         ),
                       ),
                     ],
