@@ -28,7 +28,12 @@ class ManagementService {
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/dashboard$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load dashboard: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load dashboard.',
+        ),
+      );
     }
     return ManagementDashboardModel.fromJson(_apiClient.decodeObject(response));
   }
@@ -48,7 +53,12 @@ class ManagementService {
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/entries$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load management entries: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load management entries.',
+        ),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return (json['entries'] as List<dynamic>? ?? const [])
@@ -60,11 +70,12 @@ class ManagementService {
     required String entryId,
     required Map<String, PumpReadings> closingReadings,
     required Map<String, String> pumpAttendants,
-    required Map<String, bool> pumpTesting,
+    required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
     required Map<String, double> pumpCollections,
     required PaymentBreakdownModel paymentBreakdown,
     required List<CreditEntryModel> creditEntries,
+    required List<CreditCollectionModel> creditCollections,
     String mismatchReason = '',
   }) async {
     final response = await _apiClient.patch(
@@ -74,18 +85,24 @@ class ManagementService {
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpAttendants': pumpAttendants,
-        'pumpTesting': pumpTesting,
+        'pumpTesting': pumpTesting.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
         'pumpPayments': pumpPayments.map(
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpCollections': pumpCollections,
         'paymentBreakdown': paymentBreakdown.toJson(),
         'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'creditCollections':
+            creditCollections.map((entry) => entry.toJson()).toList(),
         'mismatchReason': mismatchReason,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to update entry: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to update entry.'),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
@@ -96,7 +113,9 @@ class ManagementService {
       '/management/entries/$entryId/approve',
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to approve entry: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to approve entry.'),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
@@ -105,7 +124,9 @@ class ManagementService {
   Future<void> deleteEntry(String entryId) async {
     final response = await _apiClient.delete('/management/entries/$entryId');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to delete entry: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to delete entry.'),
+      );
     }
   }
 
@@ -128,7 +149,12 @@ class ManagementService {
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/reports/monthly$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load monthly report: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load monthly report.',
+        ),
+      );
     }
     return MonthlyReportModel.fromJson(_apiClient.decodeObject(response));
   }

@@ -5,6 +5,7 @@ import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
+import 'credit_ledger_screen.dart';
 
 class MonthlyReportScreen extends StatefulWidget {
   const MonthlyReportScreen({super.key});
@@ -461,7 +462,11 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             else if (snapshot.hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 120),
-                child: Center(child: Text('${snapshot.error}')),
+                child: Center(
+                  child: Text(
+                    snapshot.error.toString().replaceFirst('Exception: ', ''),
+                  ),
+                ),
               )
             else
               ..._buildReport(snapshot.data!),
@@ -523,6 +528,16 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   onPressed: _exporting ? null : () => _openExportDialog(shareMode: true),
                   icon: const Icon(Icons.share_rounded),
                   label: const Text('Share Report'),
+                ),
+                OutlinedButton.icon(
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const CreditLedgerScreen(),
+                        ),
+                      ),
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  label: const Text('Credit Details'),
                 ),
               ],
             ),

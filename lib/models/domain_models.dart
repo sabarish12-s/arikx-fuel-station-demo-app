@@ -76,21 +76,114 @@ class PumpPaymentBreakdownModel {
 }
 
 class CreditEntryModel {
-  const CreditEntryModel({required this.name, required this.amount});
+  const CreditEntryModel({
+    required this.customerId,
+    required this.name,
+    required this.amount,
+  });
 
+  final String customerId;
   final String name;
   final double amount;
 
   factory CreditEntryModel.fromJson(Map<String, dynamic> json) {
     return CreditEntryModel(
+      customerId: json['customerId']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'name': name, 'amount': amount};
+    return {'customerId': customerId, 'name': name, 'amount': amount};
   }
+}
+
+class CreditCollectionModel {
+  const CreditCollectionModel({
+    required this.customerId,
+    required this.name,
+    required this.amount,
+    required this.date,
+    required this.paymentMode,
+    this.note = '',
+  });
+
+  final String customerId;
+  final String name;
+  final double amount;
+  final String date;
+  final String paymentMode;
+  final String note;
+
+  factory CreditCollectionModel.fromJson(Map<String, dynamic> json) {
+    return CreditCollectionModel(
+      customerId: json['customerId']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      date: json['date']?.toString() ?? '',
+      paymentMode: json['paymentMode']?.toString() ?? '',
+      note: json['note']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'customerId': customerId,
+      'name': name,
+      'amount': amount,
+      'date': date,
+      'paymentMode': paymentMode,
+      'note': note,
+    };
+  }
+}
+
+double parseTestingQuantity(dynamic value) {
+  if (value == true) {
+    return 5;
+  }
+  if (value == false || value == null) {
+    return 0;
+  }
+  if (value is num) {
+    return value > 0 ? value.toDouble() : 0;
+  }
+  final parsed = double.tryParse(value.toString().trim());
+  if (parsed == null || parsed <= 0) {
+    return 0;
+  }
+  return parsed;
+}
+
+class PumpTestingModel {
+  const PumpTestingModel({required this.petrol, required this.diesel});
+
+  final double petrol;
+  final double diesel;
+
+  bool get enabled => petrol > 0 || diesel > 0;
+
+  Map<String, dynamic> toJson() {
+    return {'petrol': petrol, 'diesel': diesel};
+  }
+}
+
+PumpTestingModel parsePumpTesting(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    return PumpTestingModel(
+      petrol: parseTestingQuantity(value['petrol']),
+      diesel: parseTestingQuantity(value['diesel']),
+    );
+  }
+  if (value is Map) {
+    return PumpTestingModel(
+      petrol: parseTestingQuantity(value['petrol']),
+      diesel: parseTestingQuantity(value['diesel']),
+    );
+  }
+  final quantity = parseTestingQuantity(value);
+  return PumpTestingModel(petrol: quantity, diesel: quantity);
 }
 
 class DailyEntryDraft {
@@ -103,28 +196,31 @@ class DailyEntryDraft {
     required this.pumpCollections,
     required this.paymentBreakdown,
     required this.creditEntries,
+    required this.creditCollections,
     this.mismatchReason = '',
   });
 
   final String date;
   final Map<String, PumpReadings> closingReadings;
   final Map<String, String> pumpAttendants;
-  final Map<String, bool> pumpTesting;
+  final Map<String, PumpTestingModel> pumpTesting;
   final Map<String, PumpPaymentBreakdownModel> pumpPayments;
   final Map<String, double> pumpCollections;
   final PaymentBreakdownModel paymentBreakdown;
   final List<CreditEntryModel> creditEntries;
+  final List<CreditCollectionModel> creditCollections;
   final String mismatchReason;
 
   DailyEntryDraft copyWith({
     String? date,
     Map<String, PumpReadings>? closingReadings,
     Map<String, String>? pumpAttendants,
-    Map<String, bool>? pumpTesting,
+    Map<String, PumpTestingModel>? pumpTesting,
     Map<String, PumpPaymentBreakdownModel>? pumpPayments,
     Map<String, double>? pumpCollections,
     PaymentBreakdownModel? paymentBreakdown,
     List<CreditEntryModel>? creditEntries,
+    List<CreditCollectionModel>? creditCollections,
     String? mismatchReason,
   }) {
     return DailyEntryDraft(
@@ -136,6 +232,7 @@ class DailyEntryDraft {
       pumpCollections: pumpCollections ?? this.pumpCollections,
       paymentBreakdown: paymentBreakdown ?? this.paymentBreakdown,
       creditEntries: creditEntries ?? this.creditEntries,
+      creditCollections: creditCollections ?? this.creditCollections,
       mismatchReason: mismatchReason ?? this.mismatchReason,
     );
   }
@@ -145,24 +242,28 @@ class PumpEntryDraft {
   const PumpEntryDraft({
     required this.attendant,
     required this.closingReadings,
-    required this.testingEnabled,
+    required this.testing,
     required this.payments,
   });
 
   final String attendant;
   final PumpReadings? closingReadings;
-  final bool testingEnabled;
+  final PumpTestingModel testing;
   final PumpPaymentBreakdownModel payments;
+
+  bool get testingEnabled => testing.enabled;
 }
 
 class PaymentEntryDraft {
   const PaymentEntryDraft({
     required this.paymentBreakdown,
     required this.creditEntries,
+    required this.creditCollections,
   });
 
   final PaymentBreakdownModel paymentBreakdown;
   final List<CreditEntryModel> creditEntries;
+  final List<CreditCollectionModel> creditCollections;
 }
 
 class FuelTotals {
@@ -438,6 +539,44 @@ class StationPumpModel {
   }
 }
 
+class InventoryPlanningModel {
+  const InventoryPlanningModel({
+    required this.currentStock,
+    required this.deliveryLeadDays,
+    required this.alertBeforeDays,
+    required this.updatedAt,
+  });
+
+  final Map<String, double> currentStock;
+  final int deliveryLeadDays;
+  final int alertBeforeDays;
+  final String updatedAt;
+
+  factory InventoryPlanningModel.fromJson(Map<String, dynamic> json) {
+    final currentStock =
+        json['currentStock'] as Map<String, dynamic>? ?? const {};
+    return InventoryPlanningModel(
+      currentStock: {
+        'petrol': (currentStock['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (currentStock['diesel'] as num?)?.toDouble() ?? 0,
+        'two_t_oil': (currentStock['two_t_oil'] as num?)?.toDouble() ?? 0,
+      },
+      deliveryLeadDays: (json['deliveryLeadDays'] as num?)?.toInt() ?? 0,
+      alertBeforeDays: (json['alertBeforeDays'] as num?)?.toInt() ?? 0,
+      updatedAt: json['updatedAt']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'currentStock': currentStock,
+      'deliveryLeadDays': deliveryLeadDays,
+      'alertBeforeDays': alertBeforeDays,
+      'updatedAt': updatedAt,
+    };
+  }
+}
+
 class StationConfigModel {
   const StationConfigModel({
     required this.id,
@@ -448,6 +587,7 @@ class StationConfigModel {
     required this.pumps,
     required this.baseReadings,
     required this.meterLimits,
+    required this.inventoryPlanning,
     this.flagThreshold = 0.01,
   });
 
@@ -459,6 +599,7 @@ class StationConfigModel {
   final List<StationPumpModel> pumps;
   final Map<String, PumpReadings> baseReadings;
   final Map<String, PumpReadings> meterLimits;
+  final InventoryPlanningModel inventoryPlanning;
   final double flagThreshold;
 
   factory StationConfigModel.fromJson(Map<String, dynamic> json) {
@@ -492,6 +633,9 @@ class StationConfigModel {
         (key, value) =>
             MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
       ),
+      inventoryPlanning: InventoryPlanningModel.fromJson(
+        json['inventoryPlanning'] as Map<String, dynamic>? ?? const {},
+      ),
       flagThreshold: (json['flagThreshold'] as num?)?.toDouble() ?? 0.01,
     );
   }
@@ -510,8 +654,122 @@ class StationConfigModel {
       'meterLimits': meterLimits.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
+      'inventoryPlanning': inventoryPlanning.toJson(),
       'flagThreshold': flagThreshold,
     };
+  }
+}
+
+class DeliveryReceiptModel {
+  const DeliveryReceiptModel({
+    required this.id,
+    required this.stationId,
+    required this.fuelTypeId,
+    required this.date,
+    required this.quantity,
+    required this.note,
+    required this.createdBy,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String stationId;
+  final String fuelTypeId;
+  final String date;
+  final double quantity;
+  final String note;
+  final String createdBy;
+  final String createdAt;
+
+  factory DeliveryReceiptModel.fromJson(Map<String, dynamic> json) {
+    return DeliveryReceiptModel(
+      id: json['id']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? '',
+      fuelTypeId: json['fuelTypeId']?.toString() ?? '',
+      date: json['date']?.toString() ?? '',
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
+      note: json['note']?.toString() ?? '',
+      createdBy: json['createdBy']?.toString() ?? '',
+      createdAt: json['createdAt']?.toString() ?? '',
+    );
+  }
+}
+
+class FuelInventoryForecastModel {
+  const FuelInventoryForecastModel({
+    required this.fuelTypeId,
+    required this.label,
+    required this.currentStock,
+    required this.averageDailySales,
+    required this.daysRemaining,
+    required this.projectedRunoutDate,
+    required this.recommendedOrderDate,
+    required this.shouldAlert,
+    required this.alertMessage,
+  });
+
+  final String fuelTypeId;
+  final String label;
+  final double currentStock;
+  final double averageDailySales;
+  final double? daysRemaining;
+  final String projectedRunoutDate;
+  final String recommendedOrderDate;
+  final bool shouldAlert;
+  final String alertMessage;
+
+  factory FuelInventoryForecastModel.fromJson(Map<String, dynamic> json) {
+    return FuelInventoryForecastModel(
+      fuelTypeId: json['fuelTypeId']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
+      currentStock: (json['currentStock'] as num?)?.toDouble() ?? 0,
+      averageDailySales: (json['averageDailySales'] as num?)?.toDouble() ?? 0,
+      daysRemaining: (json['daysRemaining'] as num?)?.toDouble(),
+      projectedRunoutDate: json['projectedRunoutDate']?.toString() ?? '',
+      recommendedOrderDate: json['recommendedOrderDate']?.toString() ?? '',
+      shouldAlert: json['shouldAlert'] as bool? ?? false,
+      alertMessage: json['alertMessage']?.toString() ?? '',
+    );
+  }
+}
+
+class InventoryDashboardModel {
+  const InventoryDashboardModel({
+    required this.station,
+    required this.inventoryPlanning,
+    required this.forecast,
+    required this.deliveries,
+  });
+
+  final StationConfigModel station;
+  final InventoryPlanningModel inventoryPlanning;
+  final List<FuelInventoryForecastModel> forecast;
+  final List<DeliveryReceiptModel> deliveries;
+
+  factory InventoryDashboardModel.fromJson(Map<String, dynamic> json) {
+    return InventoryDashboardModel(
+      station: StationConfigModel.fromJson(
+        json['station'] as Map<String, dynamic>? ?? const {},
+      ),
+      inventoryPlanning: InventoryPlanningModel.fromJson(
+        json['inventoryPlanning'] as Map<String, dynamic>? ?? const {},
+      ),
+      forecast:
+          (json['forecast'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => FuelInventoryForecastModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
+      deliveries:
+          (json['deliveries'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    DeliveryReceiptModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+    );
   }
 }
 
@@ -539,13 +797,17 @@ class ShiftEntryModel {
     required this.pumpCollections,
     required this.paymentBreakdown,
     required this.creditEntries,
+    required this.creditCollections,
     required this.totals,
     required this.revenue,
     required this.computedRevenue,
     required this.paymentTotal,
+    required this.salesSettlementTotal,
+    required this.creditCollectionTotal,
     required this.mismatchAmount,
     required this.mismatchReason,
     required this.profit,
+    this.priceSnapshot = const {},
   });
 
   final String id;
@@ -565,18 +827,23 @@ class ShiftEntryModel {
   final Map<String, PumpReadings> closingReadings;
   final Map<String, PumpReadings> soldByPump;
   final Map<String, String> pumpAttendants;
-  final Map<String, bool> pumpTesting;
+  final Map<String, PumpTestingModel> pumpTesting;
   final Map<String, PumpPaymentBreakdownModel> pumpPayments;
   final Map<String, double> pumpCollections;
   final PaymentBreakdownModel paymentBreakdown;
   final List<CreditEntryModel> creditEntries;
+  final List<CreditCollectionModel> creditCollections;
   final EntryTotals totals;
   final double revenue;
   final double computedRevenue;
   final double paymentTotal;
+  final double salesSettlementTotal;
+  final double creditCollectionTotal;
   final double mismatchAmount;
   final String mismatchReason;
   final double profit;
+  /// Keys: 'petrol', 'diesel', 'two_t_oil' — values have 'sellingPrice', 'costPrice'
+  final Map<String, Map<String, double>> priceSnapshot;
 
   factory ShiftEntryModel.fromJson(Map<String, dynamic> json) {
     Map<String, PumpReadings> parseReadings(String key) {
@@ -610,7 +877,7 @@ class ShiftEntryModel {
               const {})
           .map((key, value) => MapEntry(key, value?.toString() ?? '')),
       pumpTesting: (json['pumpTesting'] as Map<String, dynamic>? ?? const {})
-          .map((key, value) => MapEntry(key, value == true)),
+          .map((key, value) => MapEntry(key, parsePumpTesting(value))),
       pumpPayments: (json['pumpPayments'] as Map<String, dynamic>? ?? const {})
           .map(
             (key, value) => MapEntry(
@@ -633,15 +900,234 @@ class ShiftEntryModel {
                     CreditEntryModel.fromJson(item as Map<String, dynamic>),
               )
               .toList(),
+      creditCollections:
+          (json['creditCollections'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => CreditCollectionModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
       totals: EntryTotals.fromJson(
         json['totals'] as Map<String, dynamic>? ?? const {},
       ),
       revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
       computedRevenue: (json['computedRevenue'] as num?)?.toDouble() ?? 0,
       paymentTotal: (json['paymentTotal'] as num?)?.toDouble() ?? 0,
+      salesSettlementTotal:
+          (json['salesSettlementTotal'] as num?)?.toDouble() ?? 0,
+      creditCollectionTotal:
+          (json['creditCollectionTotal'] as num?)?.toDouble() ?? 0,
       mismatchAmount: (json['mismatchAmount'] as num?)?.toDouble() ?? 0,
       mismatchReason: json['mismatchReason']?.toString() ?? '',
       profit: (json['profit'] as num?)?.toDouble() ?? 0,
+      priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ?? const {})
+          .map((key, value) {
+        final entry = value as Map<String, dynamic>? ?? const {};
+        return MapEntry(key, {
+          'sellingPrice': (entry['sellingPrice'] as num?)?.toDouble() ?? 0,
+          'costPrice': (entry['costPrice'] as num?)?.toDouble() ?? 0,
+        });
+      }),
+    );
+  }
+}
+
+class CreditCustomerModel {
+  const CreditCustomerModel({
+    required this.id,
+    required this.stationId,
+    required this.name,
+    required this.normalizedName,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.lastUsedAt,
+  });
+
+  final String id;
+  final String stationId;
+  final String name;
+  final String normalizedName;
+  final String createdAt;
+  final String updatedAt;
+  final String lastUsedAt;
+
+  factory CreditCustomerModel.fromJson(Map<String, dynamic> json) {
+    return CreditCustomerModel(
+      id: json['id']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      normalizedName: json['normalizedName']?.toString() ?? '',
+      createdAt: json['createdAt']?.toString() ?? '',
+      updatedAt: json['updatedAt']?.toString() ?? '',
+      lastUsedAt: json['lastUsedAt']?.toString() ?? '',
+    );
+  }
+}
+
+class CreditCustomerSummaryModel {
+  const CreditCustomerSummaryModel({
+    required this.customer,
+    required this.currentBalance,
+    required this.status,
+    required this.totalIssued,
+    required this.totalCollected,
+    required this.issuedInRange,
+    required this.collectedInRange,
+    required this.openedAt,
+    required this.lastClosedAt,
+    required this.lastActivityDate,
+  });
+
+  final CreditCustomerModel customer;
+  final double currentBalance;
+  final String status;
+  final double totalIssued;
+  final double totalCollected;
+  final double issuedInRange;
+  final double collectedInRange;
+  final String openedAt;
+  final String lastClosedAt;
+  final String lastActivityDate;
+
+  factory CreditCustomerSummaryModel.fromJson(Map<String, dynamic> json) {
+    return CreditCustomerSummaryModel(
+      customer: CreditCustomerModel.fromJson(
+        json['customer'] as Map<String, dynamic>? ?? const {},
+      ),
+      currentBalance: (json['currentBalance'] as num?)?.toDouble() ?? 0,
+      status: json['status']?.toString() ?? 'closed',
+      totalIssued: (json['totalIssued'] as num?)?.toDouble() ?? 0,
+      totalCollected: (json['totalCollected'] as num?)?.toDouble() ?? 0,
+      issuedInRange: (json['issuedInRange'] as num?)?.toDouble() ?? 0,
+      collectedInRange: (json['collectedInRange'] as num?)?.toDouble() ?? 0,
+      openedAt: json['openedAt']?.toString() ?? '',
+      lastClosedAt: json['lastClosedAt']?.toString() ?? '',
+      lastActivityDate: json['lastActivityDate']?.toString() ?? '',
+    );
+  }
+}
+
+class CreditLedgerSummaryModel {
+  const CreditLedgerSummaryModel({
+    required this.openCustomerCount,
+    required this.openBalanceTotal,
+    required this.collectedInRangeTotal,
+  });
+
+  final int openCustomerCount;
+  final double openBalanceTotal;
+  final double collectedInRangeTotal;
+
+  factory CreditLedgerSummaryModel.fromJson(Map<String, dynamic> json) {
+    return CreditLedgerSummaryModel(
+      openCustomerCount: (json['openCustomerCount'] as num?)?.toInt() ?? 0,
+      openBalanceTotal: (json['openBalanceTotal'] as num?)?.toDouble() ?? 0,
+      collectedInRangeTotal:
+          (json['collectedInRangeTotal'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class CreditTransactionModel {
+  const CreditTransactionModel({
+    required this.id,
+    required this.stationId,
+    required this.customerId,
+    required this.customerNameSnapshot,
+    required this.type,
+    required this.amount,
+    required this.date,
+    required this.paymentMode,
+    required this.entryId,
+    required this.createdBy,
+    required this.createdAt,
+    required this.note,
+    required this.runningBalance,
+  });
+
+  final String id;
+  final String stationId;
+  final String customerId;
+  final String customerNameSnapshot;
+  final String type;
+  final double amount;
+  final String date;
+  final String paymentMode;
+  final String entryId;
+  final String createdBy;
+  final String createdAt;
+  final String note;
+  final double runningBalance;
+
+  factory CreditTransactionModel.fromJson(Map<String, dynamic> json) {
+    return CreditTransactionModel(
+      id: json['id']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? '',
+      customerId: json['customerId']?.toString() ?? '',
+      customerNameSnapshot: json['customerNameSnapshot']?.toString() ?? '',
+      type: json['type']?.toString() ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      date: json['date']?.toString() ?? '',
+      paymentMode: json['paymentMode']?.toString() ?? '',
+      entryId: json['entryId']?.toString() ?? '',
+      createdBy: json['createdBy']?.toString() ?? '',
+      createdAt: json['createdAt']?.toString() ?? '',
+      note: json['note']?.toString() ?? '',
+      runningBalance: (json['runningBalance'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class CreditCustomerDetailModel {
+  const CreditCustomerDetailModel({
+    required this.customer,
+    required this.currentBalance,
+    required this.status,
+    required this.totalIssued,
+    required this.totalCollected,
+    required this.issuedInRange,
+    required this.collectedInRange,
+    required this.openedAt,
+    required this.lastClosedAt,
+    required this.lastActivityDate,
+    required this.transactions,
+  });
+
+  final CreditCustomerModel customer;
+  final double currentBalance;
+  final String status;
+  final double totalIssued;
+  final double totalCollected;
+  final double issuedInRange;
+  final double collectedInRange;
+  final String openedAt;
+  final String lastClosedAt;
+  final String lastActivityDate;
+  final List<CreditTransactionModel> transactions;
+
+  factory CreditCustomerDetailModel.fromJson(Map<String, dynamic> json) {
+    return CreditCustomerDetailModel(
+      customer: CreditCustomerModel.fromJson(
+        json['customer'] as Map<String, dynamic>? ?? const {},
+      ),
+      currentBalance: (json['currentBalance'] as num?)?.toDouble() ?? 0,
+      status: json['status']?.toString() ?? 'closed',
+      totalIssued: (json['totalIssued'] as num?)?.toDouble() ?? 0,
+      totalCollected: (json['totalCollected'] as num?)?.toDouble() ?? 0,
+      issuedInRange: (json['issuedInRange'] as num?)?.toDouble() ?? 0,
+      collectedInRange: (json['collectedInRange'] as num?)?.toDouble() ?? 0,
+      openedAt: json['openedAt']?.toString() ?? '',
+      lastClosedAt: json['lastClosedAt']?.toString() ?? '',
+      lastActivityDate: json['lastActivityDate']?.toString() ?? '',
+      transactions:
+          (json['transactions'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => CreditTransactionModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
     );
   }
 }
@@ -827,6 +1313,8 @@ class DashboardTrendPointModel {
   const DashboardTrendPointModel({
     required this.date,
     required this.totalLiters,
+    required this.petrolSold,
+    required this.dieselSold,
     required this.collectedAmount,
     required this.computedSalesValue,
     required this.approvedEntries,
@@ -834,6 +1322,8 @@ class DashboardTrendPointModel {
 
   final String date;
   final double totalLiters;
+  final double petrolSold;
+  final double dieselSold;
   final double collectedAmount;
   final double computedSalesValue;
   final int approvedEntries;
@@ -842,6 +1332,8 @@ class DashboardTrendPointModel {
     return DashboardTrendPointModel(
       date: json['date']?.toString() ?? '',
       totalLiters: (json['totalLiters'] as num?)?.toDouble() ?? 0,
+      petrolSold: (json['petrolSold'] as num?)?.toDouble() ?? 0,
+      dieselSold: (json['dieselSold'] as num?)?.toDouble() ?? 0,
       collectedAmount: (json['collectedAmount'] as num?)?.toDouble() ?? 0,
       computedSalesValue: (json['computedSalesValue'] as num?)?.toDouble() ?? 0,
       approvedEntries: (json['approvedEntries'] as num?)?.toInt() ?? 0,

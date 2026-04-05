@@ -13,7 +13,12 @@ class UserManagementService {
   Future<UserManagementOverview> fetchOverview() async {
     final response = await _apiClient.get('/users/management');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load user management: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load user management.',
+        ),
+      );
     }
     return UserManagementOverview.fromJson(_apiClient.decodeObject(response));
   }
@@ -21,7 +26,9 @@ class UserManagementService {
   Future<List<AccessRequest>> fetchRequests() async {
     final response = await _apiClient.get('/users/requests');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load requests: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to load requests.'),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return (json['requests'] as List<dynamic>? ?? const [])
@@ -35,7 +42,12 @@ class UserManagementService {
       body: jsonEncode({'role': role}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to approve request: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to approve request.',
+        ),
+      );
     }
   }
 
@@ -45,7 +57,12 @@ class UserManagementService {
       body: jsonEncode({'reason': reason}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to reject request: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to reject request.',
+        ),
+      );
     }
   }
 
@@ -57,7 +74,12 @@ class UserManagementService {
       body: jsonEncode({'items': items}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to bulk approve requests: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to bulk approve requests.',
+        ),
+      );
     }
   }
 
@@ -67,7 +89,12 @@ class UserManagementService {
       body: jsonEncode({'requestIds': requestIds}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to bulk delete requests: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to bulk delete requests.',
+        ),
+      );
     }
   }
 
@@ -85,7 +112,12 @@ class UserManagementService {
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to save staff member: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to save staff member.',
+        ),
+      );
     }
   }
 
@@ -98,14 +130,24 @@ class UserManagementService {
       body: jsonEncode({'role': role}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to update staff role: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to update staff role.',
+        ),
+      );
     }
   }
 
   Future<void> deleteStaff(String userId) async {
     final response = await _apiClient.delete('/users/staff/$userId');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to delete staff member: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to delete staff member.',
+        ),
+      );
     }
   }
 }

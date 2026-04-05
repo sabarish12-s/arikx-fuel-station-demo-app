@@ -78,6 +78,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         pumpCollections: existing.pumpCollections,
         paymentBreakdown: existing.paymentBreakdown,
         creditEntries: existing.creditEntries,
+        creditCollections: existing.creditCollections,
         mismatchReason: existing.mismatchReason,
       );
     }
@@ -85,11 +86,15 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       date: dashboard.date,
       closingReadings: const {},
       pumpAttendants: {for (final pump in dashboard.station.pumps) pump.id: ''},
-      pumpTesting: {for (final pump in dashboard.station.pumps) pump.id: false},
+      pumpTesting: {
+        for (final pump in dashboard.station.pumps)
+          pump.id: const PumpTestingModel(petrol: 0, diesel: 0),
+      },
       pumpPayments: const {},
       pumpCollections: const {},
       paymentBreakdown: const PaymentBreakdownModel(cash: 0, check: 0, upi: 0),
       creditEntries: const [],
+      creditCollections: const [],
     );
   }
 
@@ -106,44 +111,67 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
             pumpId: pumpDraft.closingReadings!,
         },
         pumpAttendants: {...draft.pumpAttendants, pumpId: pumpDraft.attendant},
-        pumpTesting: {...draft.pumpTesting, pumpId: pumpDraft.testingEnabled},
+        pumpTesting: {...draft.pumpTesting, pumpId: pumpDraft.testing},
         pumpPayments: {...draft.pumpPayments, pumpId: pumpDraft.payments},
         pumpCollections: {
           ...draft.pumpCollections,
           pumpId: pumpDraft.payments.total,
         },
-        paymentBreakdown: const PaymentBreakdownModel(
-          cash: 0,
-          check: 0,
-          upi: 0,
-        ),
       );
     });
   }
 
-  double _overallCollection(DailyEntryDraft draft) {
+  double _pumpCollectionTotal(DailyEntryDraft draft) {
     return draft.pumpPayments.values.fold<double>(
       0,
       (sum, value) => sum + value.total,
     );
   }
 
-  PaymentBreakdownModel _overallPaymentModes(DailyEntryDraft draft) {
-    return draft.pumpPayments.values.fold(
-      const PaymentBreakdownModel(cash: 0, check: 0, upi: 0),
-      (sum, value) => PaymentBreakdownModel(
-        cash: sum.cash + value.cash,
-        check: sum.check + value.check,
-        upi: sum.upi + value.upi,
-      ),
-    );
+  PaymentBreakdownModel _settlementModes(DailyEntryDraft draft) {
+    var cash = draft.paymentBreakdown.cash;
+    var check = draft.paymentBreakdown.check;
+    var upi = draft.paymentBreakdown.upi;
+    for (final value in draft.pumpPayments.values) {
+      cash += value.cash;
+      check += value.check;
+      upi += value.upi;
+    }
+    return PaymentBreakdownModel(cash: cash, check: check, upi: upi);
   }
 
-  double _overallCredit(DailyEntryDraft draft) {
+  double _pumpCreditTotal(DailyEntryDraft draft) {
     return draft.pumpPayments.values.fold<double>(
       0,
       (sum, value) => sum + value.credit,
     );
+  }
+
+  double _issuedCreditTotal(DailyEntryDraft draft) {
+    return draft.creditEntries.fold<double>(
+      0,
+      (sum, value) => sum + value.amount,
+    );
+  }
+
+  double _collectionRecoveryTotal(DailyEntryDraft draft) {
+    return draft.creditCollections.fold<double>(
+      0,
+      (sum, value) => sum + value.amount,
+    );
+  }
+
+  double _salesSettlementTotal(DailyEntryDraft draft) {
+    final modes = _settlementModes(draft);
+    return modes.cash +
+        modes.check +
+        modes.upi +
+        _pumpCreditTotal(draft) +
+        _issuedCreditTotal(draft);
+  }
+
+  double _amountCollectedTotal(DailyEntryDraft draft) {
+    return _salesSettlementTotal(draft) + _collectionRecoveryTotal(draft);
   }
 
   bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
@@ -161,8 +189,13 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       if (opening == null || closing == null) {
         continue;
       }
-      petrol += closing.petrol - opening.petrol;
-      diesel += closing.diesel - opening.diesel;
+      final testing =
+          draft.pumpTesting[pump.id] ??
+          const PumpTestingModel(petrol: 0, diesel: 0);
+      final rawPetrol = closing.petrol - opening.petrol;
+      final rawDiesel = closing.diesel - opening.diesel;
+      petrol += rawPetrol > 0 ? (rawPetrol - testing.petrol).clamp(0, rawPetrol) : rawPetrol;
+      diesel += rawDiesel > 0 ? (rawDiesel - testing.diesel).clamp(0, rawDiesel) : rawDiesel;
       if (_supportsTwoT(pump.id)) {
         twoT += closing.twoT - opening.twoT;
       }
@@ -200,7 +233,9 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       initialDraft: PumpEntryDraft(
         attendant: draft.pumpAttendants[pump.id] ?? '',
         closingReadings: draft.closingReadings[pump.id],
-        testingEnabled: draft.pumpTesting[pump.id] == true,
+        testing:
+            draft.pumpTesting[pump.id] ??
+            const PumpTestingModel(petrol: 0, diesel: 0),
         payments:
             draft.pumpPayments[pump.id] ??
             const PumpPaymentBreakdownModel(
@@ -285,12 +320,9 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         pumpTesting: draft.pumpTesting,
         pumpPayments: draft.pumpPayments,
         pumpCollections: draft.pumpCollections,
-        paymentBreakdown: const PaymentBreakdownModel(
-          cash: 0,
-          check: 0,
-          upi: 0,
-        ),
+        paymentBreakdown: draft.paymentBreakdown,
         creditEntries: draft.creditEntries,
+        creditCollections: draft.creditCollections,
         mismatchReason: draft.mismatchReason,
       );
 
@@ -314,12 +346,9 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         pumpTesting: draft.pumpTesting,
         pumpPayments: draft.pumpPayments,
         pumpCollections: draft.pumpCollections,
-        paymentBreakdown: const PaymentBreakdownModel(
-          cash: 0,
-          check: 0,
-          upi: 0,
-        ),
+        paymentBreakdown: draft.paymentBreakdown,
         creditEntries: draft.creditEntries,
+        creditCollections: draft.creditCollections,
         mismatchReason: mismatchReason,
       );
       if (!mounted) {
@@ -423,6 +452,14 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                               value: '${dashboard.entriesCompleted}/1',
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Add pump readings first. Payments and credit are updated from the overall summary section below.',
+                          style: TextStyle(
+                            color: Color(0xFF55606E),
+                            height: 1.4,
+                          ),
                         ),
                       ],
                     ),
@@ -565,8 +602,8 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                           _PumpRow(
                             label: 'Testing',
                             value:
-                                draft?.pumpTesting[pump.id] == true
-                                    ? 'Petrol 5L + Diesel 5L excluded'
+                                (draft?.pumpTesting[pump.id]?.enabled ?? false)
+                                    ? 'Petrol ${formatLiters(draft?.pumpTesting[pump.id]?.petrol ?? 0)}, Diesel ${formatLiters(draft?.pumpTesting[pump.id]?.diesel ?? 0)} excluded'
                                     : 'Off',
                             accent: const Color(0xFF7C3AED),
                           ),
@@ -614,12 +651,26 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Overall Summary',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         const Text(
-                          'Overall Summary',
+                          'Cash, check, UPI, and pump credit come from the pump entries. Old credit collection is handled from Credit Ledger.',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF293340),
+                            color: Color(0xFF55606E),
+                            height: 1.4,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -636,37 +687,59 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                           value: formatLiters(summary.twoT),
                         ),
                         _PaymentRow(
-                          label: 'Overall collection',
+                          label: 'Pump collection total',
                           value: formatCurrency(
-                            draft == null ? 0 : _overallCollection(draft),
+                            draft == null ? 0 : _pumpCollectionTotal(draft),
                           ),
                         ),
                         _PaymentRow(
                           label: 'Cash total',
                           value: formatCurrency(
-                            draft == null
-                                ? 0
-                                : _overallPaymentModes(draft).cash,
+                            draft == null ? 0 : _settlementModes(draft).cash,
                           ),
                         ),
                         _PaymentRow(
                           label: 'Check total',
                           value: formatCurrency(
-                            draft == null
-                                ? 0
-                                : _overallPaymentModes(draft).check,
+                            draft == null ? 0 : _settlementModes(draft).check,
                           ),
                         ),
                         _PaymentRow(
                           label: 'UPI total',
                           value: formatCurrency(
-                            draft == null ? 0 : _overallPaymentModes(draft).upi,
+                            draft == null ? 0 : _settlementModes(draft).upi,
                           ),
                         ),
                         _PaymentRow(
-                          label: 'Credit total',
+                          label: 'Pump credit total',
                           value: formatCurrency(
-                            draft == null ? 0 : _overallCredit(draft),
+                            draft == null ? 0 : _pumpCreditTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'New credit issued',
+                          value: formatCurrency(
+                            draft == null ? 0 : _issuedCreditTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Old credit collected',
+                          value: formatCurrency(
+                            draft == null
+                                ? 0
+                                : _collectionRecoveryTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Sales settlement total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _salesSettlementTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Amount collected total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _amountCollectedTotal(draft),
                           ),
                         ),
                       ],

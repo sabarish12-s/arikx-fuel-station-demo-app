@@ -6,6 +6,7 @@ import 'account_screen.dart';
 import 'closing_stock_entry_screen.dart';
 import 'daily_summary_screen.dart';
 import 'entry_history_screen.dart';
+import 'inventory_hub_screen.dart';
 import 'sales_dashboard_screen.dart';
 
 class SalesShell extends StatefulWidget {
@@ -25,7 +26,7 @@ class _SalesShellState extends State<SalesShell> {
     final screens = [
       SalesDashboardScreen(
         onOpenClosingStock: () => setState(() => _index = 1),
-        onOpenEntryHistory: () => setState(() => _index = 2),
+        onOpenEntryHistory: () => setState(() => _index = 3),
         onOpenDailySummary: () {
           Navigator.of(context).push(
             MaterialPageRoute<void>(builder: (_) => const DailySummaryScreen()),
@@ -33,6 +34,7 @@ class _SalesShellState extends State<SalesShell> {
         },
       ),
       const ClosingStockEntryScreen(),
+      const InventoryHubScreen(),
       const EntryHistoryScreen(),
       AccountScreen(user: widget.user),
     ];
@@ -70,6 +72,10 @@ class _SalesShellState extends State<SalesShell> {
             label: 'Sales',
           ),
           NavigationDestination(
+            icon: Icon(Icons.local_gas_station_outlined),
+            label: 'Inventory',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.local_shipping_outlined),
             label: 'History',
           ),
@@ -87,8 +93,10 @@ class _SalesShellState extends State<SalesShell> {
       case 1:
         return 'Sales';
       case 2:
-        return 'History';
+        return 'Inventory';
       case 3:
+        return 'History';
+      case 4:
         return 'Account';
       default:
         return 'Dashboard';

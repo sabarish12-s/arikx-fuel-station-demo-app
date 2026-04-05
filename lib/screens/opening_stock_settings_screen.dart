@@ -131,6 +131,8 @@ class _OpeningStockSettingsScreenState
           ),
       },
       meterLimits: station.meterLimits,
+      inventoryPlanning: station.inventoryPlanning,
+      flagThreshold: station.flagThreshold,
     );
 
     await _inventoryService.saveStationConfig(updated);
@@ -155,7 +157,11 @@ class _OpeningStockSettingsScreenState
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('${snapshot.error}'));
+          return Center(
+            child: Text(
+              snapshot.error.toString().replaceFirst('Exception: ', ''),
+            ),
+          );
         }
 
         final station = snapshot.data!;

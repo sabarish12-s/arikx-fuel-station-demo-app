@@ -30,6 +30,10 @@ class _FlagThresholdSettingsScreenState
   bool _isEditing = false;
   bool _saving = false;
 
+  String _errorText(Object? error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -71,6 +75,7 @@ class _FlagThresholdSettingsScreenState
         pumps: station.pumps,
         baseReadings: station.baseReadings,
         meterLimits: station.meterLimits,
+        inventoryPlanning: station.inventoryPlanning,
         flagThreshold: value,
       );
       await _inventoryService.saveStationConfig(updated);
@@ -107,7 +112,7 @@ class _FlagThresholdSettingsScreenState
         if (snapshot.hasError) {
           return ListView(
             padding: const EdgeInsets.all(24),
-            children: [Text('Failed to load: ${snapshot.error}')],
+            children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
           );
         }
 

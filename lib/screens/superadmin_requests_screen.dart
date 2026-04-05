@@ -18,6 +18,10 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
   final AdminService _adminService = AdminService();
   late Future<List<AccessRequest>> _requestsFuture;
 
+  String _errorText(Object? error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,7 +100,7 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
                   const SizedBox(height: 100),
                   Center(
                     child: Text(
-                      'Failed to load requests:\n${snapshot.error}',
+                      'Failed to load requests:\n${_errorText(snapshot.error)}',
                       textAlign: TextAlign.center,
                     ),
                   ),

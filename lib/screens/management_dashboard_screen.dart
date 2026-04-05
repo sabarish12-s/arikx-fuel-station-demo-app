@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -5,6 +7,15 @@ import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../utils/formatters.dart';
+String _shortDateLabel(String raw) {
+  final date = DateTime.tryParse(raw);
+  if (date == null) return raw;
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[date.month - 1]} ${date.day}';
+}
 
 class ManagementDashboardScreen extends StatefulWidget {
   const ManagementDashboardScreen({super.key, required this.user});
@@ -19,6 +30,10 @@ class ManagementDashboardScreen extends StatefulWidget {
 class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   final ManagementService _managementService = ManagementService();
   late Future<ManagementDashboardModel> _future;
+
+  String _errorText(Object? error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
   String _preset = 'today';
   String? _fromDate;
   String? _toDate;
@@ -83,28 +98,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       _staffTouchedIndex = 0;
       _future = _load();
     });
-  }
-
-  String _shortDateLabel(String raw) {
-    final date = DateTime.tryParse(raw);
-    if (date == null) {
-      return raw;
-    }
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${months[date.month - 1]} ${date.day}';
   }
 
   Color _pumpColor(String pumpId) {
@@ -193,7 +186,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   }
 
   Widget _buildHeroCard(ManagementDashboardModel data) {
-    final totalLiters = data.petrolSold + data.dieselSold + data.twoTSold;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
@@ -240,9 +232,18 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 value: formatCurrency(data.paymentTotal),
               ),
               _HeroMetric(
-                label: 'Total Liters',
-                value: formatLiters(totalLiters),
+                label: 'Petrol Sold',
+                value: formatLiters(data.petrolSold),
               ),
+              _HeroMetric(
+                label: 'Diesel Sold',
+                value: formatLiters(data.dieselSold),
+              ),
+              if (data.twoTSold > 0)
+                _HeroMetric(
+                  label: '2T Oil Sold',
+                  value: formatLiters(data.twoTSold),
+                ),
               _HeroMetric(
                 label: 'Computed Sales',
                 value: formatCurrency(data.revenue),
@@ -287,7 +288,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               (item) => _ContributionSlice(
                 label: formatPumpLabel(item.pumpId, item.pumpLabel),
                 amount: item.collectedAmount,
-                liters: item.totalLiters,
+                liters: item.liters,
                 subtitle:
                     item.attendantsSeen.isEmpty
                         ? 'No attendants recorded'
@@ -302,12 +303,47 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               (item) => _ContributionSlice(
                 label: item.attendantName,
                 amount: item.collectedAmount,
-                liters: item.totalLiters,
+                liters: item.liters,
                 subtitle:
                     item.pumpsWorked.isEmpty
                         ? 'No pumps recorded'
                         : item.pumpsWorked.join(', '),
                 color: _staffColor(item.attendantName),
+              ),
+            )
+            .toList();
+
+    final pumpPerformanceItems =
+        data.pumpPerformance
+            .map(
+              (item) => _PerformanceItem(
+                title: formatPumpLabel(item.pumpId, item.pumpLabel),
+                subtitle:
+                    item.attendantsSeen.isEmpty
+                        ? 'No attendants recorded'
+                        : item.attendantsSeen.join(', '),
+                liters: item.liters,
+                collectedAmount: item.collectedAmount,
+                computedSalesValue: item.computedSalesValue,
+                variance: item.variance,
+                accent: _pumpColor(item.pumpId),
+              ),
+            )
+            .toList();
+    final staffPerformanceItems =
+        data.attendantPerformance
+            .map(
+              (item) => _PerformanceItem(
+                title: item.attendantName,
+                subtitle:
+                    item.pumpsWorked.isEmpty
+                        ? '${item.activeDays} active days'
+                        : '${item.activeDays} active days  |  ${item.pumpsWorked.join(', ')}',
+                liters: item.liters,
+                collectedAmount: item.collectedAmount,
+                computedSalesValue: item.computedSalesValue,
+                variance: item.variance,
+                accent: _staffColor(item.attendantName),
               ),
             )
             .toList();
@@ -320,7 +356,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             children: [
               _ContributionPieCard(
                 title: 'Pump Contribution',
-                subtitle: 'Slices by collected amount, legend shows liters too',
                 slices: pumpSlices,
                 touchedIndex: _pumpTouchedIndex,
                 onTouched: (index) {
@@ -328,11 +363,11 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     _pumpTouchedIndex = index;
                   });
                 },
+                performanceItems: pumpPerformanceItems,
               ),
               const SizedBox(height: 14),
               _ContributionPieCard(
                 title: 'Staff Contribution',
-                subtitle: 'Attendants grouped across all approved entries',
                 slices: staffSlices,
                 touchedIndex: _staffTouchedIndex,
                 onTouched: (index) {
@@ -340,6 +375,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     _staffTouchedIndex = index;
                   });
                 },
+                performanceItems: staffPerformanceItems,
               ),
             ],
           );
@@ -351,7 +387,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             Expanded(
               child: _ContributionPieCard(
                 title: 'Pump Contribution',
-                subtitle: 'Slices by collected amount, legend shows liters too',
                 slices: pumpSlices,
                 touchedIndex: _pumpTouchedIndex,
                 onTouched: (index) {
@@ -359,13 +394,13 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     _pumpTouchedIndex = index;
                   });
                 },
+                performanceItems: pumpPerformanceItems,
               ),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: _ContributionPieCard(
                 title: 'Staff Contribution',
-                subtitle: 'Attendants grouped across all approved entries',
                 slices: staffSlices,
                 touchedIndex: _staffTouchedIndex,
                 onTouched: (index) {
@@ -373,6 +408,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     _staffTouchedIndex = index;
                   });
                 },
+                performanceItems: staffPerformanceItems,
               ),
             ),
           ],
@@ -382,237 +418,247 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   }
 
   Widget _buildTrendSection(ManagementDashboardModel data) {
-    if (data.range.isSingleDay || data.trend.length <= 1) {
+    final trend = data.trend;
+    if (trend.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(26),
         ),
-        child: Column(
+        child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Daily Trend',
+            Text(
+              'Fuel Sales Trend',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF293340),
               ),
             ),
-            const SizedBox(height: 6),
-            const Text(
-              'Single-day view. Switch to a wider range to compare daily movement.',
+            SizedBox(height: 12),
+            Text(
+              'No approved sales trend is available for this range yet.',
               style: TextStyle(color: Color(0xFF55606E)),
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 18,
-              runSpacing: 12,
-              children: [
-                _TrendMetric(
-                  label: 'Collected',
-                  value: formatCurrency(data.paymentTotal),
-                ),
-                _TrendMetric(
-                  label: 'Computed Sales',
-                  value: formatCurrency(data.revenue),
-                ),
-                _TrendMetric(
-                  label: 'Total Liters',
-                  value: formatLiters(
-                    data.petrolSold + data.dieselSold + data.twoTSold,
-                  ),
-                ),
-              ],
             ),
           ],
         ),
       );
     }
-
-    final maxAmount = data.trend.fold<double>(
+    final maxY = trend.fold<double>(
       0,
-      (max, item) => item.collectedAmount > max ? item.collectedAmount : max,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+      (m, p) => [m, p.petrolSold, p.dieselSold].reduce(
+        (a, b) => a > b ? a : b,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Daily Trend',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF293340),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Collected amount by day for ${data.range.label.toLowerCase()}',
-            style: const TextStyle(color: Color(0xFF55606E)),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 220,
-            child: BarChart(
-              BarChartData(
-                maxY: maxAmount <= 0 ? 1 : maxAmount * 1.2,
-                alignment: BarChartAlignment.spaceAround,
-                gridData: const FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                barTouchData: BarTouchData(enabled: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(),
-                  rightTitles: const AxisTitles(),
-                  leftTitles: const AxisTitles(),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        final index = value.toInt();
-                        if (index < 0 || index >= data.trend.length) {
-                          return const SizedBox.shrink();
-                        }
-                        final showLabel =
-                            data.trend.length <= 8 || index.isEven;
-                        if (!showLabel) {
-                          return const SizedBox.shrink();
-                        }
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            _shortDateLabel(data.trend[index].date),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        );
-                      },
+    );
+    final step = math.max(1, (trend.length / 5).ceil());
+
+    LineChartData buildChartData({required bool compact}) {
+      return LineChartData(
+        minX: 0,
+        maxX: (trend.length - 1).toDouble(),
+        minY: 0,
+        maxY: maxY <= 0 ? 10 : maxY * 1.2,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) =>
+              const FlLine(color: Color(0xFFE9EEF7), strokeWidth: 1),
+        ),
+        borderData: FlBorderData(show: false),
+        lineTouchData: compact
+            ? const LineTouchData(enabled: false)
+            : LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (spots) => spots.map((s) {
+                    final idx = s.x.toInt();
+                    final point = trend[idx.clamp(0, trend.length - 1)];
+                    final isFirst = s.barIndex == 0;
+                    return LineTooltipItem(
+                      isFirst
+                          ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
+                          : 'Diesel ${formatLiters(s.y)}',
+                      TextStyle(
+                        color: isFirst
+                            ? const Color(0xFF1E5CBA)
+                            : const Color(0xFF0F9D58),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(),
+          rightTitles: const AxisTitles(),
+          leftTitles: compact
+              ? const AxisTitles()
+              : AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 48,
+                    interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
+                    getTitlesWidget: (value, _) => Text(
+                      '${value.toInt()} L',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF55606E),
+                      ),
                     ),
                   ),
                 ),
-                barGroups: [
-                  for (int index = 0; index < data.trend.length; index++)
-                    BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: data.trend[index].collectedAmount,
-                          width: 16,
-                          color: const Color(0xFF1E5CBA),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ],
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 28,
+              getTitlesWidget: (value, _) {
+                final index = value.toInt();
+                if (index < 0 || index >= trend.length) {
+                  return const SizedBox.shrink();
+                }
+                final show = compact
+                    ? index % step == 0
+                    : (trend.length <= 10 || index % (trend.length / 8).ceil() == 0);
+                if (!show) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    _shortDateLabel(trend[index].date),
+                    style: const TextStyle(fontSize: 10, color: Color(0xFF55606E)),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: [
+              for (int i = 0; i < trend.length; i++)
+                FlSpot(i.toDouble(), trend[i].petrolSold),
+            ],
+            isCurved: true,
+            color: const Color(0xFF1E5CBA),
+            barWidth: 2.5,
+            dotData: FlDotData(
+              show: !compact,
+              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
+                radius: 3,
+                color: const Color(0xFF1E5CBA),
+                strokeWidth: 0,
+                strokeColor: Colors.transparent,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: const Color(0xFF1E5CBA).withValues(alpha: 0.08),
+            ),
+          ),
+          LineChartBarData(
+            spots: [
+              for (int i = 0; i < trend.length; i++)
+                FlSpot(i.toDouble(), trend[i].dieselSold),
+            ],
+            isCurved: true,
+            color: const Color(0xFF0F9D58),
+            barWidth: 2.5,
+            dotData: FlDotData(
+              show: !compact,
+              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
+                radius: 3,
+                color: const Color(0xFF0F9D58),
+                strokeWidth: 0,
+                strokeColor: Colors.transparent,
+              ),
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              color: const Color(0xFF0F9D58).withValues(alpha: 0.08),
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget legend() => Row(
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E5CBA),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              'Petrol',
+              style: TextStyle(fontSize: 12, color: Color(0xFF293340), fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 16),
+            Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(
+                color: Color(0xFF0F9D58),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              'Diesel',
+              style: TextStyle(fontSize: 12, color: Color(0xFF293340), fontWeight: FontWeight.w600),
+            ),
+          ],
+        );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Daily Trend',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF293340),
+                ),
+              ),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.open_in_full_rounded, size: 20),
+                color: const Color(0xFF55606E),
+                tooltip: 'Expand',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    fullscreenDialog: true,
+                    builder: (_) => _TrendChartPage(
+                      trend: trend,
+                      rangeLabel: data.range.label,
+                      buildChartData: buildChartData,
+                      legend: legend(),
                     ),
-                ],
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPumpPerformance(ManagementDashboardModel data) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Pump Performance',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF293340),
-            ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 200,
+            child: LineChart(buildChartData(compact: true)),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Volume, amount, and attendants by pump for the selected range.',
-            style: TextStyle(color: Color(0xFF55606E)),
-          ),
-          const SizedBox(height: 14),
-          if (data.pumpPerformance.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
-              child: Text('No approved pump data for this range.'),
-            )
-          else
-            ...data.pumpPerformance.map(
-              (item) => _PerformanceTile(
-                title: formatPumpLabel(item.pumpId, item.pumpLabel),
-                subtitle:
-                    item.attendantsSeen.isEmpty
-                        ? 'No attendants recorded'
-                        : item.attendantsSeen.join(', '),
-                liters: item.liters,
-                totalLiters: item.totalLiters,
-                collectedAmount: item.collectedAmount,
-                computedSalesValue: item.computedSalesValue,
-                variance: item.variance,
-                accent: _pumpColor(item.pumpId),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAttendantPerformance(ManagementDashboardModel data) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Attendant Performance',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF293340),
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Staff contribution across pumps, with liters and collection totals.',
-            style: TextStyle(color: Color(0xFF55606E)),
-          ),
-          const SizedBox(height: 14),
-          if (data.attendantPerformance.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 18),
-              child: Text('No approved attendant data for this range.'),
-            )
-          else
-            ...data.attendantPerformance.map(
-              (item) => _PerformanceTile(
-                title: item.attendantName,
-                subtitle:
-                    item.pumpsWorked.isEmpty
-                        ? '${item.activeDays} active days'
-                        : '${item.activeDays} active days  |  ${item.pumpsWorked.join(', ')}',
-                liters: item.liters,
-                totalLiters: item.totalLiters,
-                collectedAmount: item.collectedAmount,
-                computedSalesValue: item.computedSalesValue,
-                variance: item.variance,
-                accent: _staffColor(item.attendantName),
-              ),
-            ),
+          const SizedBox(height: 10),
+          legend(),
         ],
       ),
     );
@@ -631,7 +677,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           if (snapshot.hasError) {
             return ListView(
               padding: const EdgeInsets.all(24),
-              children: [Text('Failed to load dashboard\n${snapshot.error}')],
+              children: [Text('Failed to load dashboard\n${_errorText(snapshot.error)}')],
             );
           }
 
@@ -657,10 +703,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               _buildContributionSection(data),
               const SizedBox(height: 16),
               _buildTrendSection(data),
-              const SizedBox(height: 16),
-              _buildPumpPerformance(data),
-              const SizedBox(height: 16),
-              _buildAttendantPerformance(data),
             ],
           );
         },
@@ -680,9 +722,29 @@ class _ContributionSlice {
 
   final String label;
   final double amount;
-  final double liters;
+  final PumpReadings liters;
   final String subtitle;
   final Color color;
+}
+
+class _PerformanceItem {
+  const _PerformanceItem({
+    required this.title,
+    required this.subtitle,
+    required this.liters,
+    required this.collectedAmount,
+    required this.computedSalesValue,
+    required this.variance,
+    required this.accent,
+  });
+
+  final String title;
+  final String subtitle;
+  final PumpReadings liters;
+  final double collectedAmount;
+  final double computedSalesValue;
+  final double variance;
+  final Color accent;
 }
 
 class _HeroMetric extends StatelessWidget {
@@ -737,7 +799,7 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.16),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -764,17 +826,17 @@ class _StatusPill extends StatelessWidget {
 class _ContributionPieCard extends StatelessWidget {
   const _ContributionPieCard({
     required this.title,
-    required this.subtitle,
     required this.slices,
     required this.touchedIndex,
     required this.onTouched,
+    required this.performanceItems,
   });
 
   final String title;
-  final String subtitle;
   final List<_ContributionSlice> slices;
   final int touchedIndex;
   final ValueChanged<int> onTouched;
+  final List<_PerformanceItem> performanceItems;
 
   @override
   Widget build(BuildContext context) {
@@ -782,11 +844,6 @@ class _ContributionPieCard extends StatelessWidget {
       0,
       (sum, item) => sum + item.amount,
     );
-    final selected =
-        slices.isEmpty
-            ? null
-            : slices[touchedIndex.clamp(0, slices.length - 1)];
-
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -804,8 +861,6 @@ class _ContributionPieCard extends StatelessWidget {
               color: Color(0xFF293340),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: Color(0xFF55606E))),
           const SizedBox(height: 16),
           SizedBox(
             height: 220,
@@ -878,113 +933,23 @@ class _ContributionPieCard extends StatelessWidget {
                     ),
           ),
           const SizedBox(height: 12),
-          if (selected != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FF),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    selected.label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF293340),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    selected.subtitle,
-                    style: const TextStyle(color: Color(0xFF55606E)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Amount ${formatCurrency(selected.amount)}  |  Volume ${formatLiters(selected.liters)}',
-                    style: const TextStyle(
-                      color: Color(0xFF293340),
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+          if (performanceItems.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('No data for this range.'),
+            )
+          else
+            ...performanceItems.map(
+              (item) => _PerformanceTile(
+                title: item.title,
+                subtitle: item.subtitle,
+                liters: item.liters,
+                collectedAmount: item.collectedAmount,
+                computedSalesValue: item.computedSalesValue,
+                variance: item.variance,
+                accent: item.accent,
               ),
             ),
-          const SizedBox(height: 12),
-          ...slices.map(
-            (slice) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    margin: const EdgeInsets.only(top: 4),
-                    decoration: BoxDecoration(
-                      color: slice.color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          slice.label,
-                          style: const TextStyle(
-                            color: Color(0xFF293340),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          'Amount ${formatCurrency(slice.amount)}  |  ${formatLiters(slice.liters)}',
-                          style: const TextStyle(color: Color(0xFF55606E)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrendMetric extends StatelessWidget {
-  const _TrendMetric({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 180,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF55606E),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF293340),
-              fontWeight: FontWeight.w900,
-            ),
-          ),
         ],
       ),
     );
@@ -996,7 +961,6 @@ class _PerformanceTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.liters,
-    required this.totalLiters,
     required this.collectedAmount,
     required this.computedSalesValue,
     required this.variance,
@@ -1006,7 +970,6 @@ class _PerformanceTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final PumpReadings liters;
-  final double totalLiters;
   final double collectedAmount;
   final double computedSalesValue;
   final double variance;
@@ -1076,10 +1039,6 @@ class _PerformanceTile extends StatelessWidget {
               _MetricTag(label: 'Diesel', value: formatLiters(liters.diesel)),
               if (liters.twoT > 0)
                 _MetricTag(label: '2T Oil', value: formatLiters(liters.twoT)),
-              _MetricTag(
-                label: 'Total Liters',
-                value: formatLiters(totalLiters),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1137,6 +1096,55 @@ class _MetricTag extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TrendChartPage extends StatelessWidget {
+  const _TrendChartPage({
+    required this.trend,
+    required this.rangeLabel,
+    required this.buildChartData,
+    required this.legend,
+  });
+
+  final List<DashboardTrendPointModel> trend;
+  final String rangeLabel;
+  final LineChartData Function({required bool compact}) buildChartData;
+  final Widget legend;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Daily Trend',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+            Text(
+              rangeLabel,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF55606E)),
+            ),
+          ],
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            legend,
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 320,
+              child: LineChart(buildChartData(compact: false)),
+            ),
+          ],
+        ),
       ),
     );
   }

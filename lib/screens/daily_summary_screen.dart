@@ -30,7 +30,11 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('${snapshot.error}'));
+          return Center(
+            child: Text(
+              snapshot.error.toString().replaceFirst('Exception: ', ''),
+            ),
+          );
         }
         final data = snapshot.data!;
         final entry = data.entries.isEmpty ? null : data.entries.first;

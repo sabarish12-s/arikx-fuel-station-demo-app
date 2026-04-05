@@ -24,6 +24,10 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   final SalesService _salesService = SalesService();
   late Future<SalesDashboardModel> _future;
 
+  String _errorText(Object? error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +56,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               children: [
                 const SizedBox(height: 80),
                 Text(
-                  'Failed to load dashboard\n${snapshot.error}',
+                  'Failed to load dashboard\n${_errorText(snapshot.error)}',
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -150,8 +154,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               const SizedBox(height: 18),
               _ActionCard(
                 title: 'Enter Daily Sales',
-                subtitle:
-                    'Create or review the daily entry for ${formatDateLabel(data.date)}',
                 icon: Icons.propane_tank_outlined,
                 iconBg: const Color(0xFF88F6DD),
                 onTap: widget.onOpenClosingStock,
@@ -159,7 +161,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               const SizedBox(height: 12),
               _ActionCard(
                 title: 'Entry History',
-                subtitle: 'Review past submissions and adjustments',
                 icon: Icons.list_alt_rounded,
                 iconBg: const Color(0xFFD8E3F4),
                 onTap: widget.onOpenEntryHistory,
@@ -167,7 +168,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               const SizedBox(height: 12),
               _ActionCard(
                 title: 'Daily Summary',
-                subtitle: 'Sales and inventory analytics',
                 icon: Icons.analytics_outlined,
                 iconBg: const Color(0xFFE5CEFF),
                 onTap: widget.onOpenDailySummary,
@@ -285,14 +285,12 @@ class _MiniMetric extends StatelessWidget {
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.title,
-    required this.subtitle,
     required this.icon,
     required this.iconBg,
     this.onTap,
   });
 
   final String title;
-  final String subtitle;
   final IconData icon;
   final Color iconBg;
   final VoidCallback? onTap;
@@ -329,15 +327,6 @@ class _ActionCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
                         color: Color(0xFF293340),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFF55606E),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],

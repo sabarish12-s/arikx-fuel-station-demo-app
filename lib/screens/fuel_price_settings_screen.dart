@@ -332,7 +332,11 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('${snapshot.error}'));
+          return Center(
+            child: Text(
+              snapshot.error.toString().replaceFirst('Exception: ', ''),
+            ),
+          );
         }
         final prices = snapshot.data ?? const <FuelPriceModel>[];
         _ensureDraft(prices);

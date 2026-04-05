@@ -17,7 +17,12 @@ class SalesService {
     final String suffix = date == null ? '' : '?date=$date';
     final response = await _apiClient.get('/sales/dashboard$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load sales dashboard: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load sales dashboard.',
+        ),
+      );
     }
     return SalesDashboardModel.fromJson(_apiClient.decodeObject(response));
   }
@@ -26,7 +31,9 @@ class SalesService {
     final String suffix = month == null ? '' : '?month=$month';
     final response = await _apiClient.get('/sales/entries$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load entries: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to load entries.'),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return (json['entries'] as List<dynamic>? ?? const [])
@@ -38,7 +45,12 @@ class SalesService {
     final String suffix = date == null ? '' : '?date=$date';
     final response = await _apiClient.get('/sales/summary/daily$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load daily summary: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load daily summary.',
+        ),
+      );
     }
     return DailySummaryModel.fromJson(_apiClient.decodeObject(response));
   }
@@ -47,11 +59,12 @@ class SalesService {
     required String date,
     required Map<String, PumpReadings> closingReadings,
     required Map<String, String> pumpAttendants,
-    required Map<String, bool> pumpTesting,
+    required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
     required Map<String, double> pumpCollections,
     required PaymentBreakdownModel paymentBreakdown,
     required List<CreditEntryModel> creditEntries,
+    required List<CreditCollectionModel> creditCollections,
     String mismatchReason = '',
   }) async {
     final response = await _apiClient.post(
@@ -62,18 +75,24 @@ class SalesService {
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpAttendants': pumpAttendants,
-        'pumpTesting': pumpTesting,
+        'pumpTesting': pumpTesting.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
         'pumpPayments': pumpPayments.map(
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpCollections': pumpCollections,
         'paymentBreakdown': paymentBreakdown.toJson(),
         'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'creditCollections':
+            creditCollections.map((entry) => entry.toJson()).toList(),
         'mismatchReason': mismatchReason,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to submit entry: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to submit entry.'),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
@@ -83,11 +102,12 @@ class SalesService {
     required String date,
     required Map<String, PumpReadings> closingReadings,
     required Map<String, String> pumpAttendants,
-    required Map<String, bool> pumpTesting,
+    required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
     required Map<String, double> pumpCollections,
     required PaymentBreakdownModel paymentBreakdown,
     required List<CreditEntryModel> creditEntries,
+    required List<CreditCollectionModel> creditCollections,
     String mismatchReason = '',
   }) async {
     final response = await _apiClient.post(
@@ -98,18 +118,24 @@ class SalesService {
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpAttendants': pumpAttendants,
-        'pumpTesting': pumpTesting,
+        'pumpTesting': pumpTesting.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
         'pumpPayments': pumpPayments.map(
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpCollections': pumpCollections,
         'paymentBreakdown': paymentBreakdown.toJson(),
         'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'creditCollections':
+            creditCollections.map((entry) => entry.toJson()).toList(),
         'mismatchReason': mismatchReason,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to preview entry: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to preview entry.'),
+      );
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);

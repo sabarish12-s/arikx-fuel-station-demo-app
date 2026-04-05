@@ -4,7 +4,7 @@ import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
-import '../widgets/daily_entry_dialogs.dart';
+import 'entry_workflow_screen.dart';
 
 class EntryManagementScreen extends StatefulWidget {
   const EntryManagementScreen({super.key});
@@ -230,6 +230,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       pumpCollections: entry.pumpCollections,
       paymentBreakdown: entry.paymentBreakdown,
       creditEntries: entry.creditEntries,
+      creditCollections: entry.creditCollections,
       mismatchReason: entry.mismatchReason,
     );
   }
@@ -270,26 +271,81 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         return;
       }
 
-      final draft = await showDailyEntryEditorDialog(
-        context: context,
-        station: dashboard.station,
-        title: 'Daily Admin Entry',
-        initialDate: date,
-        openingReadings: dashboard.openingReadings,
-        initialDraft:
-            dashboard.selectedEntry == null
-                ? null
-                : _draftFromEntry(dashboard.selectedEntry!),
-        allowDateEdit: false,
+      final created = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder:
+              (_) => EntryWorkflowScreen(
+                title:
+                    dashboard.selectedEntry == null
+                        ? 'Daily Admin Entry'
+                        : 'Edit Daily Entry',
+                station: dashboard.station,
+                openingReadings:
+                    dashboard.selectedEntry?.openingReadings ??
+                    dashboard.openingReadings,
+                initialDraft:
+                    dashboard.selectedEntry == null
+                        ? DailyEntryDraft(
+                          date: date,
+                          closingReadings: const {},
+                          pumpAttendants: {
+                            for (final pump in dashboard.station.pumps)
+                              pump.id: '',
+                          },
+                          pumpTesting: {
+                            for (final pump in dashboard.station.pumps)
+                              pump.id: const PumpTestingModel(
+                                petrol: 0,
+                                diesel: 0,
+                              ),
+                          },
+                          pumpPayments: const {},
+                          pumpCollections: const {},
+                          paymentBreakdown: const PaymentBreakdownModel(
+                            cash: 0,
+                            check: 0,
+                            upi: 0,
+                          ),
+                          creditEntries: const [],
+                          creditCollections: const [],
+                        )
+                        : _draftFromEntry(dashboard.selectedEntry!),
+                onSubmit: (draft, mismatchReason) async {
+                  if (dashboard.selectedEntry == null) {
+                    await _salesService.submitEntry(
+                      date: draft.date,
+                      closingReadings: draft.closingReadings,
+                      pumpAttendants: draft.pumpAttendants,
+                      pumpTesting: draft.pumpTesting,
+                      pumpPayments: draft.pumpPayments,
+                      pumpCollections: draft.pumpCollections,
+                      paymentBreakdown: draft.paymentBreakdown,
+                      creditEntries: draft.creditEntries,
+                      creditCollections: draft.creditCollections,
+                      mismatchReason: mismatchReason,
+                    );
+                  } else {
+                    await _managementService.updateEntry(
+                      entryId: dashboard.selectedEntry!.id,
+                      closingReadings: draft.closingReadings,
+                      pumpAttendants: draft.pumpAttendants,
+                      pumpTesting: draft.pumpTesting,
+                      pumpPayments: draft.pumpPayments,
+                      pumpCollections: draft.pumpCollections,
+                      paymentBreakdown: draft.paymentBreakdown,
+                      creditEntries: draft.creditEntries,
+                      creditCollections: draft.creditCollections,
+                      mismatchReason: mismatchReason,
+                    );
+                  }
+                },
+              ),
+        ),
       );
-      if (draft == null) {
+      if (created != true) {
         return;
       }
-
-      await _previewAndSubmitAdminEntry(
-        draft,
-        existingEntry: dashboard.selectedEntry,
-      );
+      await _reload();
     } catch (error) {
       if (!mounted) {
         return;
@@ -309,128 +365,39 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     }
   }
 
-  Future<void> _previewAndSubmitAdminEntry(
-    DailyEntryDraft draft, {
-    ShiftEntryModel? existingEntry,
-  }) async {
-    final preview = await _salesService.previewEntry(
-      date: draft.date,
-      closingReadings: draft.closingReadings,
-      pumpAttendants: draft.pumpAttendants,
-      pumpTesting: draft.pumpTesting,
-      pumpPayments: draft.pumpPayments,
-      pumpCollections: draft.pumpCollections,
-      paymentBreakdown: draft.paymentBreakdown,
-      creditEntries: draft.creditEntries,
-      mismatchReason: draft.mismatchReason,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    final mismatchReason = await showDailyEntryPreviewDialog(
-      context: context,
-      preview: preview,
-      initialMismatchReason: draft.mismatchReason,
-    );
-    if (mismatchReason == null) {
-      return;
-    }
-
-    if (existingEntry == null) {
-      await _salesService.submitEntry(
-        date: draft.date,
-        closingReadings: draft.closingReadings,
-        pumpAttendants: draft.pumpAttendants,
-        pumpTesting: draft.pumpTesting,
-        pumpPayments: draft.pumpPayments,
-        pumpCollections: draft.pumpCollections,
-        paymentBreakdown: draft.paymentBreakdown,
-        creditEntries: draft.creditEntries,
-        mismatchReason: mismatchReason,
-      );
-    } else {
-      await _managementService.updateEntry(
-        entryId: existingEntry.id,
-        closingReadings: draft.closingReadings,
-        pumpAttendants: draft.pumpAttendants,
-        pumpTesting: draft.pumpTesting,
-        pumpPayments: draft.pumpPayments,
-        pumpCollections: draft.pumpCollections,
-        paymentBreakdown: draft.paymentBreakdown,
-        creditEntries: draft.creditEntries,
-        mismatchReason: mismatchReason,
-      );
-    }
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Entry saved. Collected ${formatCurrency(preview.paymentTotal)}.',
-        ),
-      ),
-    );
-    await _reload();
-  }
-
   Future<void> _editEntry(
     ShiftEntryModel entry,
     StationConfigModel station,
   ) async {
-    final draft = await showDailyEntryEditorDialog(
-      context: context,
-      station: station,
-      title: 'Edit Daily Entry',
-      initialDate: entry.date,
-      openingReadings: entry.openingReadings,
-      initialDraft: _draftFromEntry(entry),
-      allowDateEdit: false,
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder:
+            (_) => EntryWorkflowScreen(
+              title: 'Edit Daily Entry',
+              station: station,
+              openingReadings: entry.openingReadings,
+              initialDraft: _draftFromEntry(entry),
+              onSubmit: (draft, mismatchReason) async {
+                await _managementService.updateEntry(
+                  entryId: entry.id,
+                  closingReadings: draft.closingReadings,
+                  pumpAttendants: draft.pumpAttendants,
+                  pumpTesting: draft.pumpTesting,
+                  pumpPayments: draft.pumpPayments,
+                  pumpCollections: draft.pumpCollections,
+                  paymentBreakdown: draft.paymentBreakdown,
+                  creditEntries: draft.creditEntries,
+                  creditCollections: draft.creditCollections,
+                  mismatchReason: mismatchReason,
+                );
+              },
+            ),
+      ),
     );
 
-    if (draft == null) {
+    if (saved != true) {
       return;
     }
-
-    final preview = await _salesService.previewEntry(
-      date: draft.date,
-      closingReadings: draft.closingReadings,
-      pumpAttendants: draft.pumpAttendants,
-      pumpTesting: draft.pumpTesting,
-      pumpPayments: draft.pumpPayments,
-      pumpCollections: draft.pumpCollections,
-      paymentBreakdown: draft.paymentBreakdown,
-      creditEntries: draft.creditEntries,
-      mismatchReason: draft.mismatchReason,
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    final mismatchReason = await showDailyEntryPreviewDialog(
-      context: context,
-      preview: preview,
-      initialMismatchReason: draft.mismatchReason,
-    );
-    if (mismatchReason == null) {
-      return;
-    }
-
-    await _managementService.updateEntry(
-      entryId: entry.id,
-      closingReadings: draft.closingReadings,
-      pumpAttendants: draft.pumpAttendants,
-      pumpTesting: draft.pumpTesting,
-      pumpPayments: draft.pumpPayments,
-      pumpCollections: draft.pumpCollections,
-      paymentBreakdown: draft.paymentBreakdown,
-      creditEntries: draft.creditEntries,
-      mismatchReason: mismatchReason,
-    );
     await _reload();
   }
 
@@ -528,7 +495,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             if (snapshot.hasError) {
               return ListView(
                 padding: const EdgeInsets.all(24),
-                children: [Center(child: Text('${snapshot.error}'))],
+                children: [
+                  Center(
+                    child: Text(
+                      snapshot.error.toString().replaceFirst('Exception: ', ''),
+                    ),
+                  ),
+                ],
               );
             }
 

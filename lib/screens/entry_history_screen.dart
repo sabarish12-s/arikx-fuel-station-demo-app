@@ -55,7 +55,11 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('${snapshot.error}'));
+                  return Center(
+                    child: Text(
+                      snapshot.error.toString().replaceFirst('Exception: ', ''),
+                    ),
+                  );
                 }
                 final entries = snapshot.data ?? [];
                 if (entries.isEmpty) {

@@ -4,6 +4,7 @@ import '../models/auth_models.dart';
 import 'flag_threshold_settings_screen.dart';
 import 'fuel_price_settings_screen.dart';
 import 'fuel_type_manager_screen.dart';
+import 'inventory_planning_settings_screen.dart';
 import 'opening_stock_settings_screen.dart';
 import 'station_settings_screen.dart';
 import 'user_management_screen.dart';
@@ -31,6 +32,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
   bool get _canEditStationSettings =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
   bool get _canEditOpeningStock =>
+      widget.user.role == 'admin' || widget.user.role == 'superadmin';
+  bool get _canEditInventoryPlanning =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
 
   _SettingsPanel _panel = _SettingsPanel.home;
@@ -65,6 +68,12 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           embedded: true,
           onBack: _showHome,
         );
+      case _SettingsPanel.inventoryPlanning:
+        return InventoryPlanningSettingsScreen(
+          canEdit: _canEditInventoryPlanning,
+          embedded: true,
+          onBack: _showHome,
+        );
       case _SettingsPanel.fuelPriceSettings:
         return FuelPriceSettingsScreen(
           canEdit: _canEditPrices,
@@ -93,17 +102,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
         return ListView(
           padding: const EdgeInsets.all(18),
           children: [
-            const Text(
-              'Manage station setup, pricing, fuel catalog, and access controls.',
-              style: TextStyle(color: Color(0xFF55606E)),
-            ),
-            const SizedBox(height: 16),
             _SettingsTile(
               title: 'Station Settings',
-              subtitle:
-                  _canEditStationSettings
-                      ? 'View station setup first, then edit labels and shifts when needed'
-                      : 'View station layout, shifts, and fixed pump configuration',
               icon: Icons.settings_suggest_outlined,
               onTap: () {
                 setState(() {
@@ -114,10 +114,6 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             const SizedBox(height: 12),
             _SettingsTile(
               title: 'Opening Stock Settings',
-              subtitle:
-                  _canEditOpeningStock
-                      ? 'Set current opening reading for each pump'
-                      : 'View configured opening stock and pump readings',
               icon: Icons.speed_outlined,
               onTap: () {
                 setState(() {
@@ -127,11 +123,17 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             ),
             const SizedBox(height: 12),
             _SettingsTile(
+              title: 'Inventory Planning',
+              icon: Icons.inventory_2_outlined,
+              onTap: () {
+                setState(() {
+                  _panel = _SettingsPanel.inventoryPlanning;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            _SettingsTile(
               title: 'Fuel Price Settings',
-              subtitle:
-                  _canEditPrices
-                      ? 'Update cost and selling prices'
-                      : 'View current fuel prices',
               icon: Icons.payments_outlined,
               onTap: () {
                 setState(() {
@@ -142,10 +144,6 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             const SizedBox(height: 12),
             _SettingsTile(
               title: 'Fuel Type Manager',
-              subtitle:
-                  _canEditFuelTypes
-                      ? 'Maintain the active fuel catalog'
-                      : 'View available fuel types',
               icon: Icons.category_outlined,
               onTap: () {
                 setState(() {
@@ -156,10 +154,6 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             const SizedBox(height: 12),
             _SettingsTile(
               title: 'Flag Threshold',
-              subtitle:
-                  _canEditStationSettings
-                      ? 'Set the mismatch amount that triggers an entry flag'
-                      : 'View the configured flag threshold',
               icon: Icons.flag_outlined,
               onTap: () {
                 setState(() {
@@ -171,7 +165,6 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
               const SizedBox(height: 12),
               _SettingsTile(
                 title: 'User Management',
-                subtitle: 'Approve requests and manage staff access',
                 icon: Icons.manage_accounts_outlined,
                 onTap: () {
                   setState(() {
@@ -196,6 +189,7 @@ enum _SettingsPanel {
   home,
   stationSettings,
   openingStockSettings,
+  inventoryPlanning,
   fuelPriceSettings,
   fuelTypeManager,
   flagThreshold,
@@ -205,13 +199,11 @@ enum _SettingsPanel {
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.title,
-    required this.subtitle,
     required this.icon,
     this.onTap,
   });
 
   final String title;
-  final String subtitle;
   final IconData icon;
   final VoidCallback? onTap;
 
@@ -243,10 +235,6 @@ class _SettingsTile extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(color: Color(0xFF55606E)),
                     ),
                   ],
                 ),

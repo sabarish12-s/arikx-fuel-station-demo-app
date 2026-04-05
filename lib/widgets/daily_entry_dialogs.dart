@@ -3,6 +3,21 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../utils/formatters.dart';
 
+const double _defaultTestingQuantity = 5;
+
+String _formatTestingQuantityInput(double quantity) {
+  if (quantity <= 0) {
+    return '';
+  }
+  return quantity == quantity.truncateToDouble()
+      ? quantity.toStringAsFixed(0)
+      : quantity.toStringAsFixed(2);
+}
+
+String _testingSubtitle(PumpTestingModel testing) {
+  return 'Exclude petrol ${formatLiters(testing.petrol)} and diesel ${formatLiters(testing.diesel)} from billed sale for this pump.';
+}
+
 Future<DailyEntryDraft?> showDailyEntryEditorDialog({
   required BuildContext context,
   required StationConfigModel station,
@@ -21,6 +36,8 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
   final Map<String, TextEditingController> upiControllers = {};
   final Map<String, TextEditingController> creditControllers = {};
   final Map<String, bool> testingValues = {};
+  final Map<String, TextEditingController> testingPetrolControllers = {};
+  final Map<String, TextEditingController> testingDieselControllers = {};
   String selectedDate = initialDraft?.date ?? initialDate;
 
   for (final pump in station.pumps) {
@@ -43,7 +60,16 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
     attendantControllers[pump.id] = TextEditingController(
       text: initialDraft?.pumpAttendants[pump.id] ?? '',
     );
-    testingValues[pump.id] = initialDraft?.pumpTesting[pump.id] == true;
+    final testing =
+        initialDraft?.pumpTesting[pump.id] ??
+        const PumpTestingModel(petrol: 0, diesel: 0);
+    testingValues[pump.id] = testing.enabled;
+    testingPetrolControllers[pump.id] = TextEditingController(
+      text: _formatTestingQuantityInput(testing.petrol),
+    );
+    testingDieselControllers[pump.id] = TextEditingController(
+      text: _formatTestingQuantityInput(testing.diesel),
+    );
     cashControllers[pump.id] = TextEditingController(
       text:
           (initialDraft?.pumpPayments[pump.id]?.cash ?? 0) == 0
@@ -271,15 +297,91 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                                   controlAffinity:
                                       ListTileControlAffinity.leading,
                                   title: const Text('Testing'),
-                                  subtitle: const Text(
-                                    'Exclude 5L petrol and 5L diesel from billed sale for this pump.',
+                                  subtitle: Text(
+                                    _testingSubtitle(
+                                      testingValues[pump.id] == true
+                                          ? PumpTestingModel(
+                                            petrol: parseTestingQuantity(
+                                              testingPetrolControllers[pump.id]
+                                                      ?.text ??
+                                                  '',
+                                            ),
+                                            diesel: parseTestingQuantity(
+                                              testingDieselControllers[pump.id]
+                                                      ?.text ??
+                                                  '',
+                                            ),
+                                          )
+                                          : const PumpTestingModel(
+                                            petrol: _defaultTestingQuantity,
+                                            diesel: _defaultTestingQuantity,
+                                          ),
+                                    ),
                                   ),
                                   onChanged: (value) {
                                     setDialogState(() {
                                       testingValues[pump.id] = value ?? false;
+                                      final petrolController =
+                                          testingPetrolControllers[pump.id];
+                                      final dieselController =
+                                          testingDieselControllers[pump.id];
+                                      if (testingValues[pump.id] == true) {
+                                        if (parseTestingQuantity(
+                                              petrolController?.text ?? '',
+                                            ) <=
+                                            0) {
+                                          petrolController?.text =
+                                              _formatTestingQuantityInput(
+                                                _defaultTestingQuantity,
+                                              );
+                                        }
+                                        if (parseTestingQuantity(
+                                              dieselController?.text ?? '',
+                                            ) <=
+                                            0) {
+                                          dieselController?.text =
+                                              _formatTestingQuantityInput(
+                                                _defaultTestingQuantity,
+                                              );
+                                        }
+                                      }
                                     });
                                   },
                                 ),
+                                if (testingValues[pump.id] == true) ...[
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller:
+                                        testingPetrolControllers[pump.id],
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Testing petrol quantity',
+                                      helperText:
+                                          'This value is excluded only from petrol sales.',
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller:
+                                        testingDieselControllers[pump.id],
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Testing diesel quantity',
+                                      helperText:
+                                          'This value is excluded only from diesel sales.',
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           );
@@ -297,7 +399,7 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                     onPressed: () {
                       final closingReadings = <String, PumpReadings>{};
                       final attendants = <String, String>{};
-                      final pumpTesting = <String, bool>{};
+                      final pumpTesting = <String, PumpTestingModel>{};
                       final pumpPayments =
                           <String, PumpPaymentBreakdownModel>{};
                       final pumpCollections = <String, double>{};
@@ -323,7 +425,33 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                         );
                         attendants[pump.id] =
                             attendantControllers[pump.id]?.text.trim() ?? '';
-                        pumpTesting[pump.id] = testingValues[pump.id] == true;
+                        if (testingValues[pump.id] == true) {
+                          final testingPetrol = parseTestingQuantity(
+                            testingPetrolControllers[pump.id]?.text ?? '',
+                          );
+                          final testingDiesel = parseTestingQuantity(
+                            testingDieselControllers[pump.id]?.text ?? '',
+                          );
+                          if (testingPetrol <= 0 && testingDiesel <= 0) {
+                            ScaffoldMessenger.of(dialogContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Enter petrol or diesel testing quantity greater than 0 for ${formatPumpLabel(pump.id, pump.label)}.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          pumpTesting[pump.id] = PumpTestingModel(
+                            petrol: testingPetrol,
+                            diesel: testingDiesel,
+                          );
+                        } else {
+                          pumpTesting[pump.id] = const PumpTestingModel(
+                            petrol: 0,
+                            diesel: 0,
+                          );
+                        }
                         final payments = PumpPaymentBreakdownModel(
                           cash:
                               double.tryParse(
@@ -357,12 +485,16 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                         pumpTesting: pumpTesting,
                         pumpPayments: pumpPayments,
                         pumpCollections: pumpCollections,
-                        paymentBreakdown: const PaymentBreakdownModel(
-                          cash: 0,
-                          check: 0,
-                          upi: 0,
-                        ),
-                        creditEntries: const [],
+                        paymentBreakdown:
+                            initialDraft?.paymentBreakdown ??
+                            const PaymentBreakdownModel(
+                              cash: 0,
+                              check: 0,
+                              upi: 0,
+                            ),
+                        creditEntries: initialDraft?.creditEntries ?? const [],
+                        creditCollections:
+                            initialDraft?.creditCollections ?? const [],
                       );
                       Navigator.of(dialogContext).pop();
                     },
@@ -397,6 +529,12 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
   for (final controller in creditControllers.values) {
     controller.dispose();
   }
+  for (final controller in testingPetrolControllers.values) {
+    controller.dispose();
+  }
+  for (final controller in testingDieselControllers.values) {
+    controller.dispose();
+  }
 
   return result;
 }
@@ -417,98 +555,524 @@ Future<String?> showDailyEntryPreviewDialog({
     builder:
         (dialogContext) => StatefulBuilder(
           builder:
-              (dialogContext, setDialogState) => AlertDialog(
-                title: const Text('Confirm Entry'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        formatDateLabel(preview.date),
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 12),
-                      ...preview.soldByPump.entries.map(
-                        (entry) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            '${formatPumpLabel(entry.key)}: ${formatLiters(entry.value.petrol)} petrol, ${formatLiters(entry.value.diesel)} diesel, ${formatLiters(entry.value.twoT)} 2T oil, cash ${formatCurrency(preview.pumpPayments[entry.key]?.cash ?? 0)}, check ${formatCurrency(preview.pumpPayments[entry.key]?.check ?? 0)}, upi ${formatCurrency(preview.pumpPayments[entry.key]?.upi ?? 0)}, credit ${formatCurrency(preview.pumpPayments[entry.key]?.credit ?? 0)}${preview.pumpTesting[entry.key] == true ? ', testing petrol 5L and diesel 5L excluded' : ''}',
+              (dialogContext, setDialogState) => Dialog(
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 24,
+                ),
+                backgroundColor: Colors.transparent,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 560,
+                    maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.86,
+                  ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F9FF),
+                      borderRadius: BorderRadius.circular(28),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xFF153A8A), Color(0xFF1E5CBA)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(28),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Confirm Entry',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Review pump totals, collections, and mismatch before submit.',
+                                      style: TextStyle(color: Colors.white70),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  formatDateLabel(preview.date),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Computed revenue ${formatCurrency(preview.computedRevenue)}',
-                      ),
-                      Text(
-                        'Money collected ${formatCurrency(preview.paymentTotal)}',
-                      ),
-                      Text(
-                        'Petrol sold ${formatLiters(preview.totals.sold.petrol)}',
-                      ),
-                      Text(
-                        'Diesel sold ${formatLiters(preview.totals.sold.diesel)}',
-                      ),
-                      Text(
-                        '2T oil sold ${formatLiters(preview.totals.sold.twoT)}',
-                      ),
-                      if (preview.mismatchAmount != 0) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          'Mismatch ${formatCurrency(preview.mismatchAmount.abs())}',
-                          style: const TextStyle(
-                            color: Color(0xFFB91C1C),
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const _PreviewSectionTitle('Pump Summary'),
+                                const SizedBox(height: 10),
+                                ...preview.soldByPump.entries.map((entry) {
+                                  final pumpId = entry.key;
+                                  final payments = preview.pumpPayments[pumpId];
+                                  final testing = preview.pumpTesting[pumpId];
+                                  final attendant =
+                                      preview.pumpAttendants[pumpId]?.trim() ?? '';
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(22),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                formatPumpLabel(pumpId),
+                                                style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF293340),
+                                                ),
+                                              ),
+                                            ),
+                                            if (attendant.isNotEmpty)
+                                              Chip(label: Text(attendant)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: [
+                                            _PreviewPill(
+                                              label: 'Petrol sold',
+                                              value: formatLiters(entry.value.petrol),
+                                              accent: const Color(0xFF1E5CBA),
+                                            ),
+                                            _PreviewPill(
+                                              label: 'Diesel sold',
+                                              value: formatLiters(entry.value.diesel),
+                                              accent: const Color(0xFF006C5C),
+                                            ),
+                                            if (entry.value.twoT > 0)
+                                              _PreviewPill(
+                                                label: '2T oil sold',
+                                                value: formatLiters(entry.value.twoT),
+                                                accent: const Color(0xFFB45309),
+                                              ),
+                                            _PreviewPill(
+                                              label: 'Cash',
+                                              value: formatCurrency(payments?.cash ?? 0),
+                                              accent: const Color(0xFFB45309),
+                                            ),
+                                            _PreviewPill(
+                                              label: 'Check',
+                                              value: formatCurrency(payments?.check ?? 0),
+                                              accent: const Color(0xFF6B7280),
+                                            ),
+                                            _PreviewPill(
+                                              label: 'UPI',
+                                              value: formatCurrency(payments?.upi ?? 0),
+                                              accent: const Color(0xFF7C3AED),
+                                            ),
+                                            _PreviewPill(
+                                              label: 'Credit',
+                                              value: formatCurrency(payments?.credit ?? 0),
+                                              accent: const Color(0xFFDC2626),
+                                            ),
+                                          ],
+                                        ),
+                                        if (testing?.enabled == true) ...[
+                                          const SizedBox(height: 12),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF5F3FF),
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                            child: Text(
+                                              'Testing excluded: petrol ${formatLiters(testing?.petrol ?? 0)}  |  diesel ${formatLiters(testing?.diesel ?? 0)}',
+                                              style: const TextStyle(
+                                                color: Color(0xFF5B21B6),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  );
+                                }),
+                                const SizedBox(height: 8),
+                                const _PreviewSectionTitle('Totals'),
+                                const SizedBox(height: 10),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    _PreviewMetricCard(
+                                      label: 'Computed revenue',
+                                      value: formatCurrency(preview.computedRevenue),
+                                      accent: const Color(0xFF1E5CBA),
+                                    ),
+                                    _PreviewMetricCard(
+                                      label: 'Sales settlement',
+                                      value: formatCurrency(preview.salesSettlementTotal),
+                                      accent: const Color(0xFF0F766E),
+                                    ),
+                                    _PreviewMetricCard(
+                                      label: 'Old credit collected',
+                                      value: formatCurrency(preview.creditCollectionTotal),
+                                      accent: const Color(0xFF7C3AED),
+                                    ),
+                                    _PreviewMetricCard(
+                                      label: 'Amount collected',
+                                      value: formatCurrency(preview.paymentTotal),
+                                      accent: const Color(0xFFB45309),
+                                    ),
+                                    _PreviewMetricCard(
+                                      label: 'Petrol sold',
+                                      value: formatLiters(preview.totals.sold.petrol),
+                                      accent: const Color(0xFF1E5CBA),
+                                    ),
+                                    _PreviewMetricCard(
+                                      label: 'Diesel sold',
+                                      value: formatLiters(preview.totals.sold.diesel),
+                                      accent: const Color(0xFF006C5C),
+                                    ),
+                                    if (preview.totals.sold.twoT > 0)
+                                      _PreviewMetricCard(
+                                        label: '2T oil sold',
+                                        value: formatLiters(preview.totals.sold.twoT),
+                                        accent: const Color(0xFFB45309),
+                                      ),
+                                  ],
+                                ),
+                                if (preview.priceSnapshot.isNotEmpty) ...[
+                                  const SizedBox(height: 18),
+                                  const _PreviewSectionTitle('Applied Rates'),
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: [
+                                      if ((preview.priceSnapshot['petrol']?['sellingPrice'] ?? 0) > 0)
+                                        _PreviewRateChip(
+                                          label: 'Petrol',
+                                          value:
+                                              '${formatCurrency(preview.priceSnapshot['petrol']!['sellingPrice']!)}/L',
+                                          accent: const Color(0xFF1E5CBA),
+                                        ),
+                                      if ((preview.priceSnapshot['diesel']?['sellingPrice'] ?? 0) > 0)
+                                        _PreviewRateChip(
+                                          label: 'Diesel',
+                                          value:
+                                              '${formatCurrency(preview.priceSnapshot['diesel']!['sellingPrice']!)}/L',
+                                          accent: const Color(0xFF006C5C),
+                                        ),
+                                      if ((preview.priceSnapshot['two_t_oil']?['sellingPrice'] ?? 0) > 0)
+                                        _PreviewRateChip(
+                                          label: '2T Oil',
+                                          value:
+                                              '${formatCurrency(preview.priceSnapshot['two_t_oil']!['sellingPrice']!)}/L',
+                                          accent: const Color(0xFFB45309),
+                                        ),
+                                    ],
+                                  ),
+                                ],
+                                if (preview.mismatchAmount != 0 || preview.varianceNote.isNotEmpty) ...[
+                                  const SizedBox(height: 18),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF2F2),
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(
+                                        color: const Color(0xFFFCA5A5),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          preview.mismatchAmount == 0
+                                              ? 'Variance Note'
+                                              : '${preview.mismatchAmount > 0 ? 'Excess' : 'Short'} ${formatCurrency(preview.mismatchAmount.abs())}',
+                                          style: const TextStyle(
+                                            color: Color(0xFFB91C1C),
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                        if (preview.mismatchAmount != 0) ...[
+                                          const SizedBox(height: 8),
+                                          TextField(
+                                            controller: reasonController,
+                                            maxLines: 3,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Mismatch reason',
+                                              hintText:
+                                                  'Required when sales settlement does not match computed revenue',
+                                              filled: true,
+                                              fillColor: Colors.white,
+                                            ),
+                                            onChanged: (_) => setDialogState(() {}),
+                                          ),
+                                        ],
+                                        if (preview.varianceNote.isNotEmpty) ...[
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            preview.varianceNote,
+                                            style: const TextStyle(
+                                              color: Color(0xFFB91C1C),
+                                              height: 1.4,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: reasonController,
-                          maxLines: 3,
-                          decoration: const InputDecoration(
-                            labelText: 'Mismatch reason',
-                            hintText:
-                                'Required when payment total does not match revenue',
-                            filled: true,
-                            fillColor: Colors.white,
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(28),
+                            ),
                           ),
-                          onChanged: (_) => setDialogState(() {}),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextButton(
+                                  onPressed: () => Navigator.of(dialogContext).pop(),
+                                  child: const Text('Cancel'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: FilledButton(
+                                  onPressed:
+                                      preview.mismatchAmount != 0 &&
+                                              reasonController.text.trim().isEmpty
+                                          ? null
+                                          : () {
+                                            result = reasonController.text.trim();
+                                            Navigator.of(dialogContext).pop();
+                                          },
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                  ),
+                                  child: const Text('Confirm Entry'),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                      if (preview.varianceNote.isNotEmpty) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          preview.varianceNote,
-                          style: const TextStyle(color: Color(0xFFB91C1C)),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  FilledButton(
-                    onPressed:
-                        preview.mismatchAmount != 0 &&
-                                reasonController.text.trim().isEmpty
-                            ? null
-                            : () {
-                              result = reasonController.text.trim();
-                              Navigator.of(dialogContext).pop();
-                            },
-                    child: const Text('Confirm'),
-                  ),
-                ],
               ),
         ),
   );
 
   reasonController.dispose();
   return result;
+}
+
+class _PreviewSectionTitle extends StatelessWidget {
+  const _PreviewSectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF293340),
+      ),
+    );
+  }
+}
+
+class _PreviewMetricCard extends StatelessWidget {
+  const _PreviewMetricCard({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 152,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF55606E),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF293340),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewPill extends StatelessWidget {
+  const _PreviewPill({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF293340),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PreviewRateChip extends StatelessWidget {
+  const _PreviewRateChip({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.25)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Color(0xFF293340)),
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: accent,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
@@ -540,11 +1104,18 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
 Future<PaymentEntryDraft?> showPaymentEntryDialog({
   required BuildContext context,
   required PaymentEntryDraft initialDraft,
+  required String entryDate,
+  List<CreditCustomerSummaryModel> suggestedCustomers = const [],
 }) async {
   return Navigator.of(context).push<PaymentEntryDraft>(
     MaterialPageRoute(
       fullscreenDialog: true,
-      builder: (_) => _PaymentEntryPage(initialDraft: initialDraft),
+      builder:
+          (_) => _PaymentEntryPage(
+            initialDraft: initialDraft,
+            entryDate: entryDate,
+            suggestedCustomers: suggestedCustomers,
+          ),
     ),
   );
 }
@@ -576,6 +1147,8 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   late final TextEditingController _checkController;
   late final TextEditingController _upiController;
   late final TextEditingController _creditController;
+  late final TextEditingController _testingPetrolController;
+  late final TextEditingController _testingDieselController;
   late bool _testingEnabled;
 
   @override
@@ -627,11 +1200,19 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
               ? ''
               : widget.initialDraft.payments.credit.toStringAsFixed(2),
     );
+    _testingPetrolController = TextEditingController(
+      text: _formatTestingQuantityInput(widget.initialDraft.testing.petrol),
+    );
+    _testingDieselController = TextEditingController(
+      text: _formatTestingQuantityInput(widget.initialDraft.testing.diesel),
+    );
     _testingEnabled = widget.initialDraft.testingEnabled;
     _cashController.addListener(_refreshTotals);
     _checkController.addListener(_refreshTotals);
     _upiController.addListener(_refreshTotals);
     _creditController.addListener(_refreshTotals);
+    _testingPetrolController.addListener(_refreshTotals);
+    _testingDieselController.addListener(_refreshTotals);
   }
 
   @override
@@ -648,6 +1229,10 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     _checkController.dispose();
     _upiController.dispose();
     _creditController.dispose();
+    _testingPetrolController.removeListener(_refreshTotals);
+    _testingDieselController.removeListener(_refreshTotals);
+    _testingPetrolController.dispose();
+    _testingDieselController.dispose();
     super.dispose();
   }
 
@@ -661,6 +1246,10 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
 
   double _parseAmount(String raw) {
     return double.tryParse(raw.trim()) ?? 0;
+  }
+
+  double _parseTestingQuantity(String raw) {
+    return parseTestingQuantity(raw);
   }
 
   String? _validateRequiredReading(
@@ -705,6 +1294,33 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     return null;
   }
 
+  String? _validateTestingQuantity(String label, String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final parsed = double.tryParse(trimmed);
+    if (parsed == null) {
+      return 'Enter a valid $label quantity.';
+    }
+    if (parsed < 0) {
+      return '$label quantity cannot be negative.';
+    }
+    return null;
+  }
+
+  String? _validateTestingSelection() {
+    if (!_testingEnabled) {
+      return null;
+    }
+    final petrol = _parseTestingQuantity(_testingPetrolController.text);
+    final diesel = _parseTestingQuantity(_testingDieselController.text);
+    if (petrol <= 0 && diesel <= 0) {
+      return 'Enter petrol or diesel testing quantity greater than 0.';
+    }
+    return null;
+  }
+
   double get _collectionTotal =>
       _parseAmount(_cashController.text) +
       _parseAmount(_checkController.text) +
@@ -714,6 +1330,13 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   void _savePump() {
     final formState = _formKey.currentState;
     if (formState == null || !formState.validate()) {
+      return;
+    }
+    final testingError = _validateTestingSelection();
+    if (testingError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(testingError)));
       return;
     }
 
@@ -727,7 +1350,17 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
             diesel: _parseAmount(_dieselController.text),
             twoT: _supportsTwoT ? _parseAmount(_twoTController.text) : 0,
           ),
-          testingEnabled: _testingEnabled,
+          testing:
+              _testingEnabled
+                  ? PumpTestingModel(
+                    petrol: _parseTestingQuantity(
+                      _testingPetrolController.text,
+                    ),
+                    diesel: _parseTestingQuantity(
+                      _testingDieselController.text,
+                    ),
+                  )
+                  : const PumpTestingModel(petrol: 0, diesel: 0),
           payments: PumpPaymentBreakdownModel(
             cash: _parseAmount(_cashController.text),
             check: _parseAmount(_checkController.text),
@@ -1010,15 +1643,85 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                       contentPadding: EdgeInsets.zero,
                       controlAffinity: ListTileControlAffinity.leading,
                       title: const Text('Testing'),
-                      subtitle: const Text(
-                        'Exclude 5L petrol and 5L diesel from billed sale for this pump.',
+                      subtitle: Text(
+                        _testingSubtitle(
+                          _testingEnabled
+                              ? PumpTestingModel(
+                                petrol: _parseTestingQuantity(
+                                  _testingPetrolController.text,
+                                ),
+                                diesel: _parseTestingQuantity(
+                                  _testingDieselController.text,
+                                ),
+                              )
+                              : const PumpTestingModel(
+                                petrol: _defaultTestingQuantity,
+                                diesel: _defaultTestingQuantity,
+                              ),
+                        ),
                       ),
                       onChanged: (value) {
                         setState(() {
                           _testingEnabled = value ?? false;
+                          if (_testingEnabled) {
+                            if (_parseTestingQuantity(
+                                  _testingPetrolController.text,
+                                ) <=
+                                0) {
+                              _testingPetrolController
+                                  .text = _formatTestingQuantityInput(
+                                _defaultTestingQuantity,
+                              );
+                            }
+                            if (_parseTestingQuantity(
+                                  _testingDieselController.text,
+                                ) <=
+                                0) {
+                              _testingDieselController
+                                  .text = _formatTestingQuantityInput(
+                                _defaultTestingQuantity,
+                              );
+                            }
+                          }
                         });
                       },
                     ),
+                    if (_testingEnabled) ...[
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _testingPetrolController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Testing petrol quantity',
+                          helperText:
+                              'This value is excluded only from petrol sales.',
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        validator:
+                            (value) =>
+                                _validateTestingQuantity('petrol', value ?? ''),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _testingDieselController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: const InputDecoration(
+                          labelText: 'Testing diesel quantity',
+                          helperText:
+                              'This value is excluded only from diesel sales.',
+                          filled: true,
+                          fillColor: Colors.white,
+                        ),
+                        validator:
+                            (value) =>
+                                _validateTestingQuantity('diesel', value ?? ''),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1052,9 +1755,15 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
 }
 
 class _PaymentEntryPage extends StatefulWidget {
-  const _PaymentEntryPage({required this.initialDraft});
+  const _PaymentEntryPage({
+    required this.initialDraft,
+    required this.entryDate,
+    required this.suggestedCustomers,
+  });
 
   final PaymentEntryDraft initialDraft;
+  final String entryDate;
+  final List<CreditCustomerSummaryModel> suggestedCustomers;
 
   @override
   State<_PaymentEntryPage> createState() => _PaymentEntryPageState();
@@ -1064,7 +1773,8 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
   late final TextEditingController _cashController;
   late final TextEditingController _checkController;
   late final TextEditingController _upiController;
-  late List<Map<String, TextEditingController>> _creditControllers;
+  late List<_CreditEntryControllers> _creditControllers;
+  late List<_CreditCollectionControllers> _collectionControllers;
 
   @override
   void initState() {
@@ -1080,20 +1790,31 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
     );
     _creditControllers =
         widget.initialDraft.creditEntries.isEmpty
-            ? [
-              {
-                'name': TextEditingController(),
-                'amount': TextEditingController(),
-              },
-            ]
+            ? <_CreditEntryControllers>[]
             : widget.initialDraft.creditEntries
                 .map(
-                  (entry) => {
-                    'name': TextEditingController(text: entry.name),
-                    'amount': TextEditingController(
-                      text: entry.amount.toStringAsFixed(2),
-                    ),
-                  },
+                  (entry) => _CreditEntryControllers(
+                    customerId: entry.customerId,
+                    name: entry.name,
+                    amount:
+                        entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                  ),
+                )
+                .toList();
+    _collectionControllers =
+        widget.initialDraft.creditCollections.isEmpty
+            ? <_CreditCollectionControllers>[]
+            : widget.initialDraft.creditCollections
+                .map(
+                  (entry) => _CreditCollectionControllers(
+                    customerId: entry.customerId,
+                    name: entry.name,
+                    amount:
+                        entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                    date: entry.date.isEmpty ? widget.entryDate : entry.date,
+                    paymentMode: entry.paymentMode,
+                    note: entry.note,
+                  ),
                 )
                 .toList();
   }
@@ -1104,27 +1825,23 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
     _checkController.dispose();
     _upiController.dispose();
     for (final item in _creditControllers) {
-      for (final controller in item.values) {
-        controller.dispose();
-      }
+      item.dispose();
+    }
+    for (final item in _collectionControllers) {
+      item.dispose();
     }
     super.dispose();
   }
 
   void _addCreditEntry() {
     setState(() {
-      _creditControllers = [
-        ..._creditControllers,
-        {'name': TextEditingController(), 'amount': TextEditingController()},
-      ];
+      _creditControllers = [..._creditControllers, _CreditEntryControllers()];
     });
   }
 
   void _removeCreditEntry(int index) {
     final removed = _creditControllers[index];
-    for (final controller in removed.values) {
-      controller.dispose();
-    }
+    removed.dispose();
     setState(() {
       _creditControllers = [
         ..._creditControllers.sublist(0, index),
@@ -1133,11 +1850,53 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
     });
   }
 
+  void _addCollectionEntry() {
+    setState(() {
+      _collectionControllers = [
+        ..._collectionControllers,
+        _CreditCollectionControllers(date: widget.entryDate),
+      ];
+    });
+  }
+
+  void _removeCollectionEntry(int index) {
+    final removed = _collectionControllers[index];
+    removed.dispose();
+    setState(() {
+      _collectionControllers = [
+        ..._collectionControllers.sublist(0, index),
+        ..._collectionControllers.sublist(index + 1),
+      ];
+    });
+  }
+
+  CreditCustomerSummaryModel? _findCustomerById(String? customerId) {
+    final lookup = customerId?.trim() ?? '';
+    if (lookup.isEmpty) {
+      return null;
+    }
+    for (final item in widget.suggestedCustomers) {
+      if (item.customer.id == lookup) {
+        return item;
+      }
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final customerItems =
+        widget.suggestedCustomers
+            .map(
+              (item) => DropdownMenuItem<String>(
+                value: item.customer.id,
+                child: Text(item.customer.name),
+              ),
+            )
+            .toList();
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
-      appBar: AppBar(title: const Text('Update Payments')),
+      appBar: AppBar(title: const Text('Payments & Credit')),
       body: SafeArea(
         child: ListView(
           padding: EdgeInsets.fromLTRB(
@@ -1183,11 +1942,23 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
               ),
             ),
             const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F9FF),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Collections recorded here count toward today\'s amount collected, but they stay separate from fuel sales mismatch.',
+                style: TextStyle(color: Color(0xFF55606E), height: 1.4),
+              ),
+            ),
+            const SizedBox(height: 16),
             Row(
               children: [
                 const Expanded(
                   child: Text(
-                    'Credit Entries',
+                    'New Credit Issued',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -1203,6 +1974,18 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
               ],
             ),
             const SizedBox(height: 8),
+            if (_creditControllers.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Add a customer credit row when fuel is given on credit.',
+                  style: TextStyle(color: Color(0xFF55606E)),
+                ),
+              ),
             ...List.generate(_creditControllers.length, (index) {
               final item = _creditControllers[index];
               return Container(
@@ -1214,17 +1997,39 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                 ),
                 child: Column(
                   children: [
+                    DropdownButtonFormField<String>(
+                      initialValue:
+                          item.customerIdController.text.isEmpty
+                              ? null
+                              : item.customerIdController.text,
+                      decoration: const InputDecoration(
+                        labelText: 'Existing customer',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: customerItems,
+                      onChanged: (value) {
+                        setState(() {
+                          item.customerIdController.text = value ?? '';
+                          final selected = _findCustomerById(value);
+                          if (selected != null) {
+                            item.nameController.text = selected.customer.name;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
                     TextField(
-                      controller: item['name'],
+                      controller: item.nameController,
                       decoration: InputDecoration(
-                        labelText: 'Credit customer ${index + 1}',
+                        labelText: 'Customer name ${index + 1}',
                         filled: true,
                         fillColor: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 10),
                     TextField(
-                      controller: item['amount'],
+                      controller: item.amountController,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -1246,6 +2051,143 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                 ),
               );
             }),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Credit Collections',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF293340),
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _addCollectionEntry,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Add'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_collectionControllers.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'Record old credit collections here with date, amount, payment mode, and optional note.',
+                  style: TextStyle(color: Color(0xFF55606E)),
+                ),
+              ),
+            ...List.generate(_collectionControllers.length, (index) {
+              final item = _collectionControllers[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FF),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue:
+                          item.customerIdController.text.isEmpty
+                              ? null
+                              : item.customerIdController.text,
+                      decoration: const InputDecoration(
+                        labelText: 'Existing customer',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: customerItems,
+                      onChanged: (value) {
+                        setState(() {
+                          item.customerIdController.text = value ?? '';
+                          final selected = _findCustomerById(value);
+                          if (selected != null) {
+                            item.nameController.text = selected.customer.name;
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: item.nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer name',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: item.amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Collected amount',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: item.dateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Collection date (YYYY-MM-DD)',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue:
+                          item.paymentModeController.text.isEmpty
+                              ? null
+                              : item.paymentModeController.text,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment mode',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                        DropdownMenuItem(value: 'check', child: Text('Check')),
+                        DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                      ],
+                      onChanged:
+                          (value) => setState(
+                            () => item.paymentModeController.text = value ?? '',
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: item.noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Note (optional)',
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                    if (_collectionControllers.length > 1)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () => _removeCollectionEntry(index),
+                          child: const Text('Remove'),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
             const SizedBox(height: 20),
             FilledButton(
               onPressed: () {
@@ -1260,26 +2202,107 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                         _creditControllers
                             .map(
                               (item) => CreditEntryModel(
-                                name: item['name']?.text.trim() ?? '',
+                                customerId:
+                                    item.customerIdController.text.trim(),
+                                name: item.nameController.text.trim(),
                                 amount:
                                     double.tryParse(
-                                      item['amount']?.text ?? '',
+                                      item.amountController.text,
                                     ) ??
                                     0,
                               ),
                             )
                             .where(
-                              (item) => item.name.isNotEmpty && item.amount > 0,
+                              (item) =>
+                                  item.name.isNotEmpty && item.amount > 0,
+                            )
+                            .toList(),
+                    creditCollections:
+                        _collectionControllers
+                            .map(
+                              (item) => CreditCollectionModel(
+                                customerId:
+                                    item.customerIdController.text.trim(),
+                                name: item.nameController.text.trim(),
+                                amount:
+                                    double.tryParse(
+                                      item.amountController.text,
+                                    ) ??
+                                    0,
+                                date: item.dateController.text.trim(),
+                                paymentMode:
+                                    item.paymentModeController.text.trim(),
+                                note: item.noteController.text.trim(),
+                              ),
+                            )
+                            .where(
+                              (item) =>
+                                  item.name.isNotEmpty &&
+                                  item.amount > 0 &&
+                                  item.date.isNotEmpty &&
+                                  item.paymentMode.isNotEmpty,
                             )
                             .toList(),
                   ),
                 );
               },
-              child: const Text('Update Payments'),
+              child: const Text('Update Payments & Credit'),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _CreditEntryControllers {
+  _CreditEntryControllers({
+    String customerId = '',
+    String name = '',
+    String amount = '',
+  }) : customerIdController = TextEditingController(text: customerId),
+       nameController = TextEditingController(text: name),
+       amountController = TextEditingController(text: amount);
+
+  final TextEditingController customerIdController;
+  final TextEditingController nameController;
+  final TextEditingController amountController;
+
+  void dispose() {
+    customerIdController.dispose();
+    nameController.dispose();
+    amountController.dispose();
+  }
+}
+
+class _CreditCollectionControllers {
+  _CreditCollectionControllers({
+    String customerId = '',
+    String name = '',
+    String amount = '',
+    String date = '',
+    String paymentMode = '',
+    String note = '',
+  }) : customerIdController = TextEditingController(text: customerId),
+       nameController = TextEditingController(text: name),
+       amountController = TextEditingController(text: amount),
+       dateController = TextEditingController(text: date),
+       paymentModeController = TextEditingController(text: paymentMode),
+       noteController = TextEditingController(text: note);
+
+  final TextEditingController customerIdController;
+  final TextEditingController nameController;
+  final TextEditingController amountController;
+  final TextEditingController dateController;
+  final TextEditingController paymentModeController;
+  final TextEditingController noteController;
+
+  void dispose() {
+    customerIdController.dispose();
+    nameController.dispose();
+    amountController.dispose();
+    dateController.dispose();
+    paymentModeController.dispose();
+    noteController.dispose();
   }
 }

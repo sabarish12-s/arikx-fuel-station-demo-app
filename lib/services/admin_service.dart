@@ -12,7 +12,9 @@ class AdminService {
   Future<List<AccessRequest>> fetchPendingRequests() async {
     final response = await _apiClient.get('/admin/requests');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to load requests: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to load requests.'),
+      );
     }
     final Map<String, dynamic> json =
         jsonDecode(response.body) as Map<String, dynamic>;
@@ -27,7 +29,9 @@ class AdminService {
       '/admin/requests/$requestId/approve',
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Approval failed: ${response.body}');
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Approval failed.'),
+      );
     }
   }
 }

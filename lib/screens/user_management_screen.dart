@@ -298,7 +298,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return ListView(children: [Center(child: Text('${snapshot.error}'))]);
+          return ListView(
+            children: [
+              Center(
+                child: Text(
+                  snapshot.error.toString().replaceFirst('Exception: ', ''),
+                ),
+              ),
+            ],
+          );
         }
 
         final overview = snapshot.data!;

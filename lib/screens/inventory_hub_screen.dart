@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
-import '../services/management_service.dart';
 import '../utils/formatters.dart';
+import 'credit_ledger_screen.dart';
+import 'delivery_receipt_screen.dart';
+import 'inventory_planning_settings_screen.dart';
 
 class InventoryHubScreen extends StatefulWidget {
-  const InventoryHubScreen({super.key});
+  const InventoryHubScreen({
+    super.key,
+    this.canManagePlanning = false,
+  });
+
+  final bool canManagePlanning;
 
   @override
   State<InventoryHubScreen> createState() => _InventoryHubScreenState();
@@ -14,78 +21,104 @@ class InventoryHubScreen extends StatefulWidget {
 
 class _InventoryHubScreenState extends State<InventoryHubScreen> {
   final InventoryService _inventoryService = InventoryService();
-  final ManagementService _managementService = ManagementService();
-  late Future<_InventoryDashboardData> _future;
+  late Future<InventoryDashboardModel> _future;
+
+  String _errorText(Object? error) {
+    return error.toString().replaceFirst('Exception: ', '');
+  }
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
-  }
-
-  Future<_InventoryDashboardData> _load() async {
-    final results = await Future.wait([
-      _inventoryService.fetchStationConfig(),
-      _inventoryService.fetchPrices(),
-      _managementService.fetchEntries(
-        month: currentMonthKey(),
-        approvedOnly: true,
-      ),
-    ]);
-
-    final station = results[0] as StationConfigModel;
-    final prices = results[1] as List<FuelPriceModel>;
-    final entries = results[2] as List<ShiftEntryModel>;
-    final today = DateTime.now().toIso8601String().split('T').first;
-    final todaysEntries =
-        entries.where((entry) => entry.date == today).toList();
-    final latestEntry = entries.isEmpty ? null : entries.last;
-
-    final currentPetrol = latestEntry?.totals.closing.petrol ?? 0;
-    final currentDiesel = latestEntry?.totals.closing.diesel ?? 0;
-    final currentTwoT = latestEntry?.totals.closing.twoT ?? 0;
-
-    final pumpSales = <String, PumpReadings>{};
-    for (final pump in station.pumps) {
-      double petrol = 0;
-      double diesel = 0;
-      double twoT = 0;
-      for (final entry in todaysEntries) {
-        petrol += entry.soldByPump[pump.id]?.petrol ?? 0;
-        diesel += entry.soldByPump[pump.id]?.diesel ?? 0;
-        twoT += entry.soldByPump[pump.id]?.twoT ?? 0;
-      }
-      pumpSales[pump.id] = PumpReadings(
-        petrol: petrol,
-        diesel: diesel,
-        twoT: twoT,
-      );
-    }
-
-    final priceMap = {for (final price in prices) price.fuelTypeId: price};
-
-    return _InventoryDashboardData(
-      station: station,
-      latestEntry: latestEntry,
-      prices: priceMap,
-      currentPetrol: currentPetrol,
-      currentDiesel: currentDiesel,
-      currentTwoT: currentTwoT,
-      pumpSales: pumpSales,
-    );
+    _future = _inventoryService.fetchInventoryDashboard();
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _future = _load();
+      _future = _inventoryService.fetchInventoryDashboard();
     });
+    await _future;
+  }
+
+  Future<void> _openDeliveryReceipt(List<FuelInventoryForecastModel> fuels) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => DeliveryReceiptScreen(fuels: fuels),
+      ),
+    );
+    if (saved == true && mounted) {
+      await _refresh();
+    }
+  }
+
+  Future<void> _openPlanningSettings() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => InventoryPlanningSettingsScreen(
+              canEdit: widget.canManagePlanning,
+            ),
+      ),
+    );
+    if (mounted) {
+      await _refresh();
+    }
+  }
+
+  Future<void> _openCreditLedger() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()),
+    );
+    if (mounted) {
+      await _refresh();
+    }
+  }
+
+  String _displayDate(String raw) {
+    if (raw.trim().isEmpty) {
+      return 'Not available';
+    }
+    return formatDateLabel(raw);
+  }
+
+  String _daysRemainingLabel(double? value) {
+    if (value == null) {
+      return 'Not enough approved sales yet';
+    }
+    return '${value.toStringAsFixed(1)} day(s)';
+  }
+
+  String _fuelLabel(String fuelTypeId) {
+    switch (fuelTypeId) {
+      case 'petrol':
+        return 'Petrol';
+      case 'diesel':
+        return 'Diesel';
+      case 'two_t_oil':
+        return '2T Oil';
+      default:
+        return fuelTypeId;
+    }
+  }
+
+  Color _fuelColor(String fuelTypeId) {
+    switch (fuelTypeId) {
+      case 'petrol':
+        return const Color(0xFF1E5CBA);
+      case 'diesel':
+        return const Color(0xFF006C5C);
+      case 'two_t_oil':
+        return const Color(0xFFB45309);
+      default:
+        return const Color(0xFF695781);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: FutureBuilder<_InventoryDashboardData>(
+      child: FutureBuilder<InventoryDashboardModel>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -94,14 +127,12 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           if (snapshot.hasError) {
             return ListView(
               padding: const EdgeInsets.all(24),
-              children: [Text('Failed to load inventory\n${snapshot.error}')],
+              children: [Text('Failed to load inventory\n${_errorText(snapshot.error)}')],
             );
           }
 
           final data = snapshot.data!;
-          final petrolPrice = data.prices['petrol'];
-          final dieselPrice = data.prices['diesel'];
-          final twoTPrice = data.prices['two_t_oil'];
+          final planning = data.inventoryPlanning;
 
           return ListView(
             padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
@@ -115,46 +146,53 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                   color: Color(0xFF55606E),
                 ),
               ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _openDeliveryReceipt(data.forecast),
+                    icon: const Icon(Icons.local_shipping_outlined),
+                    label: const Text('Record Delivery'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _openCreditLedger,
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Credit Ledger'),
+                  ),
+                  if (widget.canManagePlanning)
+                    OutlinedButton.icon(
+                      onPressed: _openPlanningSettings,
+                      icon: const Icon(Icons.tune_rounded),
+                      label: const Text('Planning Settings'),
+                    ),
+                  IconButton(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
               Wrap(
                 spacing: 12,
                 runSpacing: 12,
-                children: [
-                  _InventoryStatCard(
-                    title: 'Current Petrol',
-                    value: formatLiters(data.currentPetrol),
-                    accent: const Color(0xFF1E5CBA),
-                  ),
-                  _InventoryStatCard(
-                    title: 'Current Diesel',
-                    value: formatLiters(data.currentDiesel),
-                    accent: const Color(0xFF006C5C),
-                  ),
-                  _InventoryStatCard(
-                    title: 'Current 2T Oil',
-                    value: formatLiters(data.currentTwoT),
-                    accent: const Color(0xFFB45309),
-                  ),
-                  _InventoryStatCard(
-                    title: 'Petrol Sell Price',
-                    value: formatCurrency(petrolPrice?.sellingPrice ?? 0),
-                    accent: const Color(0xFF695781),
-                  ),
-                  _InventoryStatCard(
-                    title: 'Diesel Sell Price',
-                    value: formatCurrency(dieselPrice?.sellingPrice ?? 0),
-                    accent: const Color(0xFFB45309),
-                  ),
-                  _InventoryStatCard(
-                    title: '2T Oil Sell Price',
-                    value: formatCurrency(twoTPrice?.sellingPrice ?? 0),
-                    accent: const Color(0xFFA16207),
-                  ),
-                ],
+                children:
+                    data.forecast
+                        .map(
+                          (item) => _InventoryStatCard(
+                            title: item.label,
+                            value: formatLiters(item.currentStock),
+                            accent: _fuelColor(item.fuelTypeId),
+                            subtitle:
+                                item.shouldAlert ? 'Alert active' : 'Forecast healthy',
+                          ),
+                        )
+                        .toList(),
               ),
               const SizedBox(height: 18),
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
@@ -163,34 +201,127 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Station Snapshot',
+                      'Planning Snapshot',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
+                        color: Color(0xFF293340),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Text(
-                      data.latestEntry == null
-                          ? 'No approved meter update yet for station-level readings.'
-                          : 'Latest approved meter update: ${formatDateLabel(data.latestEntry!.date)}',
-                      style: const TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Pumps configured: ${data.station.pumps.length}',
+                      'Delivery lead: ${planning.deliveryLeadDays} day(s)',
                       style: const TextStyle(color: Color(0xFF55606E)),
                     ),
                     Text(
-                      'Cycle configured: 1 daily entry',
+                      'Alert before: ${planning.alertBeforeDays} day(s)',
                       style: const TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    Text(
+                      'Baseline stock updated: ${planning.updatedAt.trim().isEmpty ? 'Not set yet' : formatDateLabel(planning.updatedAt.split('T').first)}',
+                      style: const TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'This stock planner uses station tank stock in liters. Pump opening stock settings remain separate for meter entry logic.',
+                      style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 18),
+              ...data.forecast.map(
+                (item) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.label,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF293340),
+                              ),
+                            ),
+                          ),
+                          Chip(
+                            backgroundColor:
+                                item.shouldAlert
+                                    ? const Color(0xFFFEE2E2)
+                                    : const Color(0xFFE6F6EF),
+                            label: Text(
+                              item.shouldAlert ? 'Order now' : 'On track',
+                              style: TextStyle(
+                                color:
+                                    item.shouldAlert
+                                        ? const Color(0xFFB91C1C)
+                                        : const Color(0xFF166534),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 10,
+                        children: [
+                          _ForecastMetric(
+                            label: 'Current stock',
+                            value: formatLiters(item.currentStock),
+                          ),
+                          _ForecastMetric(
+                            label: '7 day avg sales',
+                            value: formatLiters(item.averageDailySales),
+                          ),
+                          _ForecastMetric(
+                            label: 'Days remaining',
+                            value: _daysRemainingLabel(item.daysRemaining),
+                          ),
+                          _ForecastMetric(
+                            label: 'Projected runout',
+                            value: _displayDate(item.projectedRunoutDate),
+                          ),
+                          _ForecastMetric(
+                            label: 'Recommended order by',
+                            value: _displayDate(item.recommendedOrderDate),
+                          ),
+                        ],
+                      ),
+                      if (item.alertMessage.trim().isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            item.alertMessage,
+                            style: const TextStyle(
+                              color: Color(0xFF9A3412),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
@@ -199,74 +330,85 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Pump Sales Today',
+                      'Recent Deliveries',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 20,
                         fontWeight: FontWeight.w800,
+                        color: Color(0xFF293340),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     const Text(
-                      'Pump cards now track current sales from meter readings only.',
-                      style: TextStyle(color: Color(0xFF55606E)),
+                      'Receipts update stock immediately after saving.',
+                      style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
                     const SizedBox(height: 14),
-                    ...data.station.pumps.map((pump) {
-                      final sales =
-                          data.pumpSales[pump.id] ??
-                          const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              formatPumpLabel(pump.id, pump.label),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 18,
-                                color: Color(0xFF293340),
+                    if (data.deliveries.isEmpty)
+                      const Text(
+                        'No delivery receipts recorded yet.',
+                        style: TextStyle(color: Color(0xFF55606E)),
+                      )
+                    else
+                      ...data.deliveries.take(10).map(
+                        (delivery) => Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F9FF),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: const Color(0xFFE9EEF7),
+                                child: Text(
+                                  delivery.fuelTypeId == 'petrol'
+                                      ? 'P'
+                                      : delivery.fuelTypeId == 'diesel'
+                                      ? 'D'
+                                      : '2T',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF1E5CBA),
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _PumpMetric(
-                                    label: 'Petrol sold',
-                                    value: formatLiters(sales.petrol),
-                                    color: const Color(0xFF1E5CBA),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _PumpMetric(
-                                    label: 'Diesel sold',
-                                    value: formatLiters(sales.diesel),
-                                    color: const Color(0xFF006C5C),
-                                  ),
-                                ),
-                                if (pump.id == 'pump2') ...[
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _PumpMetric(
-                                      label: '2T oil sold',
-                                      value: formatLiters(sales.twoT),
-                                      color: const Color(0xFFB45309),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _fuelLabel(delivery.fuelTypeId),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF293340),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ],
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${formatDateLabel(delivery.date)}  |  ${formatLiters(delivery.quantity)}',
+                                      style: const TextStyle(
+                                        color: Color(0xFF55606E),
+                                      ),
+                                    ),
+                                    if (delivery.note.trim().isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          delivery.note,
+                                          style: const TextStyle(
+                                            color: Color(0xFF55606E),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      );
-                    }),
+                      ),
                   ],
                 ),
               ),
@@ -278,79 +420,89 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   }
 }
 
-class _InventoryDashboardData {
-  const _InventoryDashboardData({
-    required this.station,
-    required this.latestEntry,
-    required this.prices,
-    required this.currentPetrol,
-    required this.currentDiesel,
-    required this.currentTwoT,
-    required this.pumpSales,
-  });
-
-  final StationConfigModel station;
-  final ShiftEntryModel? latestEntry;
-  final Map<String, FuelPriceModel> prices;
-  final double currentPetrol;
-  final double currentDiesel;
-  final double currentTwoT;
-  final Map<String, PumpReadings> pumpSales;
-}
-
 class _InventoryStatCard extends StatelessWidget {
   const _InventoryStatCard({
     required this.title,
     required this.value,
     required this.accent,
+    this.subtitle = '',
   });
 
   final String title;
   final String value;
   final Color accent;
+  final String subtitle;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 160,
+      width: 170,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border(bottom: BorderSide(color: accent, width: 4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Color(0xFF55606E))),
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF55606E),
+            ),
+          ),
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF293340),
+            ),
           ),
+          if (subtitle.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF55606E),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _PumpMetric extends StatelessWidget {
-  const _PumpMetric({
+class _ForecastMetric extends StatelessWidget {
+  const _ForecastMetric({
     required this.label,
     required this.value,
-    required this.color,
   });
 
   final String label;
   final String value;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: 170,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: const Color(0xFFF8F9FF),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -359,17 +511,17 @@ class _PumpMetric extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF55606E),
+              fontSize: 11,
               fontWeight: FontWeight.w700,
+              color: Color(0xFF55606E),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF293340),
             ),
           ),
         ],

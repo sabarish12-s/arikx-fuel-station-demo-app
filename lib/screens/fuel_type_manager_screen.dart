@@ -117,7 +117,11 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(child: Text('${snapshot.error}'));
+          return Center(
+            child: Text(
+              snapshot.error.toString().replaceFirst('Exception: ', ''),
+            ),
+          );
         }
         final fuelTypes = snapshot.data ?? [];
         return ListView.builder(
