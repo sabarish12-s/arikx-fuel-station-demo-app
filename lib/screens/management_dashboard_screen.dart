@@ -7,12 +7,23 @@ import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../utils/formatters.dart';
+
 String _shortDateLabel(String raw) {
   final date = DateTime.tryParse(raw);
   if (date == null) return raw;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}';
 }
@@ -34,6 +45,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   String _errorText(Object? error) {
     return error.toString().replaceFirst('Exception: ', '');
   }
+
   String _preset = 'today';
   String? _fromDate;
   String? _toDate;
@@ -448,9 +460,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     }
     final maxY = trend.fold<double>(
       0,
-      (m, p) => [m, p.petrolSold, p.dieselSold].reduce(
-        (a, b) => a > b ? a : b,
-      ),
+      (m, p) => [m, p.petrolSold, p.dieselSold].reduce((a, b) => a > b ? a : b),
     );
     final step = math.max(1, (trend.length / 5).ceil());
 
@@ -463,52 +473,59 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) =>
-              const FlLine(color: Color(0xFFE9EEF7), strokeWidth: 1),
+          getDrawingHorizontalLine:
+              (_) => const FlLine(color: Color(0xFFE9EEF7), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
-        lineTouchData: compact
-            ? const LineTouchData(enabled: false)
-            : LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => spots.map((s) {
-                    final idx = s.x.toInt();
-                    final point = trend[idx.clamp(0, trend.length - 1)];
-                    final isFirst = s.barIndex == 0;
-                    return LineTooltipItem(
-                      isFirst
-                          ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
-                          : 'Diesel ${formatLiters(s.y)}',
-                      TextStyle(
-                        color: isFirst
-                            ? const Color(0xFF1E5CBA)
-                            : const Color(0xFF0F9D58),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    );
-                  }).toList(),
+        lineTouchData:
+            compact
+                ? const LineTouchData(enabled: false)
+                : LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems:
+                        (spots) =>
+                            spots.map((s) {
+                              final idx = s.x.toInt();
+                              final point =
+                                  trend[idx.clamp(0, trend.length - 1)];
+                              final isFirst = s.barIndex == 0;
+                              return LineTooltipItem(
+                                isFirst
+                                    ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
+                                    : 'Diesel ${formatLiters(s.y)}',
+                                TextStyle(
+                                  color:
+                                      isFirst
+                                          ? const Color(0xFF1E5CBA)
+                                          : const Color(0xFF0F9D58),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }).toList(),
+                  ),
                 ),
-              ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(),
           rightTitles: const AxisTitles(),
-          leftTitles: compact
-              ? const AxisTitles()
-              : AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 48,
-                    interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
-                    getTitlesWidget: (value, _) => Text(
-                      '${value.toInt()} L',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF55606E),
-                      ),
+          leftTitles:
+              compact
+                  ? const AxisTitles()
+                  : AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 48,
+                      interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
+                      getTitlesWidget:
+                          (value, _) => Text(
+                            '${value.toInt()} L',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF55606E),
+                            ),
+                          ),
                     ),
                   ),
-                ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -518,15 +535,20 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 if (index < 0 || index >= trend.length) {
                   return const SizedBox.shrink();
                 }
-                final show = compact
-                    ? index % step == 0
-                    : (trend.length <= 10 || index % (trend.length / 8).ceil() == 0);
+                final show =
+                    compact
+                        ? index % step == 0
+                        : (trend.length <= 10 ||
+                            index % (trend.length / 8).ceil() == 0);
                 if (!show) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     _shortDateLabel(trend[index].date),
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF55606E)),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF55606E),
+                    ),
                   ),
                 );
               },
@@ -544,12 +566,13 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
-              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
-                radius: 3,
-                color: const Color(0xFF1E5CBA),
-                strokeWidth: 0,
-                strokeColor: Colors.transparent,
-              ),
+              getDotPainter:
+                  (p, i, b, j) => FlDotCirclePainter(
+                    radius: 3,
+                    color: const Color(0xFF1E5CBA),
+                    strokeWidth: 0,
+                    strokeColor: Colors.transparent,
+                  ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -566,12 +589,13 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
-              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
-                radius: 3,
-                color: const Color(0xFF0F9D58),
-                strokeWidth: 0,
-                strokeColor: Colors.transparent,
-              ),
+              getDotPainter:
+                  (p, i, b, j) => FlDotCirclePainter(
+                    radius: 3,
+                    color: const Color(0xFF0F9D58),
+                    strokeWidth: 0,
+                    strokeColor: Colors.transparent,
+                  ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -583,36 +607,44 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     }
 
     Widget legend() => Row(
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Color(0xFF1E5CBA),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Text(
-              'Petrol',
-              style: TextStyle(fontSize: 12, color: Color(0xFF293340), fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 16),
-            Container(
-              width: 10,
-              height: 10,
-              decoration: const BoxDecoration(
-                color: Color(0xFF0F9D58),
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Text(
-              'Diesel',
-              style: TextStyle(fontSize: 12, color: Color(0xFF293340), fontWeight: FontWeight.w600),
-            ),
-          ],
-        );
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E5CBA),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        const Text(
+          'Petrol',
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF293340),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: const BoxDecoration(
+            color: Color(0xFF0F9D58),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        const Text(
+          'Diesel',
+          style: TextStyle(
+            fontSize: 12,
+            color: Color(0xFF293340),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -638,17 +670,19 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 icon: const Icon(Icons.open_in_full_rounded, size: 20),
                 color: const Color(0xFF55606E),
                 tooltip: 'Expand',
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    fullscreenDialog: true,
-                    builder: (_) => _TrendChartPage(
-                      trend: trend,
-                      rangeLabel: data.range.label,
-                      buildChartData: buildChartData,
-                      legend: legend(),
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        fullscreenDialog: true,
+                        builder:
+                            (_) => _TrendChartPage(
+                              trend: trend,
+                              rangeLabel: data.range.label,
+                              buildChartData: buildChartData,
+                              legend: legend(),
+                            ),
+                      ),
                     ),
-                  ),
-                ),
               ),
             ],
           ),
@@ -677,7 +711,9 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           if (snapshot.hasError) {
             return ListView(
               padding: const EdgeInsets.all(24),
-              children: [Text('Failed to load dashboard\n${_errorText(snapshot.error)}')],
+              children: [
+                Text('Failed to load dashboard\n${_errorText(snapshot.error)}'),
+              ],
             );
           }
 
@@ -975,6 +1011,37 @@ class _PerformanceTile extends StatelessWidget {
   final double variance;
   final Color accent;
 
+  Widget _buildMetricGrid(List<Widget> metrics) {
+    final rows = <Widget>[];
+    for (var index = 0; index < metrics.length; index += 2) {
+      final isLastSingle = index == metrics.length - 1;
+      if (isLastSingle) {
+        rows.add(SizedBox(width: double.infinity, child: metrics[index]));
+        continue;
+      }
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: metrics[index]),
+            const SizedBox(width: 12),
+            Expanded(child: metrics[index + 1]),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < rows.length; index++) ...[
+          rows[index],
+          if (index != rows.length - 1) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1031,31 +1098,23 @@ class _PerformanceTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(subtitle, style: const TextStyle(color: Color(0xFF55606E))),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 14,
-            runSpacing: 8,
-            children: [
-              _MetricTag(label: 'Petrol', value: formatLiters(liters.petrol)),
-              _MetricTag(label: 'Diesel', value: formatLiters(liters.diesel)),
-              if (liters.twoT > 0)
-                _MetricTag(label: '2T Oil', value: formatLiters(liters.twoT)),
-            ],
-          ),
+          _buildMetricGrid([
+            _MetricTag(label: 'Petrol', value: formatLiters(liters.petrol)),
+            _MetricTag(label: 'Diesel', value: formatLiters(liters.diesel)),
+            if (liters.twoT > 0)
+              _MetricTag(label: '2T Oil', value: formatLiters(liters.twoT)),
+          ]),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 14,
-            runSpacing: 8,
-            children: [
-              _MetricTag(
-                label: 'Collected',
-                value: formatCurrency(collectedAmount),
-              ),
-              _MetricTag(
-                label: 'Computed Sales',
-                value: formatCurrency(computedSalesValue),
-              ),
-            ],
-          ),
+          _buildMetricGrid([
+            _MetricTag(
+              label: 'Collected',
+              value: formatCurrency(collectedAmount),
+            ),
+            _MetricTag(
+              label: 'Computed Sales',
+              value: formatCurrency(computedSalesValue),
+            ),
+          ]),
         ],
       ),
     );
@@ -1071,12 +1130,20 @@ class _MetricTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D152033),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -1092,6 +1159,7 @@ class _MetricTag extends StatelessWidget {
             value,
             style: const TextStyle(
               color: Color(0xFF293340),
+              fontSize: 16,
               fontWeight: FontWeight.w800,
             ),
           ),

@@ -132,8 +132,31 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           pumpId: pumpDraft.payments.total,
         },
         creditEntries: [...remainingCredits, ...pumpDraft.creditEntries],
+        pumpMismatchReasons: {
+          ...draft.pumpMismatchReasons,
+          pumpId: pumpDraft.mismatchReason,
+        },
       );
     });
+  }
+
+  String _buildEntryMismatchReason(DailyEntryDraft draft) {
+    final pumps = _dashboard?.station.pumps ?? const <StationPumpModel>[];
+    final reasons =
+        pumps
+            .map((pump) {
+              final reason = draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
+              if (reason.isEmpty) {
+                return null;
+              }
+              return '${formatPumpLabel(pump.id, pump.label)}: $reason';
+            })
+            .whereType<String>()
+            .toList();
+    if (reasons.isNotEmpty) {
+      return reasons.join('\n');
+    }
+    return draft.mismatchReason.trim();
   }
 
   double _pumpCollectionTotal(DailyEntryDraft draft) {
@@ -209,8 +232,14 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           const PumpTestingModel(petrol: 0, diesel: 0);
       final rawPetrol = closing.petrol - opening.petrol;
       final rawDiesel = closing.diesel - opening.diesel;
-      petrol += rawPetrol > 0 ? (rawPetrol - testing.petrol).clamp(0, rawPetrol) : rawPetrol;
-      diesel += rawDiesel > 0 ? (rawDiesel - testing.diesel).clamp(0, rawDiesel) : rawDiesel;
+      petrol +=
+          rawPetrol > 0
+              ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
+              : rawPetrol;
+      diesel +=
+          rawDiesel > 0
+              ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
+              : rawDiesel;
       if (_supportsTwoT(pump.id)) {
         twoT += closing.twoT - opening.twoT;
       }
@@ -260,9 +289,14 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
               credit: 0,
             ),
         creditEntries:
-            draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
+            draft.creditEntries
+                .where((item) => item.pumpId == pump.id)
+                .toList(),
+        mismatchReason: draft.pumpMismatchReasons[pump.id] ?? '',
       ),
       suggestedCustomers: _suggestedCustomers,
+      priceSnapshot: dashboard.priceSnapshot,
+      flagThreshold: dashboard.station.flagThreshold,
     );
     if (!mounted || result == null) {
       return;
@@ -271,7 +305,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     _savePumpEdit(result.key, result.value);
   }
 
-  Future<void> _openEditor() async {
+  Future<void> _submitEntry() async {
     final dashboard = _dashboard;
     final draft = _draft;
     if (dashboard == null || _selectedDate == null || draft == null) {
@@ -298,7 +332,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Enter closing meter readings for ${missingPumps.join(', ')} before review.',
+            'Enter closing meter readings for ${missingPumps.join(', ')} before submit.',
           ),
         ),
       );
@@ -314,7 +348,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Enter collection for ${missingCollections.join(', ')} before review.',
+            'Enter collection for ${missingCollections.join(', ')} before submit.',
           ),
         ),
       );
@@ -327,7 +361,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Credit customer names must total ${formatCurrency(pumpCreditTotal)} before review.',
+            'Credit customer names must total ${formatCurrency(pumpCreditTotal)} before submit.',
           ),
         ),
       );
@@ -344,6 +378,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     });
 
     try {
+      final mismatchReason = _buildEntryMismatchReason(draft);
       final preview = await _salesService.previewEntry(
         date: draft.date,
         closingReadings: draft.closingReadings,
@@ -354,19 +389,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         paymentBreakdown: draft.paymentBreakdown,
         creditEntries: draft.creditEntries,
         creditCollections: draft.creditCollections,
-        mismatchReason: draft.mismatchReason,
+        mismatchReason: mismatchReason,
       );
 
       if (!mounted) {
-        return;
-      }
-
-      final mismatchReason = await showDailyEntryPreviewDialog(
-        context: context,
-        preview: preview,
-        initialMismatchReason: draft.mismatchReason,
-      );
-      if (mismatchReason == null) {
         return;
       }
 
@@ -690,7 +716,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                    color: Color(0xFF293340),
+                                  color: Color(0xFF293340),
                                 ),
                               ),
                             ),
@@ -698,7 +724,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                         ),
                         const SizedBox(height: 12),
                         const Text(
-                          'Cash, check, UPI, and pump credit come from the pump entries. Old credit collection is handled from Credit Ledger.',
+                          'Cash, check, UPI, and pump credit come from the pump entries. Pump credit is calculated from the added credit rows for each pump. Old credit collection is handled from Credit Ledger.',
                           style: TextStyle(
                             color: Color(0xFF55606E),
                             height: 1.4,
@@ -756,9 +782,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                         _PaymentRow(
                           label: 'Old credit collected',
                           value: formatCurrency(
-                            draft == null
-                                ? 0
-                                : _collectionRecoveryTotal(draft),
+                            draft == null ? 0 : _collectionRecoveryTotal(draft),
                           ),
                         ),
                         _PaymentRow(
@@ -794,14 +818,15 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                               const SizedBox(height: 6),
                               Text(
                                 draft == null || _pumpCreditTotal(draft) <= 0
-                                    ? 'No pump credit entered yet. When credit sale is entered, add customer names here.'
-                                    : 'Add customer-wise credit names for the pump credit total. Once approved, these names will be shown in Credit Ledger.',
+                                    ? 'No pump credit added yet. Use Add Credit inside a pump to create customer-wise credit rows.'
+                                    : 'Pump credit is built from the customer-wise credit rows added inside each pump. Once approved, these names will be shown in Credit Ledger.',
                                 style: const TextStyle(
                                   color: Color(0xFF55606E),
                                   height: 1.4,
                                 ),
                               ),
-                              if (draft != null && draft.creditEntries.isNotEmpty) ...[
+                              if (draft != null &&
+                                  draft.creditEntries.isNotEmpty) ...[
                                 const SizedBox(height: 10),
                                 ...draft.creditEntries.map(
                                   (item) => Padding(
@@ -837,7 +862,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                               ],
                               const SizedBox(height: 10),
                               const Text(
-                                'Use Update Pump on the relevant pump to change credit customer names.',
+                                'Use Update Pump on the relevant pump to add or change credit customer rows.',
                                 style: TextStyle(
                                   color: Color(0xFF55606E),
                                   height: 1.4,
@@ -859,7 +884,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                     ),
                   const SizedBox(height: 16),
                   FilledButton.icon(
-                    onPressed: _submitting ? null : _openEditor,
+                    onPressed: _submitting ? null : _submitEntry,
                     icon: const Icon(Icons.edit_note_rounded),
                     style: FilledButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 18),
@@ -867,10 +892,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                     ),
                     label: Text(
                       _submitting
-                          ? 'Preparing...'
+                          ? 'Submitting...'
                           : dashboard.entryExists
                           ? 'Entry Already Submitted'
-                          : 'Review Entry',
+                          : 'Submit Entry',
                     ),
                   ),
                 ],

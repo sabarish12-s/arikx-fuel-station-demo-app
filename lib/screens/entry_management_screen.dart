@@ -283,6 +283,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 openingReadings:
                     dashboard.selectedEntry?.openingReadings ??
                     dashboard.openingReadings,
+                priceSnapshot:
+                    dashboard.selectedEntry?.priceSnapshot ??
+                    dashboard.priceSnapshot,
                 initialDraft:
                     dashboard.selectedEntry == null
                         ? DailyEntryDraft(
@@ -376,6 +379,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
               title: 'Edit Daily Entry',
               station: station,
               openingReadings: entry.openingReadings,
+              priceSnapshot: entry.priceSnapshot,
               initialDraft: _draftFromEntry(entry),
               onSubmit: (draft, mismatchReason) async {
                 await _managementService.updateEntry(
@@ -509,7 +513,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             final entries = data.entries;
             final approvedCount =
                 entries.where((entry) => entry.status == 'approved').length;
-            final flaggedCount = entries.where((entry) => entry.flagged && entry.status != 'approved').length;
+            final flaggedCount =
+                entries
+                    .where(
+                      (entry) => entry.flagged && entry.status != 'approved',
+                    )
+                    .length;
             final selectedMonthLabel = _formatMonthFilter(
               _monthController.text,
             );
@@ -518,7 +527,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(28),
                     gradient: const LinearGradient(
@@ -534,23 +543,26 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         '${data.dashboard.station.name} - ${formatDateLabel(data.dashboard.date)}',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 24,
+                          fontSize: 21,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       const Text(
                         'Admins and sales staff now work from the same one-entry-per-day sales record.',
                         style: TextStyle(color: Colors.white70, height: 1.4),
                       ),
-                      const SizedBox(height: 18),
-                      GridView.count(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1.55,
+                      const SizedBox(height: 14),
+                      GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                              mainAxisExtent: 84,
+                            ),
                         children: [
                           _DashboardChip(
                             label: 'Revenue today',
@@ -582,6 +594,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         value: '${entries.length}',
                         subtitle: _monthController.text.trim(),
                         accent: const Color(0xFF1E5CBA),
+                        icon: Icons.filter_alt_rounded,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -591,6 +604,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         value: '$approvedCount',
                         subtitle: 'Ready for reports',
                         accent: const Color(0xFF0F9D58),
+                        icon: Icons.verified_rounded,
                       ),
                     ),
                   ],
@@ -875,24 +889,26 @@ class _DashboardChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
           Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -908,17 +924,19 @@ class _StatCard extends StatelessWidget {
     required this.value,
     required this.subtitle,
     required this.accent,
+    required this.icon,
   });
 
   final String title;
   final String value;
   final String subtitle;
   final Color accent;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -926,25 +944,45 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF55606E),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF55606E),
+                  ),
+                ),
+              ),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: accent, size: 18),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Text(
             value,
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w900,
               color: accent,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: Color(0xFF55606E))),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF55606E)),
+          ),
         ],
       ),
     );

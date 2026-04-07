@@ -8,10 +8,7 @@ import 'delivery_receipt_screen.dart';
 import 'inventory_planning_settings_screen.dart';
 
 class InventoryHubScreen extends StatefulWidget {
-  const InventoryHubScreen({
-    super.key,
-    this.canManagePlanning = false,
-  });
+  const InventoryHubScreen({super.key, this.canManagePlanning = false});
 
   final bool canManagePlanning;
 
@@ -40,7 +37,9 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     await _future;
   }
 
-  Future<void> _openDeliveryReceipt(List<FuelInventoryForecastModel> fuels) async {
+  Future<void> _openDeliveryReceipt(
+    List<FuelInventoryForecastModel> fuels,
+  ) async {
     final saved = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => DeliveryReceiptScreen(fuels: fuels),
@@ -114,6 +113,60 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     }
   }
 
+  Widget _buildForecastMetricGrid(FuelInventoryForecastModel item) {
+    final metrics = [
+      _ForecastMetric(
+        label: 'Current stock',
+        value: formatLiters(item.currentStock),
+      ),
+      _ForecastMetric(
+        label: '7 day avg sales',
+        value: formatLiters(item.averageDailySales),
+      ),
+      _ForecastMetric(
+        label: 'Days remaining',
+        value: _daysRemainingLabel(item.daysRemaining),
+      ),
+      _ForecastMetric(
+        label: 'Projected runout',
+        value: _displayDate(item.projectedRunoutDate),
+      ),
+      _ForecastMetric(
+        label: 'Recommended order by',
+        value: _displayDate(item.recommendedOrderDate),
+      ),
+    ];
+
+    final rows = <Widget>[];
+    for (var index = 0; index < metrics.length; index += 2) {
+      final isLastSingle = index == metrics.length - 1;
+      if (isLastSingle) {
+        rows.add(SizedBox(width: double.infinity, child: metrics[index]));
+        continue;
+      }
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: metrics[index]),
+            const SizedBox(width: 12),
+            Expanded(child: metrics[index + 1]),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var index = 0; index < rows.length; index++) ...[
+          rows[index],
+          if (index != rows.length - 1) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
@@ -127,7 +180,9 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           if (snapshot.hasError) {
             return ListView(
               padding: const EdgeInsets.all(24),
-              children: [Text('Failed to load inventory\n${_errorText(snapshot.error)}')],
+              children: [
+                Text('Failed to load inventory\n${_errorText(snapshot.error)}'),
+              ],
             );
           }
 
@@ -185,7 +240,9 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                             value: formatLiters(item.currentStock),
                             accent: _fuelColor(item.fuelTypeId),
                             subtitle:
-                                item.shouldAlert ? 'Alert active' : 'Forecast healthy',
+                                item.shouldAlert
+                                    ? 'Alert active'
+                                    : 'Forecast healthy',
                           ),
                         )
                         .toList(),
@@ -271,33 +328,8 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 14,
-                        runSpacing: 10,
-                        children: [
-                          _ForecastMetric(
-                            label: 'Current stock',
-                            value: formatLiters(item.currentStock),
-                          ),
-                          _ForecastMetric(
-                            label: '7 day avg sales',
-                            value: formatLiters(item.averageDailySales),
-                          ),
-                          _ForecastMetric(
-                            label: 'Days remaining',
-                            value: _daysRemainingLabel(item.daysRemaining),
-                          ),
-                          _ForecastMetric(
-                            label: 'Projected runout',
-                            value: _displayDate(item.projectedRunoutDate),
-                          ),
-                          _ForecastMetric(
-                            label: 'Recommended order by',
-                            value: _displayDate(item.recommendedOrderDate),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 12),
+                      _buildForecastMetricGrid(item),
                       if (item.alertMessage.trim().isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Container(
@@ -349,66 +381,71 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         style: TextStyle(color: Color(0xFF55606E)),
                       )
                     else
-                      ...data.deliveries.take(10).map(
-                        (delivery) => Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FF),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: const Color(0xFFE9EEF7),
-                                child: Text(
-                                  delivery.fuelTypeId == 'petrol'
-                                      ? 'P'
-                                      : delivery.fuelTypeId == 'diesel'
-                                      ? 'D'
-                                      : '2T',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF1E5CBA),
-                                  ),
-                                ),
+                      ...data.deliveries
+                          .take(10)
+                          .map(
+                            (delivery) => Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8F9FF),
+                                borderRadius: BorderRadius.circular(18),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _fuelLabel(delivery.fuelTypeId),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    backgroundColor: const Color(0xFFE9EEF7),
+                                    child: Text(
+                                      delivery.fuelTypeId == 'petrol'
+                                          ? 'P'
+                                          : delivery.fuelTypeId == 'diesel'
+                                          ? 'D'
+                                          : '2T',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.w800,
-                                        color: Color(0xFF293340),
+                                        color: Color(0xFF1E5CBA),
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${formatDateLabel(delivery.date)}  |  ${formatLiters(delivery.quantity)}',
-                                      style: const TextStyle(
-                                        color: Color(0xFF55606E),
-                                      ),
-                                    ),
-                                    if (delivery.note.trim().isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          delivery.note,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _fuelLabel(delivery.fuelTypeId),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF293340),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${formatDateLabel(delivery.date)}  |  ${formatLiters(delivery.quantity)}',
                                           style: const TextStyle(
                                             color: Color(0xFF55606E),
                                           ),
                                         ),
-                                      ),
-                                  ],
-                                ),
+                                        if (delivery.note.trim().isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 4,
+                                            ),
+                                            child: Text(
+                                              delivery.note,
+                                              style: const TextStyle(
+                                                color: Color(0xFF55606E),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -475,10 +512,7 @@ class _InventoryStatCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               subtitle,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF55606E),
-              ),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF55606E)),
             ),
           ],
         ],
@@ -488,10 +522,7 @@ class _InventoryStatCard extends StatelessWidget {
 }
 
 class _ForecastMetric extends StatelessWidget {
-  const _ForecastMetric({
-    required this.label,
-    required this.value,
-  });
+  const _ForecastMetric({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -499,13 +530,13 @@ class _ForecastMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 170,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FF),
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(

@@ -205,6 +205,7 @@ class DailyEntryDraft {
     required this.paymentBreakdown,
     required this.creditEntries,
     required this.creditCollections,
+    this.pumpMismatchReasons = const {},
     this.mismatchReason = '',
   });
 
@@ -217,6 +218,7 @@ class DailyEntryDraft {
   final PaymentBreakdownModel paymentBreakdown;
   final List<CreditEntryModel> creditEntries;
   final List<CreditCollectionModel> creditCollections;
+  final Map<String, String> pumpMismatchReasons;
   final String mismatchReason;
 
   DailyEntryDraft copyWith({
@@ -229,6 +231,7 @@ class DailyEntryDraft {
     PaymentBreakdownModel? paymentBreakdown,
     List<CreditEntryModel>? creditEntries,
     List<CreditCollectionModel>? creditCollections,
+    Map<String, String>? pumpMismatchReasons,
     String? mismatchReason,
   }) {
     return DailyEntryDraft(
@@ -241,6 +244,7 @@ class DailyEntryDraft {
       paymentBreakdown: paymentBreakdown ?? this.paymentBreakdown,
       creditEntries: creditEntries ?? this.creditEntries,
       creditCollections: creditCollections ?? this.creditCollections,
+      pumpMismatchReasons: pumpMismatchReasons ?? this.pumpMismatchReasons,
       mismatchReason: mismatchReason ?? this.mismatchReason,
     );
   }
@@ -253,6 +257,7 @@ class PumpEntryDraft {
     required this.testing,
     required this.payments,
     this.creditEntries = const [],
+    this.mismatchReason = '',
   });
 
   final String attendant;
@@ -260,6 +265,7 @@ class PumpEntryDraft {
   final PumpTestingModel testing;
   final PumpPaymentBreakdownModel payments;
   final List<CreditEntryModel> creditEntries;
+  final String mismatchReason;
 
   bool get testingEnabled => testing.enabled;
 }
@@ -852,6 +858,7 @@ class ShiftEntryModel {
   final double mismatchAmount;
   final String mismatchReason;
   final double profit;
+
   /// Keys: 'petrol', 'diesel', 'two_t_oil' — values have 'sellingPrice', 'costPrice'
   final Map<String, Map<String, double>> priceSnapshot;
 
@@ -931,14 +938,15 @@ class ShiftEntryModel {
       mismatchAmount: (json['mismatchAmount'] as num?)?.toDouble() ?? 0,
       mismatchReason: json['mismatchReason']?.toString() ?? '',
       profit: (json['profit'] as num?)?.toDouble() ?? 0,
-      priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ?? const {})
+      priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ??
+              const {})
           .map((key, value) {
-        final entry = value as Map<String, dynamic>? ?? const {};
-        return MapEntry(key, {
-          'sellingPrice': (entry['sellingPrice'] as num?)?.toDouble() ?? 0,
-          'costPrice': (entry['costPrice'] as num?)?.toDouble() ?? 0,
-        });
-      }),
+            final entry = value as Map<String, dynamic>? ?? const {};
+            return MapEntry(key, {
+              'sellingPrice': (entry['sellingPrice'] as num?)?.toDouble() ?? 0,
+              'costPrice': (entry['costPrice'] as num?)?.toDouble() ?? 0,
+            });
+          }),
     );
   }
 }
@@ -1157,6 +1165,7 @@ class SalesDashboardModel {
     required this.twoTSold,
     required this.entriesCompleted,
     required this.todaysEntries,
+    this.priceSnapshot = const {},
   });
 
   final StationConfigModel station;
@@ -1172,6 +1181,7 @@ class SalesDashboardModel {
   final double twoTSold;
   final int entriesCompleted;
   final List<ShiftEntryModel> todaysEntries;
+  final Map<String, Map<String, double>> priceSnapshot;
 
   factory SalesDashboardModel.fromJson(Map<String, dynamic> json) {
     final totals = json['totals'] as Map<String, dynamic>? ?? const {};
@@ -1210,6 +1220,15 @@ class SalesDashboardModel {
                     ShiftEntryModel.fromJson(item as Map<String, dynamic>),
               )
               .toList(),
+      priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ??
+              const {})
+          .map((key, value) {
+            final entry = value as Map<String, dynamic>? ?? const {};
+            return MapEntry(key, {
+              'sellingPrice': (entry['sellingPrice'] as num?)?.toDouble() ?? 0,
+              'costPrice': (entry['costPrice'] as num?)?.toDouble() ?? 0,
+            });
+          }),
     );
   }
 }

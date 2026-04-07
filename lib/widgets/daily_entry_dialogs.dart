@@ -4,6 +4,8 @@ import '../models/domain_models.dart';
 import '../utils/formatters.dart';
 
 const double _defaultTestingQuantity = 5;
+const String _creditCustomerModeExisting = 'existing';
+const String _creditCustomerModeNew = 'new';
 
 String _formatTestingQuantityInput(double quantity) {
   if (quantity <= 0) {
@@ -641,7 +643,8 @@ Future<String?> showDailyEntryPreviewDialog({
                                   final payments = preview.pumpPayments[pumpId];
                                   final testing = preview.pumpTesting[pumpId];
                                   final attendant =
-                                      preview.pumpAttendants[pumpId]?.trim() ?? '';
+                                      preview.pumpAttendants[pumpId]?.trim() ??
+                                      '';
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 12),
                                     padding: const EdgeInsets.all(16),
@@ -650,7 +653,8 @@ Future<String?> showDailyEntryPreviewDialog({
                                       borderRadius: BorderRadius.circular(22),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
@@ -675,38 +679,52 @@ Future<String?> showDailyEntryPreviewDialog({
                                           children: [
                                             _PreviewPill(
                                               label: 'Petrol sold',
-                                              value: formatLiters(entry.value.petrol),
+                                              value: formatLiters(
+                                                entry.value.petrol,
+                                              ),
                                               accent: const Color(0xFF1E5CBA),
                                             ),
                                             _PreviewPill(
                                               label: 'Diesel sold',
-                                              value: formatLiters(entry.value.diesel),
+                                              value: formatLiters(
+                                                entry.value.diesel,
+                                              ),
                                               accent: const Color(0xFF006C5C),
                                             ),
                                             if (entry.value.twoT > 0)
                                               _PreviewPill(
                                                 label: '2T oil sold',
-                                                value: formatLiters(entry.value.twoT),
+                                                value: formatLiters(
+                                                  entry.value.twoT,
+                                                ),
                                                 accent: const Color(0xFFB45309),
                                               ),
                                             _PreviewPill(
                                               label: 'Cash',
-                                              value: formatCurrency(payments?.cash ?? 0),
+                                              value: formatCurrency(
+                                                payments?.cash ?? 0,
+                                              ),
                                               accent: const Color(0xFFB45309),
                                             ),
                                             _PreviewPill(
                                               label: 'Check',
-                                              value: formatCurrency(payments?.check ?? 0),
+                                              value: formatCurrency(
+                                                payments?.check ?? 0,
+                                              ),
                                               accent: const Color(0xFF6B7280),
                                             ),
                                             _PreviewPill(
                                               label: 'UPI',
-                                              value: formatCurrency(payments?.upi ?? 0),
+                                              value: formatCurrency(
+                                                payments?.upi ?? 0,
+                                              ),
                                               accent: const Color(0xFF7C3AED),
                                             ),
                                             _PreviewPill(
                                               label: 'Credit',
-                                              value: formatCurrency(payments?.credit ?? 0),
+                                              value: formatCurrency(
+                                                payments?.credit ?? 0,
+                                              ),
                                               accent: const Color(0xFFDC2626),
                                             ),
                                           ],
@@ -718,7 +736,8 @@ Future<String?> showDailyEntryPreviewDialog({
                                             padding: const EdgeInsets.all(12),
                                             decoration: BoxDecoration(
                                               color: const Color(0xFFF5F3FF),
-                                              borderRadius: BorderRadius.circular(16),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                             ),
                                             child: Text(
                                               'Testing excluded: petrol ${formatLiters(testing?.petrol ?? 0)}  |  diesel ${formatLiters(testing?.diesel ?? 0)}',
@@ -742,38 +761,52 @@ Future<String?> showDailyEntryPreviewDialog({
                                   children: [
                                     _PreviewMetricCard(
                                       label: 'Computed revenue',
-                                      value: formatCurrency(preview.computedRevenue),
+                                      value: formatCurrency(
+                                        preview.computedRevenue,
+                                      ),
                                       accent: const Color(0xFF1E5CBA),
                                     ),
                                     _PreviewMetricCard(
                                       label: 'Sales settlement',
-                                      value: formatCurrency(preview.salesSettlementTotal),
+                                      value: formatCurrency(
+                                        preview.salesSettlementTotal,
+                                      ),
                                       accent: const Color(0xFF0F766E),
                                     ),
                                     _PreviewMetricCard(
                                       label: 'Old credit collected',
-                                      value: formatCurrency(preview.creditCollectionTotal),
+                                      value: formatCurrency(
+                                        preview.creditCollectionTotal,
+                                      ),
                                       accent: const Color(0xFF7C3AED),
                                     ),
                                     _PreviewMetricCard(
                                       label: 'Amount collected',
-                                      value: formatCurrency(preview.paymentTotal),
+                                      value: formatCurrency(
+                                        preview.paymentTotal,
+                                      ),
                                       accent: const Color(0xFFB45309),
                                     ),
                                     _PreviewMetricCard(
                                       label: 'Petrol sold',
-                                      value: formatLiters(preview.totals.sold.petrol),
+                                      value: formatLiters(
+                                        preview.totals.sold.petrol,
+                                      ),
                                       accent: const Color(0xFF1E5CBA),
                                     ),
                                     _PreviewMetricCard(
                                       label: 'Diesel sold',
-                                      value: formatLiters(preview.totals.sold.diesel),
+                                      value: formatLiters(
+                                        preview.totals.sold.diesel,
+                                      ),
                                       accent: const Color(0xFF006C5C),
                                     ),
                                     if (preview.totals.sold.twoT > 0)
                                       _PreviewMetricCard(
                                         label: '2T oil sold',
-                                        value: formatLiters(preview.totals.sold.twoT),
+                                        value: formatLiters(
+                                          preview.totals.sold.twoT,
+                                        ),
                                         accent: const Color(0xFFB45309),
                                       ),
                                   ],
@@ -786,21 +819,27 @@ Future<String?> showDailyEntryPreviewDialog({
                                     spacing: 10,
                                     runSpacing: 10,
                                     children: [
-                                      if ((preview.priceSnapshot['petrol']?['sellingPrice'] ?? 0) > 0)
+                                      if ((preview.priceSnapshot['petrol']?['sellingPrice'] ??
+                                              0) >
+                                          0)
                                         _PreviewRateChip(
                                           label: 'Petrol',
                                           value:
                                               '${formatCurrency(preview.priceSnapshot['petrol']!['sellingPrice']!)}/L',
                                           accent: const Color(0xFF1E5CBA),
                                         ),
-                                      if ((preview.priceSnapshot['diesel']?['sellingPrice'] ?? 0) > 0)
+                                      if ((preview.priceSnapshot['diesel']?['sellingPrice'] ??
+                                              0) >
+                                          0)
                                         _PreviewRateChip(
                                           label: 'Diesel',
                                           value:
                                               '${formatCurrency(preview.priceSnapshot['diesel']!['sellingPrice']!)}/L',
                                           accent: const Color(0xFF006C5C),
                                         ),
-                                      if ((preview.priceSnapshot['two_t_oil']?['sellingPrice'] ?? 0) > 0)
+                                      if ((preview.priceSnapshot['two_t_oil']?['sellingPrice'] ??
+                                              0) >
+                                          0)
                                         _PreviewRateChip(
                                           label: '2T Oil',
                                           value:
@@ -810,7 +849,8 @@ Future<String?> showDailyEntryPreviewDialog({
                                     ],
                                   ),
                                 ],
-                                if (preview.mismatchAmount != 0 || preview.varianceNote.isNotEmpty) ...[
+                                if (preview.mismatchAmount != 0 ||
+                                    preview.varianceNote.isNotEmpty) ...[
                                   const SizedBox(height: 18),
                                   Container(
                                     width: double.infinity,
@@ -823,7 +863,8 @@ Future<String?> showDailyEntryPreviewDialog({
                                       ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           preview.mismatchAmount == 0
@@ -847,10 +888,13 @@ Future<String?> showDailyEntryPreviewDialog({
                                               filled: true,
                                               fillColor: Colors.white,
                                             ),
-                                            onChanged: (_) => setDialogState(() {}),
+                                            onChanged:
+                                                (_) => setDialogState(() {}),
                                           ),
                                         ],
-                                        if (preview.varianceNote.isNotEmpty) ...[
+                                        if (preview
+                                            .varianceNote
+                                            .isNotEmpty) ...[
                                           const SizedBox(height: 10),
                                           Text(
                                             preview.varianceNote,
@@ -880,7 +924,8 @@ Future<String?> showDailyEntryPreviewDialog({
                             children: [
                               Expanded(
                                 child: TextButton(
-                                  onPressed: () => Navigator.of(dialogContext).pop(),
+                                  onPressed:
+                                      () => Navigator.of(dialogContext).pop(),
                                   child: const Text('Cancel'),
                                 ),
                               ),
@@ -889,10 +934,13 @@ Future<String?> showDailyEntryPreviewDialog({
                                 child: FilledButton(
                                   onPressed:
                                       preview.mismatchAmount != 0 &&
-                                              reasonController.text.trim().isEmpty
+                                              reasonController.text
+                                                  .trim()
+                                                  .isEmpty
                                           ? null
                                           : () {
-                                            result = reasonController.text.trim();
+                                            result =
+                                                reasonController.text.trim();
                                             Navigator.of(dialogContext).pop();
                                           },
                                   style: FilledButton.styleFrom(
@@ -970,10 +1018,7 @@ class _PreviewMetricCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF55606E),
-            ),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF55606E)),
           ),
           const SizedBox(height: 6),
           Text(
@@ -1059,10 +1104,7 @@ class _PreviewRateChip extends StatelessWidget {
           children: [
             TextSpan(
               text: '$label ',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: accent,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w700, color: accent),
             ),
             TextSpan(
               text: value,
@@ -1075,11 +1117,123 @@ class _PreviewRateChip extends StatelessWidget {
   }
 }
 
+class _PumpPreviewMetricCard extends StatelessWidget {
+  const _PumpPreviewMetricCard({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF55606E),
+                height: 1.35,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: accent,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PumpPreviewDifferenceCard extends StatelessWidget {
+  const _PumpPreviewDifferenceCard({
+    required this.label,
+    required this.value,
+    required this.highlight,
+  });
+
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent =
+        highlight ? const Color(0xFFB91C1C) : const Color(0xFF0F766E);
+    final background =
+        highlight ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF55606E),
+                height: 1.35,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: accent,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
   required BuildContext context,
   required StationPumpModel pump,
   required PumpReadings opening,
   required PumpReadings limit,
+  required Map<String, Map<String, double>> priceSnapshot,
+  required double flagThreshold,
   required PumpEntryDraft initialDraft,
   List<CreditCustomerSummaryModel> suggestedCustomers = const [],
 }) async {
@@ -1096,6 +1250,8 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
             pump: pump,
             opening: opening,
             limit: limit,
+            priceSnapshot: priceSnapshot,
+            flagThreshold: flagThreshold,
             initialDraft: initialDraft,
             suggestedCustomers: suggestedCustomers,
           ),
@@ -1133,7 +1289,10 @@ Future<List<CreditEntryModel>?> showCreditEntriesDialog({
     barrierDismissible: false,
     builder:
         (_) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
           child: _CreditEntriesDialog(
             initialEntries: initialEntries,
             expectedTotal: expectedTotal,
@@ -1172,7 +1331,10 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                   (entry) => _CreditEntryControllers(
                     customerId: entry.customerId,
                     name: entry.name,
-                    amount: entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                    amount:
+                        entry.amount == 0
+                            ? ''
+                            : entry.amount.toStringAsFixed(2),
                   ),
                 )
                 .toList();
@@ -1233,7 +1395,8 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
             .where((item) => item.name.isNotEmpty && item.amount > 0)
             .toList();
     final namedTotal = rows.fold<double>(0, (sum, item) => sum + item.amount);
-    if (widget.expectedTotal > 0 && (namedTotal - widget.expectedTotal).abs() > 0.01) {
+    if (widget.expectedTotal > 0 &&
+        (namedTotal - widget.expectedTotal).abs() > 0.01) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1246,7 +1409,9 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
     if (widget.expectedTotal <= 0 && rows.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pump credit is zero. Remove credit customer rows first.'),
+          content: Text(
+            'Pump credit is zero. Remove credit customer rows first.',
+          ),
         ),
       );
       return;
@@ -1329,7 +1494,10 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                       widget.suggestedCustomers.isEmpty
                           ? 'Type a new customer name for each credit row.'
                           : 'Select an existing customer from the dropdown or type a new customer name.',
-                      style: const TextStyle(color: Color(0xFF55606E), height: 1.4),
+                      style: const TextStyle(
+                        color: Color(0xFF55606E),
+                        height: 1.4,
+                      ),
                     ),
                   ),
                   ...List.generate(_creditControllers.length, (index) {
@@ -1359,7 +1527,8 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                                 item.customerIdController.text = value ?? '';
                                 final selected = _findCustomerById(value);
                                 if (selected != null) {
-                                  item.nameController.text = selected.customer.name;
+                                  item.nameController.text =
+                                      selected.customer.name;
                                 }
                               });
                             },
@@ -1372,7 +1541,8 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                                 item.customerIdController.text,
                               );
                               if (selected != null &&
-                                  value.trim() != selected.customer.name.trim()) {
+                                  value.trim() !=
+                                      selected.customer.name.trim()) {
                                 item.customerIdController.text = '';
                               }
                             },
@@ -1472,6 +1642,8 @@ class _PumpEntryDialog extends StatefulWidget {
     required this.pump,
     required this.opening,
     required this.limit,
+    required this.priceSnapshot,
+    required this.flagThreshold,
     required this.initialDraft,
     required this.suggestedCustomers,
   });
@@ -1479,6 +1651,8 @@ class _PumpEntryDialog extends StatefulWidget {
   final StationPumpModel pump;
   final PumpReadings opening;
   final PumpReadings limit;
+  final Map<String, Map<String, double>> priceSnapshot;
+  final double flagThreshold;
   final PumpEntryDraft initialDraft;
   final List<CreditCustomerSummaryModel> suggestedCustomers;
 
@@ -1495,9 +1669,9 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   late final TextEditingController _cashController;
   late final TextEditingController _checkController;
   late final TextEditingController _upiController;
-  late final TextEditingController _creditController;
   late final TextEditingController _testingPetrolController;
   late final TextEditingController _testingDieselController;
+  late final TextEditingController _mismatchReasonController;
   late bool _testingEnabled;
   late List<_CreditEntryControllers> _creditEntryControllers;
 
@@ -1544,45 +1718,65 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
               ? ''
               : widget.initialDraft.payments.upi.toStringAsFixed(2),
     );
-    _creditController = TextEditingController(
-      text:
-          widget.initialDraft.payments.credit == 0
-              ? ''
-              : widget.initialDraft.payments.credit.toStringAsFixed(2),
-    );
     _testingPetrolController = TextEditingController(
       text: _formatTestingQuantityInput(widget.initialDraft.testing.petrol),
     );
     _testingDieselController = TextEditingController(
       text: _formatTestingQuantityInput(widget.initialDraft.testing.diesel),
     );
+    _mismatchReasonController = TextEditingController(
+      text: widget.initialDraft.mismatchReason,
+    );
     _testingEnabled = widget.initialDraft.testingEnabled;
-    _creditEntryControllers =
-        widget.initialDraft.creditEntries.isEmpty
-            ? [_CreditEntryControllers()]
-            : widget.initialDraft.creditEntries
-                .map(
-                  (entry) => _CreditEntryControllers(
-                    customerId: entry.customerId,
-                    name: entry.name,
-                    amount: entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
-                  ),
-                )
-                .toList();
+    if (widget.initialDraft.creditEntries.isEmpty &&
+        widget.initialDraft.payments.credit > 0) {
+      _creditEntryControllers = [
+        _CreditEntryControllers(
+          customerMode:
+              widget.suggestedCustomers.isNotEmpty
+                  ? _creditCustomerModeExisting
+                  : _creditCustomerModeNew,
+          amount: widget.initialDraft.payments.credit.toStringAsFixed(2),
+        ),
+      ];
+    } else {
+      _creditEntryControllers =
+          widget.initialDraft.creditEntries
+              .map(
+                (entry) => _CreditEntryControllers(
+                  customerMode:
+                      entry.customerId.trim().isNotEmpty
+                          ? _creditCustomerModeExisting
+                          : _creditCustomerModeNew,
+                  customerId: entry.customerId,
+                  name: entry.name,
+                  amount:
+                      entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                ),
+              )
+              .toList();
+    }
+    _petrolController.addListener(_refreshTotals);
+    _dieselController.addListener(_refreshTotals);
+    _twoTController.addListener(_refreshTotals);
     _cashController.addListener(_refreshTotals);
     _checkController.addListener(_refreshTotals);
     _upiController.addListener(_refreshTotals);
-    _creditController.addListener(_refreshTotals);
     _testingPetrolController.addListener(_refreshTotals);
     _testingDieselController.addListener(_refreshTotals);
+    for (final item in _creditEntryControllers) {
+      item.amountController.addListener(_refreshTotals);
+    }
   }
 
   @override
   void dispose() {
+    _petrolController.removeListener(_refreshTotals);
+    _dieselController.removeListener(_refreshTotals);
+    _twoTController.removeListener(_refreshTotals);
     _cashController.removeListener(_refreshTotals);
     _checkController.removeListener(_refreshTotals);
     _upiController.removeListener(_refreshTotals);
-    _creditController.removeListener(_refreshTotals);
     _attendantController.dispose();
     _petrolController.dispose();
     _dieselController.dispose();
@@ -1590,10 +1784,11 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     _cashController.dispose();
     _checkController.dispose();
     _upiController.dispose();
-    _creditController.dispose();
+    _mismatchReasonController.dispose();
     _testingPetrolController.removeListener(_refreshTotals);
     _testingDieselController.removeListener(_refreshTotals);
     for (final item in _creditEntryControllers) {
+      item.amountController.removeListener(_refreshTotals);
       item.dispose();
     }
     _testingPetrolController.dispose();
@@ -1690,14 +1885,62 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       _parseAmount(_cashController.text) +
       _parseAmount(_checkController.text) +
       _parseAmount(_upiController.text) +
-      _parseAmount(_creditController.text);
+      _namedCreditTotal;
 
-  double get _namedCreditTotal => _creditEntryControllers.fold<double>(0, (
-    sum,
-    item,
-  ) {
-    return sum + (double.tryParse(item.amountController.text.trim()) ?? 0);
-  });
+  double get _namedCreditTotal =>
+      _creditEntryControllers.fold<double>(0, (sum, item) {
+        return sum + (double.tryParse(item.amountController.text.trim()) ?? 0);
+      });
+
+  PumpReadings get _soldLiters {
+    final petrolClosing = _parseAmount(_petrolController.text);
+    final dieselClosing = _parseAmount(_dieselController.text);
+    final twoTClosing = _supportsTwoT ? _parseAmount(_twoTController.text) : 0;
+    final petrolRaw = petrolClosing - widget.opening.petrol;
+    final dieselRaw = dieselClosing - widget.opening.diesel;
+    final twoTRaw = twoTClosing - widget.opening.twoT;
+    final testingPetrol =
+        _testingEnabled
+            ? _parseTestingQuantity(_testingPetrolController.text)
+            : 0;
+    final testingDiesel =
+        _testingEnabled
+            ? _parseTestingQuantity(_testingDieselController.text)
+            : 0;
+    final petrolSold =
+        petrolRaw > 0
+            ? (petrolRaw - testingPetrol).clamp(0, petrolRaw)
+            : petrolRaw;
+    final dieselSold =
+        dieselRaw > 0
+            ? (dieselRaw - testingDiesel).clamp(0, dieselRaw)
+            : dieselRaw;
+    return PumpReadings(
+      petrol: petrolSold.toDouble(),
+      diesel: dieselSold.toDouble(),
+      twoT: twoTRaw,
+    );
+  }
+
+  double _sellingPriceFor(String fuelKey) {
+    return widget.priceSnapshot[fuelKey]?['sellingPrice'] ?? 0;
+  }
+
+  double get _actualSalesValue {
+    final sold = _soldLiters;
+    return double.parse(
+      (sold.petrol * _sellingPriceFor('petrol') +
+              sold.diesel * _sellingPriceFor('diesel') +
+              sold.twoT * _sellingPriceFor('two_t_oil'))
+          .toStringAsFixed(2),
+    );
+  }
+
+  double get _pumpDifference =>
+      double.parse((_collectionTotal - _actualSalesValue).toStringAsFixed(2));
+
+  bool get _requiresMismatchReason =>
+      _pumpDifference.abs() >= widget.flagThreshold;
 
   CreditCustomerSummaryModel? _findCustomerById(String? customerId) {
     final lookup = customerId?.trim() ?? '';
@@ -1713,16 +1956,21 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   }
 
   void _addCreditEntryRow() {
+    final controller = _CreditEntryControllers(
+      customerMode:
+          widget.suggestedCustomers.isNotEmpty
+              ? _creditCustomerModeExisting
+              : _creditCustomerModeNew,
+    );
+    controller.amountController.addListener(_refreshTotals);
     setState(() {
-      _creditEntryControllers = [
-        ..._creditEntryControllers,
-        _CreditEntryControllers(),
-      ];
+      _creditEntryControllers = [..._creditEntryControllers, controller];
     });
   }
 
   void _removeCreditEntryRow(int index) {
     final removed = _creditEntryControllers[index];
+    removed.amountController.removeListener(_refreshTotals);
     removed.dispose();
     setState(() {
       _creditEntryControllers = [
@@ -1742,8 +1990,64 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
             amount: double.tryParse(item.amountController.text.trim()) ?? 0,
           ),
         )
-        .where((item) => item.name.isNotEmpty && item.amount > 0)
+        .where(
+          (item) =>
+              item.amount > 0 &&
+              (item.customerId.trim().isNotEmpty ||
+                  item.name.trim().isNotEmpty),
+        )
         .toList();
+  }
+
+  String? _validateCreditCustomerRow(_CreditEntryControllers item) {
+    if (item.customerMode == _creditCustomerModeExisting) {
+      if (item.customerIdController.text.trim().isEmpty) {
+        return 'Select an existing customer.';
+      }
+      return null;
+    }
+    if (item.nameController.text.trim().isEmpty) {
+      return 'Enter a new customer name.';
+    }
+    return null;
+  }
+
+  String? _validateCreditAmountRow(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return 'Enter credit amount.';
+    }
+    final parsed = double.tryParse(trimmed);
+    if (parsed == null) {
+      return 'Enter a valid credit amount.';
+    }
+    if (parsed <= 0) {
+      return 'Credit amount must be greater than zero.';
+    }
+    return null;
+  }
+
+  void _markPumpAsNil() {
+    setState(() {
+      _attendantController.text = 'Nil';
+      _petrolController.text = widget.opening.petrol.toStringAsFixed(2);
+      _dieselController.text = widget.opening.diesel.toStringAsFixed(2);
+      if (_supportsTwoT) {
+        _twoTController.text = widget.opening.twoT.toStringAsFixed(2);
+      }
+      _cashController.clear();
+      _checkController.clear();
+      _upiController.clear();
+      for (final item in _creditEntryControllers) {
+        item.amountController.removeListener(_refreshTotals);
+        item.dispose();
+      }
+      _creditEntryControllers = [];
+      _testingEnabled = false;
+      _testingPetrolController.clear();
+      _testingDieselController.clear();
+      _mismatchReasonController.clear();
+    });
   }
 
   void _savePump() {
@@ -1759,26 +2063,18 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       return;
     }
 
-    final creditAmount = _parseAmount(_creditController.text);
     final namedCreditEntries = _buildCreditEntries();
-    final namedCreditTotal = namedCreditEntries.fold<double>(
+    final creditAmount = namedCreditEntries.fold<double>(
       0,
       (sum, item) => sum + item.amount,
     );
-    if (creditAmount > 0 && (creditAmount - namedCreditTotal).abs() > 0.01) {
+    final mismatchReason = _mismatchReasonController.text.trim();
+    if (_requiresMismatchReason && mismatchReason.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Credit customer names must total ${formatCurrency(creditAmount)} for this pump.',
+            'Difference exceeds threshold ${formatCurrency(widget.flagThreshold)}. Enter a reason for this pump.',
           ),
-        ),
-      );
-      return;
-    }
-    if (creditAmount <= 0 && namedCreditEntries.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pump credit is zero. Remove the customer credit rows first.'),
         ),
       );
       return;
@@ -1812,6 +2108,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
             credit: creditAmount,
           ),
           creditEntries: namedCreditEntries,
+          mismatchReason: mismatchReason,
         ),
       ),
     );
@@ -1846,12 +2143,13 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Enter closing meter readings and collection details.',
+                        'Enter closing meter readings and collection details, or mark the pump as Nil when it was not operated.',
                         style: const TextStyle(color: Color(0xFF55606E)),
                       ),
                     ],
                   ),
                 ),
+                TextButton(onPressed: _markPumpAsNil, child: const Text('Nil')),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close_rounded),
@@ -2040,59 +2338,62 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                       validator: (value) => _validateAmount('UPI', value ?? ''),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _creditController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FF),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      decoration: const InputDecoration(
-                        labelText: 'Credit',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
-                      validator:
-                          (value) => _validateAmount('Credit', value ?? ''),
-                    ),
-                    if (_parseAmount(_creditController.text) > 0) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Expanded(
-                                  child: Text(
-                                    'Credit Customer Names',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF293340),
-                                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Pump Credit',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
                                   ),
                                 ),
-                                TextButton.icon(
-                                  onPressed: _addCreditEntryRow,
-                                  icon: const Icon(Icons.add_rounded),
-                                  label: const Text('Add'),
-                                ),
-                              ],
+                              ),
+                              TextButton.icon(
+                                onPressed: _addCreditEntryRow,
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Add Credit'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Add one row per credit customer. Pump credit total is calculated from these rows and sent to Credit Ledger after approval.',
+                            style: TextStyle(
+                              color: Color(0xFF55606E),
+                              height: 1.4,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Enter the customer names for this pump credit. These names will go to Credit Ledger after approval.',
-                              style: const TextStyle(
-                                color: Color(0xFF55606E),
-                                height: 1.4,
+                          ),
+                          if (_creditEntryControllers.isEmpty) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Text(
+                                'No credit rows added for this pump.',
+                                style: TextStyle(color: Color(0xFF55606E)),
                               ),
                             ),
+                          ],
+                          if (_creditEntryControllers.isNotEmpty) ...[
                             const SizedBox(height: 10),
-                            ...List.generate(_creditEntryControllers.length, (index) {
+                            ...List.generate(_creditEntryControllers.length, (
+                              index,
+                            ) {
                               final item = _creditEntryControllers[index];
                               final customerItems =
                                   widget.suggestedCustomers
@@ -2111,48 +2412,118 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'Credit ${index + 1}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF293340),
+                                            ),
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed:
+                                              () =>
+                                                  _removeCreditEntryRow(index),
+                                          child: const Text('Remove'),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
                                     DropdownButtonFormField<String>(
-                                      initialValue:
-                                          item.customerIdController.text.isEmpty
-                                              ? null
-                                              : item.customerIdController.text,
+                                      initialValue: item.customerMode,
                                       decoration: const InputDecoration(
-                                        labelText: 'Existing customer',
+                                        labelText: 'Customer type',
                                         filled: true,
                                         fillColor: Colors.white,
                                       ),
-                                      items: customerItems,
+                                      items: const [
+                                        DropdownMenuItem<String>(
+                                          value: _creditCustomerModeExisting,
+                                          child: Text('Existing'),
+                                        ),
+                                        DropdownMenuItem<String>(
+                                          value: _creditCustomerModeNew,
+                                          child: Text('New'),
+                                        ),
+                                      ],
                                       onChanged: (value) {
+                                        if (value == null) {
+                                          return;
+                                        }
                                         setState(() {
-                                          item.customerIdController.text = value ?? '';
-                                          final selected = _findCustomerById(value);
-                                          if (selected != null) {
-                                            item.nameController.text =
-                                                selected.customer.name;
-                                          }
+                                          item.customerMode = value;
+                                          item.customerIdController.text = '';
+                                          item.nameController.text = '';
                                         });
                                       },
                                     ),
                                     const SizedBox(height: 10),
-                                    TextFormField(
-                                      controller: item.nameController,
-                                      decoration: InputDecoration(
-                                        labelText: 'Customer name ${index + 1}',
-                                        filled: true,
-                                        fillColor: Colors.white,
+                                    if (item.customerMode ==
+                                        _creditCustomerModeExisting) ...[
+                                      DropdownButtonFormField<String>(
+                                        initialValue:
+                                            item
+                                                    .customerIdController
+                                                    .text
+                                                    .isEmpty
+                                                ? null
+                                                : item
+                                                    .customerIdController
+                                                    .text,
+                                        decoration: InputDecoration(
+                                          labelText:
+                                              widget.suggestedCustomers.isEmpty
+                                                  ? 'Existing customer (none available yet)'
+                                                  : 'Existing customer',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                        ),
+                                        items: customerItems,
+                                        onChanged:
+                                            widget.suggestedCustomers.isEmpty
+                                                ? null
+                                                : (value) {
+                                                  setState(() {
+                                                    item
+                                                        .customerIdController
+                                                        .text = value ?? '';
+                                                    final selected =
+                                                        _findCustomerById(
+                                                          value,
+                                                        );
+                                                    item.nameController.text =
+                                                        selected
+                                                            ?.customer
+                                                            .name ??
+                                                        '';
+                                                  });
+                                                },
+                                        validator:
+                                            (_) => _validateCreditCustomerRow(
+                                              item,
+                                            ),
                                       ),
-                                      onChanged: (value) {
-                                        final selected = _findCustomerById(
-                                          item.customerIdController.text,
-                                        );
-                                        if (selected != null &&
-                                            value.trim() !=
-                                                selected.customer.name.trim()) {
-                                          item.customerIdController.text = '';
-                                        }
-                                      },
-                                    ),
+                                    ] else ...[
+                                      TextFormField(
+                                        controller: item.nameController,
+                                        textInputAction: TextInputAction.next,
+                                        decoration: InputDecoration(
+                                          labelText:
+                                              'Customer name ${index + 1}',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                        ),
+                                        validator:
+                                            (_) => _validateCreditCustomerRow(
+                                              item,
+                                            ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 10),
                                     TextFormField(
                                       controller: item.amountController,
@@ -2165,55 +2536,128 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                         filled: true,
                                         fillColor: Colors.white,
                                       ),
-                                      validator: (value) => _validateAmount(
-                                        'Credit amount',
-                                        value ?? '',
-                                      ),
+                                      validator:
+                                          (value) => _validateCreditAmountRow(
+                                            value ?? '',
+                                          ),
                                     ),
-                                    if (_creditEntryControllers.length > 1)
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: () => _removeCreditEntryRow(index),
-                                          child: const Text('Remove'),
-                                        ),
-                                      ),
                                   ],
                                 ),
                               );
                             }),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF7ED),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'Named credit total',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF9A3412),
-                                      ),
-                                    ),
-                                  ),
-                                  Text(
-                                    formatCurrency(_namedCreditTotal),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
+                          ],
+                          const SizedBox(height: 4),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF7ED),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Row(
+                              children: [
+                                const Expanded(
+                                  child: Text(
+                                    'Pump credit total',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
                                       color: Color(0xFF9A3412),
                                     ),
                                   ),
-                                ],
+                                ),
+                                Text(
+                                  formatCurrency(_namedCreditTotal),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF9A3412),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FF),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Pump Preview',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF293340),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'This preview is calculated locally from the readings and payment values entered in this pump.',
+                            style: TextStyle(
+                              color: Color(0xFF55606E),
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Column(
+                            children: [
+                              _PumpPreviewMetricCard(
+                                label: 'Actual sales',
+                                value: formatCurrency(_actualSalesValue),
+                                accent: const Color(0xFF1E5CBA),
                               ),
+                              const SizedBox(height: 10),
+                              _PumpPreviewMetricCard(
+                                label: 'Collection',
+                                value: formatCurrency(_collectionTotal),
+                                accent: const Color(0xFF0F766E),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _PumpPreviewDifferenceCard(
+                            label:
+                                widget.flagThreshold > 0
+                                    ? 'Difference compared with threshold ${formatCurrency(widget.flagThreshold)}'
+                                    : 'Difference',
+                            value:
+                                _pumpDifference == 0
+                                    ? formatCurrency(0)
+                                    : '${_pumpDifference > 0 ? 'Excess' : 'Short'} ${formatCurrency(_pumpDifference.abs())}',
+                            highlight: _requiresMismatchReason,
+                          ),
+                          if (_requiresMismatchReason) ...[
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _mismatchReasonController,
+                              minLines: 2,
+                              maxLines: 3,
+                              decoration: const InputDecoration(
+                                labelText: 'Difference reason',
+                                helperText:
+                                    'Required when the pump difference exceeds the threshold.',
+                                filled: true,
+                                fillColor: Colors.white,
+                              ),
+                              validator:
+                                  (_) =>
+                                      _requiresMismatchReason &&
+                                              _mismatchReasonController.text
+                                                  .trim()
+                                                  .isEmpty
+                                          ? 'Enter a reason for the difference.'
+                                          : null,
                             ),
                           ],
-                        ),
+                        ],
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 12),
                     Container(
                       width: double.infinity,
@@ -2403,7 +2847,9 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                     customerId: entry.customerId,
                     name: entry.name,
                     amount:
-                        entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                        entry.amount == 0
+                            ? ''
+                            : entry.amount.toStringAsFixed(2),
                   ),
                 )
                 .toList();
@@ -2416,7 +2862,9 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                     customerId: entry.customerId,
                     name: entry.name,
                     amount:
-                        entry.amount == 0 ? '' : entry.amount.toStringAsFixed(2),
+                        entry.amount == 0
+                            ? ''
+                            : entry.amount.toStringAsFixed(2),
                     date: entry.date.isEmpty ? widget.entryDate : entry.date,
                     paymentMode: entry.paymentMode,
                     note: entry.note,
@@ -2819,8 +3267,7 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                               ),
                             )
                             .where(
-                              (item) =>
-                                  item.name.isNotEmpty && item.amount > 0,
+                              (item) => item.name.isNotEmpty && item.amount > 0,
                             )
                             .toList(),
                     creditCollections:
@@ -2863,6 +3310,7 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
 
 class _CreditEntryControllers {
   _CreditEntryControllers({
+    this.customerMode = _creditCustomerModeNew,
     String customerId = '',
     String name = '',
     String amount = '',
@@ -2870,6 +3318,7 @@ class _CreditEntryControllers {
        nameController = TextEditingController(text: name),
        amountController = TextEditingController(text: amount);
 
+  String customerMode;
   final TextEditingController customerIdController;
   final TextEditingController nameController;
   final TextEditingController amountController;

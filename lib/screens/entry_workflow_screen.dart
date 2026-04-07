@@ -15,6 +15,7 @@ class EntryWorkflowScreen extends StatefulWidget {
     required this.title,
     required this.station,
     required this.openingReadings,
+    required this.priceSnapshot,
     required this.initialDraft,
     required this.onSubmit,
   });
@@ -22,6 +23,7 @@ class EntryWorkflowScreen extends StatefulWidget {
   final String title;
   final StationConfigModel station;
   final Map<String, PumpReadings> openingReadings;
+  final Map<String, Map<String, double>> priceSnapshot;
   final DailyEntryDraft initialDraft;
   final EntrySubmitCallback onSubmit;
 
@@ -74,8 +76,30 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           pumpId: pumpDraft.payments.total,
         },
         creditEntries: [...remainingCredits, ...pumpDraft.creditEntries],
+        pumpMismatchReasons: {
+          ..._draft.pumpMismatchReasons,
+          pumpId: pumpDraft.mismatchReason,
+        },
       );
     });
+  }
+
+  String _buildEntryMismatchReason() {
+    final reasons =
+        widget.station.pumps
+            .map((pump) {
+              final reason = _draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
+              if (reason.isEmpty) {
+                return null;
+              }
+              return '${formatPumpLabel(pump.id, pump.label)}: $reason';
+            })
+            .whereType<String>()
+            .toList();
+    if (reasons.isNotEmpty) {
+      return reasons.join('\n');
+    }
+    return _draft.mismatchReason.trim();
   }
 
   bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
@@ -95,8 +119,14 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           const PumpTestingModel(petrol: 0, diesel: 0);
       final rawPetrol = closing.petrol - opening.petrol;
       final rawDiesel = closing.diesel - opening.diesel;
-      petrol += rawPetrol > 0 ? (rawPetrol - testing.petrol).clamp(0, rawPetrol) : rawPetrol;
-      diesel += rawDiesel > 0 ? (rawDiesel - testing.diesel).clamp(0, rawDiesel) : rawDiesel;
+      petrol +=
+          rawPetrol > 0
+              ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
+              : rawPetrol;
+      diesel +=
+          rawDiesel > 0
+              ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
+              : rawDiesel;
       if (_supportsTwoT(pump.id)) {
         twoT += closing.twoT - opening.twoT;
       }
@@ -124,7 +154,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   double _issuedCreditTotal() {
-    return _draft.creditEntries.fold<double>(0, (sum, value) => sum + value.amount);
+    return _draft.creditEntries.fold<double>(
+      0,
+      (sum, value) => sum + value.amount,
+    );
   }
 
   double _collectionRecoveryTotal() {
@@ -168,9 +201,14 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
               credit: 0,
             ),
         creditEntries:
-            _draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
+            _draft.creditEntries
+                .where((item) => item.pumpId == pump.id)
+                .toList(),
+        mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
       ),
       suggestedCustomers: _suggestedCustomers,
+      priceSnapshot: widget.priceSnapshot,
+      flagThreshold: widget.station.flagThreshold,
     );
     if (!mounted || result == null) {
       return;
@@ -178,7 +216,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     _savePumpEdit(result.key, result.value);
   }
 
-  Future<void> _reviewAndSubmit() async {
+  Future<void> _submitEntry() async {
     final missingPumps =
         widget.station.pumps
             .where((pump) => !_draft.closingReadings.containsKey(pump.id))
@@ -188,7 +226,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Enter closing meter readings for ${missingPumps.join(', ')} before review.',
+            'Enter closing meter readings for ${missingPumps.join(', ')} before submit.',
           ),
         ),
       );
@@ -204,7 +242,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Enter collection for ${missingCollections.join(', ')} before review.',
+            'Enter collection for ${missingCollections.join(', ')} before submit.',
           ),
         ),
       );
@@ -217,7 +255,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Credit customer names must total ${formatCurrency(pumpCreditTotal)} before review.',
+            'Credit customer names must total ${formatCurrency(pumpCreditTotal)} before submit.',
           ),
         ),
       );
@@ -230,6 +268,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     });
 
     try {
+      final mismatchReason = _buildEntryMismatchReason();
       final preview = await _salesService.previewEntry(
         date: _draft.date,
         closingReadings: _draft.closingReadings,
@@ -240,19 +279,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
         paymentBreakdown: _draft.paymentBreakdown,
         creditEntries: _draft.creditEntries,
         creditCollections: _draft.creditCollections,
-        mismatchReason: _draft.mismatchReason,
+        mismatchReason: mismatchReason,
       );
 
       if (!mounted) {
-        return;
-      }
-
-      final mismatchReason = await showDailyEntryPreviewDialog(
-        context: context,
-        preview: preview,
-        initialMismatchReason: _draft.mismatchReason,
-      );
-      if (mismatchReason == null) {
         return;
       }
 
@@ -260,6 +290,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       if (!mounted) {
         return;
       }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Entry submitted. Collected ${formatCurrency(preview.paymentTotal)}.',
+          ),
+        ),
+      );
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) {
@@ -386,17 +423,23 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                     ),
                   _WorkflowRow(
                     label: 'Cash',
-                    value: formatCurrency(_draft.pumpPayments[pump.id]?.cash ?? 0),
+                    value: formatCurrency(
+                      _draft.pumpPayments[pump.id]?.cash ?? 0,
+                    ),
                     accent: const Color(0xFFB45309),
                   ),
                   _WorkflowRow(
                     label: 'Check',
-                    value: formatCurrency(_draft.pumpPayments[pump.id]?.check ?? 0),
+                    value: formatCurrency(
+                      _draft.pumpPayments[pump.id]?.check ?? 0,
+                    ),
                     accent: const Color(0xFF6B7280),
                   ),
                   _WorkflowRow(
                     label: 'UPI',
-                    value: formatCurrency(_draft.pumpPayments[pump.id]?.upi ?? 0),
+                    value: formatCurrency(
+                      _draft.pumpPayments[pump.id]?.upi ?? 0,
+                    ),
                     accent: const Color(0xFF7C3AED),
                   ),
                   _WorkflowRow(
@@ -452,7 +495,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Cash, check, UPI, and pump credit are taken from the pump entries. Old credit collection is handled from Credit Ledger.',
+                  'Cash, check, UPI, and pump credit are taken from the pump entries. Pump credit is calculated from the added credit rows for each pump. Old credit collection is handled from Credit Ledger.',
                   style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                 ),
                 const SizedBox(height: 12),
@@ -497,8 +540,8 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                       const SizedBox(height: 6),
                       Text(
                         _pumpCreditTotal() <= 0
-                            ? 'No pump credit entered yet. When credit sale is entered, add customer names here.'
-                            : 'Add customer-wise credit names for the pump credit total. Once approved, these names will be shown in Credit Ledger.',
+                            ? 'No pump credit added yet. Use Add Credit inside a pump to create customer-wise credit rows.'
+                            : 'Pump credit is built from the customer-wise credit rows added inside each pump. Once approved, these names will be shown in Credit Ledger.',
                         style: const TextStyle(
                           color: Color(0xFF55606E),
                           height: 1.4,
@@ -540,11 +583,8 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                       ],
                       const SizedBox(height: 10),
                       const Text(
-                        'Use Update Pump on the relevant pump to change credit customer names.',
-                        style: TextStyle(
-                          color: Color(0xFF55606E),
-                          height: 1.4,
-                        ),
+                        'Use Update Pump on the relevant pump to add or change credit customer rows.',
+                        style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                       ),
                     ],
                   ),
@@ -562,13 +602,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             ),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: _submitting ? null : _reviewAndSubmit,
+            onPressed: _submitting ? null : _submitEntry,
             icon: const Icon(Icons.edit_note_rounded),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 18),
               backgroundColor: const Color(0xFF1E5CBA),
             ),
-            label: Text(_submitting ? 'Preparing...' : 'Review Entry'),
+            label: Text(_submitting ? 'Submitting...' : 'Submit Entry'),
           ),
         ],
       ),
