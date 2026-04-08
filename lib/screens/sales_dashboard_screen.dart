@@ -64,6 +64,11 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           }
 
           final data = snapshot.data!;
+          final approvedEntries =
+              data.todaysEntries
+                  .where((entry) => entry.status == 'approved')
+                  .length;
+          final pendingEntries = data.todaysEntries.length - approvedEntries;
           return ListView(
             padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
             children: [
@@ -113,37 +118,15 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                       children: [
                         Expanded(
                           child: _MiniMetric(
-                            label: 'Petrol Sold',
-                            value: formatLiters(data.petrolSold),
+                            label: 'Approved Entries',
+                            value: '$approvedEntries',
                           ),
                         ),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: _MiniMetric(
-                            label: 'Diesel Sold',
-                            value: formatLiters(data.dieselSold),
-                          ),
-                        ),
-                        Expanded(
-                          child: _MiniMetric(
-                            label: '2T Oil Sold',
-                            value: formatLiters(data.twoTSold),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniMetric(
-                            label: 'Profit',
-                            value: formatCurrency(data.profit),
-                          ),
-                        ),
-                        Expanded(
-                          child: _MiniMetric(
-                            label: 'Entries Done',
-                            value: '${data.entriesCompleted}/1',
+                            label: 'Pending Entries',
+                            value: '$pendingEntries',
                           ),
                         ),
                       ],
@@ -198,18 +181,20 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: entry.flagged
-                              ? const Color(0xFFFEE2E2)
-                              : const Color(0xFFDFF7EE),
+                          color:
+                              entry.flagged
+                                  ? const Color(0xFFFEE2E2)
+                                  : const Color(0xFFDFF7EE),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
                           'Daily Entry',
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
-                            color: entry.flagged
-                                ? const Color(0xFFB91C1C)
-                                : const Color(0xFF047857),
+                            color:
+                                entry.flagged
+                                    ? const Color(0xFFB91C1C)
+                                    : const Color(0xFF047857),
                           ),
                         ),
                       ),

@@ -81,14 +81,12 @@ class InventoryService {
     }
   }
 
-  Future<List<FuelPriceModel>> fetchPrices() async {
-    final response = await _apiClient.get('/inventory/prices');
+  Future<List<FuelPriceModel>> fetchPrices({bool activeOnly = false}) async {
+    final suffix = activeOnly ? '?view=active' : '';
+    final response = await _apiClient.get('/inventory/prices$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-        _apiClient.errorMessage(
-          response,
-          fallback: 'Failed to load prices.',
-        ),
+        _apiClient.errorMessage(response, fallback: 'Failed to load prices.'),
       );
     }
     final json = _apiClient.decodeObject(response);
@@ -106,10 +104,7 @@ class InventoryService {
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-        _apiClient.errorMessage(
-          response,
-          fallback: 'Failed to save prices.',
-        ),
+        _apiClient.errorMessage(response, fallback: 'Failed to save prices.'),
       );
     }
     final json = _apiClient.decodeObject(response);
@@ -136,19 +131,21 @@ class InventoryService {
   Future<InventoryDashboardModel> fetchInventoryDashboard() async {
     final user = await _authService.readCurrentUser();
     final role = user?.role.trim().toLowerCase() ?? 'sales';
-    if (role == 'sales') {
-      try {
-        return await _buildSalesInventoryDashboard();
-      } catch (_) {
-        return _buildEmergencySalesInventoryDashboard();
-      }
-    }
 
     final response = await _apiClient.get('/inventory/dashboard');
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return InventoryDashboardModel.fromJson(_apiClient.decodeObject(response));
+      return InventoryDashboardModel.fromJson(
+        _apiClient.decodeObject(response),
+      );
     }
     if (_shouldUseLegacyInventoryFallback(response.body)) {
+      if (role == 'sales') {
+        try {
+          return await _buildSalesInventoryDashboard();
+        } catch (_) {
+          return _buildEmergencySalesInventoryDashboard();
+        }
+      }
       return _buildLegacyInventoryDashboard();
     }
     throw Exception(
@@ -160,9 +157,10 @@ class InventoryService {
   }
 
   Future<List<DeliveryReceiptModel>> fetchDeliveries() async {
-    final response = await _apiClient.get('/inventory/deliveries');
+    final response = await _apiClient.get('/inventory/deliveries?view=summary');
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      if (_isMissingRoute(response.body) || _isManagementAccessDenied(response.body)) {
+      if (_isMissingRoute(response.body) ||
+          _isManagementAccessDenied(response.body)) {
         return const [];
       }
       throw Exception(
@@ -181,19 +179,13 @@ class InventoryService {
   }
 
   Future<DeliveryReceiptModel> createDeliveryReceipt({
-    required String fuelTypeId,
     required String date,
-    required double quantity,
+    required Map<String, double> quantities,
     String note = '',
   }) async {
     final response = await _apiClient.post(
       '/inventory/deliveries',
-      body: jsonEncode({
-        'fuelTypeId': fuelTypeId,
-        'date': date,
-        'quantity': quantity,
-        'note': note,
-      }),
+      body: jsonEncode({'date': date, 'quantities': quantities, 'note': note}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (_isMissingRoute(response.body)) {
@@ -218,7 +210,9 @@ class InventoryService {
     );
   }
 
-  Future<StationConfigModel> saveStationConfig(StationConfigModel station) async {
+  Future<StationConfigModel> saveStationConfig(
+    StationConfigModel station,
+  ) async {
     final response = await _apiClient.put(
       '/inventory/station-config',
       body: jsonEncode(station.toJson()),
@@ -273,7 +267,8 @@ class InventoryService {
     );
   }
 
-  Future<InventoryDashboardModel> _buildEmergencySalesInventoryDashboard() async {
+  Future<InventoryDashboardModel>
+  _buildEmergencySalesInventoryDashboard() async {
     final dashboard = await _salesService.fetchDashboard();
     final entries = _fallbackEntriesFromDashboard(dashboard);
     return _buildFallbackInventoryDashboard(
@@ -288,25 +283,61 @@ class InventoryService {
     required List<ShiftEntryModel> entries,
     required List<DeliveryReceiptModel> deliveries,
   }) {
-    final latestEntry = entries.isEmpty ? null : entries.last;
-    final planningStock = station.inventoryPlanning.currentStock;
-    final hasPlanningStock = planningStock.values.any((value) => value > 0);
+    final baselineStock = station.inventoryPlanning.openingStock;
+    final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
     final currentStock = <String, double>{
-      'petrol':
-          hasPlanningStock
-              ? (planningStock['petrol'] ?? 0)
-              : (latestEntry?.totals.closing.petrol ?? 0),
-      'diesel':
-          hasPlanningStock
-              ? (planningStock['diesel'] ?? 0)
-              : (latestEntry?.totals.closing.diesel ?? 0),
-      'two_t_oil':
-          hasPlanningStock
-              ? (planningStock['two_t_oil'] ?? 0)
-              : (latestEntry?.totals.closing.twoT ?? 0),
+      'petrol': _roundNumber(baselineStock['petrol'] ?? 0),
+      'diesel': _roundNumber(baselineStock['diesel'] ?? 0),
+      'two_t_oil': _roundNumber(baselineStock['two_t_oil'] ?? 0),
     };
 
+    final receiptsAfterBaseline =
+        deliveries.where((delivery) {
+            if (baselineUpdatedAt.isEmpty) {
+              return true;
+            }
+            return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
+          }).toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
+
+    final entriesAfterBaseline =
+        entries.where((entry) {
+            if (entry.status == 'preview') {
+              return false;
+            }
+            if (baselineUpdatedAt.isEmpty) {
+              return true;
+            }
+            return _entryInventoryTimestamp(
+                  entry,
+                ).compareTo(baselineUpdatedAt) >
+                0;
+          }).toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
+
+    for (final receipt in receiptsAfterBaseline) {
+      for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
+        currentStock[fuelTypeId] = _roundNumber(
+          (currentStock[fuelTypeId] ?? 0) +
+              (receipt.quantities[fuelTypeId] ?? 0),
+        );
+      }
+    }
+
+    for (final entry in entriesAfterBaseline) {
+      currentStock['petrol'] = _roundNumber(
+        (currentStock['petrol'] ?? 0) - entry.totals.sold.petrol,
+      );
+      currentStock['diesel'] = _roundNumber(
+        (currentStock['diesel'] ?? 0) - entry.totals.sold.diesel,
+      );
+      currentStock['two_t_oil'] = _roundNumber(
+        (currentStock['two_t_oil'] ?? 0) - entry.totals.sold.twoT,
+      );
+    }
+
     final planning = InventoryPlanningModel(
+      openingStock: baselineStock,
       currentStock: currentStock,
       deliveryLeadDays: station.inventoryPlanning.deliveryLeadDays,
       alertBeforeDays: station.inventoryPlanning.alertBeforeDays,
@@ -354,18 +385,25 @@ class InventoryService {
 
   Future<List<ShiftEntryModel>> _loadSalesEntriesForInventory() async {
     try {
-      return await _salesService.fetchEntries(month: currentMonthKey());
+      return await _salesService.fetchEntries(
+        month: currentMonthKey(),
+        summary: true,
+      );
     } catch (_) {
       final dashboard = await _salesService.fetchDashboard();
       return _fallbackEntriesFromDashboard(dashboard);
     }
   }
 
-  List<ShiftEntryModel> _fallbackEntriesFromDashboard(SalesDashboardModel dashboard) {
+  List<ShiftEntryModel> _fallbackEntriesFromDashboard(
+    SalesDashboardModel dashboard,
+  ) {
     final entries = <ShiftEntryModel>[
       ...dashboard.todaysEntries,
       if (dashboard.selectedEntry != null &&
-          !dashboard.todaysEntries.any((item) => item.id == dashboard.selectedEntry!.id))
+          !dashboard.todaysEntries.any(
+            (item) => item.id == dashboard.selectedEntry!.id,
+          ))
         dashboard.selectedEntry!,
     ];
     return entries;
@@ -386,18 +424,22 @@ class InventoryService {
       try {
         return await _managementService.fetchEntries(
           month: currentMonthKey(),
-          approvedOnly: true,
+          approvedOnly: false,
+          summary: true,
         );
       } catch (_) {
         // Fall back to sales-visible entries when management endpoints are unavailable.
       }
     }
-    return _salesService.fetchEntries(month: currentMonthKey());
+    return _salesService.fetchEntries(
+      month: currentMonthKey(),
+      summary: true,
+    );
   }
 
   double _averageDailySales(List<ShiftEntryModel> entries, String fuelKey) {
     final totalsByDate = <String, double>{};
-    for (final entry in entries.where((item) => item.status == 'approved')) {
+    for (final entry in entries) {
       final sold =
           fuelKey == 'petrol'
               ? entry.totals.sold.petrol
@@ -455,9 +497,25 @@ class InventoryService {
       shouldAlert: shouldAlert,
       alertMessage:
           shouldAlert
-              ? '$label stock is low for the configured lead time. Backend inventory module is not deployed yet, so this is fallback forecast data.'
+              ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
               : '',
     );
+  }
+
+  double _roundNumber(double value) {
+    return double.parse(value.toStringAsFixed(2));
+  }
+
+  String _entryInventoryTimestamp(ShiftEntryModel entry) {
+    final approvedAt = entry.approvedAt.trim();
+    if (approvedAt.isNotEmpty) {
+      return approvedAt;
+    }
+    final updatedAt = entry.updatedAt.trim();
+    if (updatedAt.isNotEmpty) {
+      return updatedAt;
+    }
+    return entry.submittedAt.trim();
   }
 
   String _shiftIsoDate(String date, int offsetDays) {

@@ -120,14 +120,12 @@ class _OpeningStockSettingsScreenState
                   _controllers[_readingKey(pump.id, 'diesel')]?.text ?? '',
                 ) ??
                 0,
-            twoT:
-                _supportsTwoT(pump.id)
-                    ? double.tryParse(
-                          _controllers[_readingKey(pump.id, 'twoT')]?.text ??
-                              '',
-                        ) ??
-                        0
-                    : 0,
+            twoT: _supportsTwoT(pump.id)
+                ? double.tryParse(
+                        _controllers[_readingKey(pump.id, 'twoT')]?.text ?? '',
+                      ) ??
+                      0
+                : 0,
           ),
       },
       meterLimits: station.meterLimits,
@@ -140,7 +138,7 @@ class _OpeningStockSettingsScreenState
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Opening stock settings saved.')),
+      const SnackBar(content: Text('Pump opening readings saved.')),
     );
     setState(() {
       _isEditing = false;
@@ -183,7 +181,7 @@ class _OpeningStockSettingsScreenState
                       ),
                       const Expanded(
                         child: Text(
-                          'Opening Stock Settings',
+                          'Pump Opening Readings',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -235,20 +233,18 @@ class _OpeningStockSettingsScreenState
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color:
-                                _isEditing
-                                    ? const Color(0xFFE0E7FF)
-                                    : const Color(0xFFE5F7EE),
+                            color: _isEditing
+                                ? const Color(0xFFE0E7FF)
+                                : const Color(0xFFE5F7EE),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _isEditing ? 'Editing' : 'View only',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color:
-                                  _isEditing
-                                      ? const Color(0xFF1E40AF)
-                                      : const Color(0xFF047857),
+                              color: _isEditing
+                                  ? const Color(0xFF1E40AF)
+                                  : const Color(0xFF047857),
                             ),
                           ),
                         ),
@@ -256,7 +252,7 @@ class _OpeningStockSettingsScreenState
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Use this to set the opening stock or current opening meter reading for each pump. '
+                      'Use this to set the opening meter reading for each pump. '
                       'These values are used whenever a day has no previous entry to carry forward.',
                       style: const TextStyle(color: Color(0xFF55606E)),
                     ),
@@ -344,7 +340,7 @@ class _OpeningStockSettingsScreenState
               if (widget.canEdit && _isEditing)
                 FilledButton(
                   onPressed: () => _save(station),
-                  child: const Text('Save Opening Stock'),
+                  child: const Text('Save Opening Readings'),
                 ),
             ],
           ),
@@ -363,7 +359,7 @@ class _OpeningStockSettingsScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Opening Stock Settings'),
+        title: const Text('Pump Opening Readings'),
         actions: [
           if (widget.canEdit)
             FutureBuilder<StationConfigModel>(
@@ -371,19 +367,18 @@ class _OpeningStockSettingsScreenState
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed:
-                      station == null
-                          ? null
-                          : () {
-                            setState(() {
-                              if (_isEditing) {
-                                _isEditing = false;
-                                _resetFromStation(station);
-                              } else {
-                                _isEditing = true;
-                              }
-                            });
-                          },
+                  onPressed: station == null
+                      ? null
+                      : () {
+                          setState(() {
+                            if (_isEditing) {
+                              _isEditing = false;
+                              _resetFromStation(station);
+                            } else {
+                              _isEditing = true;
+                            }
+                          });
+                        },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },

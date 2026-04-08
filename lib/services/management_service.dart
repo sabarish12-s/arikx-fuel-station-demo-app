@@ -41,6 +41,7 @@ class ManagementService {
   Future<List<ShiftEntryModel>> fetchEntries({
     String? month,
     bool approvedOnly = false,
+    bool summary = true,
   }) async {
     final params = <String, String>{};
     if (month != null && month.isNotEmpty) {
@@ -49,6 +50,7 @@ class ManagementService {
     if (approvedOnly) {
       params['approvedOnly'] = 'true';
     }
+    params['view'] = summary ? 'summary' : 'detail';
     final String suffix =
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/management/entries$suffix');
@@ -64,6 +66,20 @@ class ManagementService {
     return (json['entries'] as List<dynamic>? ?? const [])
         .map((item) => ShiftEntryModel.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<ShiftEntryModel> fetchEntryDetail(String entryId) async {
+    final response = await _apiClient.get('/management/entries/$entryId');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load entry details.',
+        ),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
   }
 
   Future<ShiftEntryModel> updateEntry({

@@ -86,7 +86,7 @@ class _FlagThresholdSettingsScreenState
         _future = _inventoryService.fetchStationConfig();
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Flag threshold saved.')),
+        const SnackBar(content: Text('Variance threshold saved.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -143,7 +143,7 @@ class _FlagThresholdSettingsScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'FLAG THRESHOLD',
+                    'VARIANCE THRESHOLD',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
@@ -182,7 +182,7 @@ class _FlagThresholdSettingsScreenState
                     children: [
                       const Expanded(
                         child: Text(
-                          'Mismatch Threshold',
+                          'Variance Threshold',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -232,19 +232,18 @@ class _FlagThresholdSettingsScreenState
                     Row(
                       children: [
                         TextButton(
-                          onPressed:
-                              _saving
-                                  ? null
-                                  : () {
-                                    setState(() {
-                                      _isEditing = false;
-                                      _seeded = false;
-                                      _thresholdController.text =
-                                          station.flagThreshold
-                                              .toStringAsFixed(2);
-                                      _seeded = true;
-                                    });
-                                  },
+                          onPressed: _saving
+                              ? null
+                              : () {
+                                  setState(() {
+                                    _isEditing = false;
+                                    _seeded = false;
+                                    _thresholdController.text = station
+                                        .flagThreshold
+                                        .toStringAsFixed(2);
+                                    _seeded = true;
+                                  });
+                                },
                           child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 10),
@@ -263,10 +262,9 @@ class _FlagThresholdSettingsScreenState
                     const SizedBox(height: 8),
                     _InfoRow(
                       label: 'Effect',
-                      value:
-                          station.flagThreshold == 0
-                              ? 'Every mismatch is flagged'
-                              : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
+                      value: station.flagThreshold == 0
+                          ? 'Every mismatch is flagged'
+                          : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
                     ),
                   ],
                 ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../services/sales_service.dart';
+import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import 'entry_workflow_screen.dart';
 
@@ -283,9 +284,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 openingReadings:
                     dashboard.selectedEntry?.openingReadings ??
                     dashboard.openingReadings,
-                priceSnapshot:
-                    dashboard.selectedEntry?.priceSnapshot ??
-                    dashboard.priceSnapshot,
+                priceSnapshot: mergePriceSnapshots(
+                  primary:
+                      dashboard.selectedEntry?.priceSnapshot ??
+                      const <String, Map<String, double>>{},
+                  fallback: dashboard.priceSnapshot,
+                ),
                 initialDraft:
                     dashboard.selectedEntry == null
                         ? DailyEntryDraft(
@@ -372,37 +376,63 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     ShiftEntryModel entry,
     StationConfigModel station,
   ) async {
-    final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder:
-            (_) => EntryWorkflowScreen(
-              title: 'Edit Daily Entry',
-              station: station,
-              openingReadings: entry.openingReadings,
-              priceSnapshot: entry.priceSnapshot,
-              initialDraft: _draftFromEntry(entry),
-              onSubmit: (draft, mismatchReason) async {
-                await _managementService.updateEntry(
-                  entryId: entry.id,
-                  closingReadings: draft.closingReadings,
-                  pumpAttendants: draft.pumpAttendants,
-                  pumpTesting: draft.pumpTesting,
-                  pumpPayments: draft.pumpPayments,
-                  pumpCollections: draft.pumpCollections,
-                  paymentBreakdown: draft.paymentBreakdown,
-                  creditEntries: draft.creditEntries,
-                  creditCollections: draft.creditCollections,
-                  mismatchReason: mismatchReason,
-                );
-              },
-            ),
-      ),
-    );
+    setState(() {
+      _submitting = true;
+    });
+    try {
+      final detailedEntry = await _managementService.fetchEntryDetail(entry.id);
+      if (!mounted) {
+        return;
+      }
 
-    if (saved != true) {
-      return;
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder:
+              (_) => EntryWorkflowScreen(
+                title: 'Edit Daily Entry',
+                station: station,
+                openingReadings: detailedEntry.openingReadings,
+                priceSnapshot: detailedEntry.priceSnapshot,
+                initialDraft: _draftFromEntry(detailedEntry),
+                onSubmit: (draft, mismatchReason) async {
+                  await _managementService.updateEntry(
+                    entryId: detailedEntry.id,
+                    closingReadings: draft.closingReadings,
+                    pumpAttendants: draft.pumpAttendants,
+                    pumpTesting: draft.pumpTesting,
+                    pumpPayments: draft.pumpPayments,
+                    pumpCollections: draft.pumpCollections,
+                    paymentBreakdown: draft.paymentBreakdown,
+                    creditEntries: draft.creditEntries,
+                    creditCollections: draft.creditCollections,
+                    mismatchReason: mismatchReason,
+                  );
+                },
+              ),
+        ),
+      );
+
+      if (saved != true) {
+        return;
+      }
+      await _reload();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _submitting = false;
+        });
+      }
     }
-    await _reload();
   }
 
   Future<void> _approveEntry(ShiftEntryModel entry) async {
@@ -519,6 +549,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       (entry) => entry.flagged && entry.status != 'approved',
                     )
                     .length;
+            final pendingCount = entries.length - approvedCount;
             final selectedMonthLabel = _formatMonthFilter(
               _monthController.text,
             );
@@ -527,7 +558,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(28),
                     gradient: const LinearGradient(
@@ -539,42 +570,59 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          'ENTRY CONTROL',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.9,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Text(
-                        '${data.dashboard.station.name} - ${formatDateLabel(data.dashboard.date)}',
+                        'Entries Overview',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 21,
+                          fontSize: 28,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        'Admins and sales staff now work from the same one-entry-per-day sales record.',
-                        style: TextStyle(color: Colors.white70, height: 1.4),
+                      Text(
+                        '${data.dashboard.station.name}  |  $selectedMonthLabel',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      const SizedBox(height: 14),
-                      GridView(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              mainAxisExtent: 84,
-                            ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
                         children: [
                           _DashboardChip(
-                            label: 'Revenue today',
-                            value: formatCurrency(data.dashboard.revenue),
+                            label: 'Filtered',
+                            value: '${entries.length}',
                           ),
                           _DashboardChip(
-                            label: 'Collected today',
-                            value: formatCurrency(data.dashboard.paymentTotal),
+                            label: 'Approved',
+                            value: '$approvedCount',
                           ),
                           _DashboardChip(
-                            label: 'Entries today',
-                            value: '${data.dashboard.entriesCompleted}/1',
+                            label: 'Pending',
+                            value: '$pendingCount',
                           ),
                           _DashboardChip(
                             label: 'Flagged',
@@ -586,139 +634,131 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        title: 'Filtered entries',
-                        value: '${entries.length}',
-                        subtitle: _monthController.text.trim(),
-                        accent: const Color(0xFF1E5CBA),
-                        icon: Icons.filter_alt_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        title: 'Approved',
-                        value: '$approvedCount',
-                        subtitle: 'Ready for reports',
-                        accent: const Color(0xFF0F9D58),
-                        icon: Icons.verified_rounded,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
                 Container(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Row(
-                    children: [
-                      const Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked = constraints.maxWidth < 640;
+                      final quickEntryPanel = Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Quick Admin Daily Entry',
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.add_task_rounded,
+                                  color: Color(0xFF1E5CBA),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Quick Daily Entry',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Open the full daily entry workflow for any date.',
                               style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF55606E),
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed:
+                                  _submitting ? null : _openAdminEntryDialog,
+                              icon: const Icon(Icons.open_in_new_rounded),
+                              label: Text(
+                                _submitting ? 'Opening...' : 'Open Entry',
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                      final filterPanel = Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FF),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.filter_alt_rounded,
+                                  color: Color(0xFF1E5CBA),
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Entry Filter',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Choose the month you want to review or manage.',
+                              style: TextStyle(
+                                color: Color(0xFF55606E),
+                                height: 1.35,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Text(
+                              selectedMonthLabel,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
                                 color: Color(0xFF293340),
                               ),
                             ),
-                            SizedBox(height: 6),
-                            Text(
-                              'Choose a date, then fill the full daily entry in a popup.',
-                              style: TextStyle(color: Color(0xFF55606E)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        onPressed: _submitting ? null : _openAdminEntryDialog,
-                        icon: const Icon(Icons.add_task_rounded),
-                        label: Text(_submitting ? 'Opening...' : 'Open'),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Entry Filter',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF293340),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Open the popup to choose a month and refresh the list.',
-                        style: TextStyle(color: Color(0xFF55606E)),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_month_rounded,
-                              color: Color(0xFF1E5CBA),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Current period',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF55606E),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    selectedMonthLabel,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF293340),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
+                            const SizedBox(height: 14),
                             FilledButton.icon(
                               onPressed: _openMonthFilterDialog,
-                              icon: const Icon(Icons.filter_alt_rounded),
-                              label: const Text('Filter'),
+                              icon: const Icon(Icons.calendar_month_rounded),
+                              label: const Text('Change Period'),
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      );
+                      if (stacked) {
+                        return Column(
+                          children: [
+                            quickEntryPanel,
+                            const SizedBox(height: 12),
+                            filterPanel,
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: quickEntryPanel),
+                          const SizedBox(width: 12),
+                          Expanded(child: filterPanel),
+                        ],
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -741,10 +781,17 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             : entry.submittedBy.trim();
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(24),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x120F172A),
+                            blurRadius: 18,
+                            offset: Offset(0, 8),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -756,71 +803,124 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                                   formatDateLabel(entry.date),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 18,
+                                    fontSize: 20,
                                   ),
                                 ),
                               ),
-                              Chip(label: Text(entry.status)),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 14,
-                            runSpacing: 8,
-                            children: [
-                              Text(
-                                'Petrol ${formatLiters(entry.totals.sold.petrol)}',
-                              ),
-                              Text(
-                                'Diesel ${formatLiters(entry.totals.sold.diesel)}',
-                              ),
-                              if (entry.totals.sold.twoT > 0)
-                                Text(
-                                  '2T Oil ${formatLiters(entry.totals.sold.twoT)}',
-                                ),
-                              Text('Revenue ${formatCurrency(entry.revenue)}'),
-                              Text(
-                                'Collected ${formatCurrency(entry.paymentTotal)}',
+                              _EntryStatusBadge(
+                                status: entry.status,
+                                flagged: entry.flagged,
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Submitted by $submittedLabel',
-                            style: const TextStyle(color: Color(0xFF55606E)),
+                            style: const TextStyle(
+                              color: Color(0xFF55606E),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _EntryMetricChip(
+                                label: 'Petrol',
+                                value: formatLiters(entry.totals.sold.petrol),
+                                accent: const Color(0xFF1E5CBA),
+                              ),
+                              _EntryMetricChip(
+                                label: 'Diesel',
+                                value: formatLiters(entry.totals.sold.diesel),
+                                accent: const Color(0xFF0F766E),
+                              ),
+                              if (entry.totals.sold.twoT > 0)
+                                _EntryMetricChip(
+                                  label: '2T Oil',
+                                  value: formatLiters(entry.totals.sold.twoT),
+                                  accent: const Color(0xFFB45309),
+                                ),
+                              _EntryMetricChip(
+                                label: 'Revenue',
+                                value: formatCurrency(entry.revenue),
+                                accent: const Color(0xFF7C3AED),
+                              ),
+                              _EntryMetricChip(
+                                label: 'Collected',
+                                value: formatCurrency(entry.paymentTotal),
+                                accent: const Color(0xFF059669),
+                              ),
+                            ],
                           ),
                           if (entry.pumpAttendants.values.any(
                             (name) => name.isNotEmpty,
                           ))
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text(
-                                entry.pumpAttendants.entries
-                                    .where((item) => item.value.isNotEmpty)
-                                    .map(
-                                      (item) =>
-                                          '${formatPumpLabel(item.key)}: ${item.value}',
-                                    )
-                                    .join('  •  '),
-                                style: const TextStyle(
-                                  color: Color(0xFF55606E),
-                                ),
+                            Container(
+                              margin: const EdgeInsets.only(top: 14),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8F9FF),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Pump attendants',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF293340),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    entry.pumpAttendants.entries
+                                        .where((item) => item.value.isNotEmpty)
+                                        .map(
+                                          (item) =>
+                                              '${formatPumpLabel(item.key)}: ${item.value}',
+                                        )
+                                        .join(' | '),
+                                    style: const TextStyle(
+                                      color: Color(0xFF55606E),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           if (entry.varianceNote.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
+                            Container(
+                              margin: const EdgeInsets.only(top: 14),
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFFB91C1C,
+                                  ).withValues(alpha: 0.12),
+                                ),
+                              ),
                               child: Text(
                                 entry.varianceNote,
                                 style: const TextStyle(
                                   color: Color(0xFFB91C1C),
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
                                 ),
                               ),
                             ),
-                          const SizedBox(height: 12),
-                          Row(
+                          const SizedBox(height: 16),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
                             children: [
-                              OutlinedButton(
+                              OutlinedButton.icon(
                                 onPressed:
                                     _submitting
                                         ? null
@@ -828,10 +928,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                                           entry,
                                           data.dashboard.station,
                                         ),
-                                child: const Text('Edit Entry'),
+                                icon: const Icon(Icons.edit_outlined),
+                                label: const Text('Edit Entry'),
                               ),
-                              const SizedBox(width: 10),
-                              OutlinedButton(
+                              OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: const Color(0xFFB91C1C),
                                 ),
@@ -839,20 +939,21 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                                     _submitting
                                         ? null
                                         : () => _deleteEntry(entry),
-                                child: Text(
+                                icon: const Icon(Icons.delete_outline_rounded),
+                                label: Text(
                                   entry.status == 'approved'
                                       ? 'Override Delete'
                                       : 'Delete Entry',
                                 ),
                               ),
-                              const SizedBox(width: 10),
                               if (entry.status != 'approved')
-                                FilledButton(
+                                FilledButton.icon(
                                   onPressed:
                                       _submitting
                                           ? null
                                           : () => _approveEntry(entry),
-                                  child: const Text('Approve'),
+                                  icon: const Icon(Icons.verified_rounded),
+                                  label: const Text('Approve'),
                                 ),
                             ],
                           ),
@@ -885,6 +986,7 @@ class _DashboardChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: 116,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
@@ -918,70 +1020,83 @@ class _DashboardChip extends StatelessWidget {
   }
 }
 
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.accent,
-    required this.icon,
-  });
+class _EntryStatusBadge extends StatelessWidget {
+  const _EntryStatusBadge({required this.status, required this.flagged});
 
-  final String title;
-  final String value;
-  final String subtitle;
-  final Color accent;
-  final IconData icon;
+  final String status;
+  final bool flagged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        color:
+            flagged
+                ? const Color(0xFFFEF2F2)
+                : status == 'approved'
+                ? const Color(0xFFE7F8EE)
+                : const Color(0xFFEFF4FF),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        flagged ? 'Flagged' : _capitalize(status),
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          color:
+              flagged
+                  ? const Color(0xFFB91C1C)
+                  : status == 'approved'
+                  ? const Color(0xFF047857)
+                  : const Color(0xFF1E5CBA),
+        ),
+      ),
+    );
+  }
+
+  String _capitalize(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+    return '${value[0].toUpperCase()}${value.substring(1)}';
+  }
+}
+
+class _EntryMetricChip extends StatelessWidget {
+  const _EntryMetricChip({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 126),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF55606E),
-                  ),
-                ),
-              ),
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: accent, size: 18),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: accent,
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF55606E),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
-            subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: Color(0xFF55606E)),
+            value,
+            style: TextStyle(fontWeight: FontWeight.w800, color: accent),
           ),
         ],
       ),

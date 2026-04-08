@@ -48,43 +48,42 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
 
     final bool? save = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(existing == null ? 'Add Fuel Type' : 'Edit Fuel Type'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: idController,
-                    decoration: const InputDecoration(labelText: 'Id'),
-                  ),
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Name'),
-                  ),
-                  TextField(
-                    controller: shortController,
-                    decoration: const InputDecoration(labelText: 'Short Name'),
-                  ),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                  ),
-                ],
+      builder: (context) => AlertDialog(
+        title: Text(existing == null ? 'Add Fuel Type' : 'Edit Fuel Type'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: idController,
+                decoration: const InputDecoration(labelText: 'Id'),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Name'),
               ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Save'),
+              TextField(
+                controller: shortController,
+                decoration: const InputDecoration(labelText: 'Short Name'),
+              ),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(labelText: 'Description'),
               ),
             ],
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
 
     if (save != true) return;
@@ -139,7 +138,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                     ),
                     const Expanded(
                       child: Text(
-                        'Fuel Type Manager',
+                        'Fuel Types',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
@@ -216,15 +215,14 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Fuel Type Manager')),
-      floatingActionButton:
-          widget.canEdit
-              ? FloatingActionButton.extended(
-                onPressed: () => _openEditor(),
-                label: const Text('Add Fuel Type'),
-                icon: const Icon(Icons.add),
-              )
-              : null,
+      appBar: AppBar(title: const Text('Fuel Types')),
+      floatingActionButton: widget.canEdit
+          ? FloatingActionButton.extended(
+              onPressed: () => _openEditor(),
+              label: const Text('Add Fuel Type'),
+              icon: const Icon(Icons.add),
+            )
+          : null,
       body: content,
     );
   }

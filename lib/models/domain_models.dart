@@ -557,21 +557,34 @@ class StationPumpModel {
 
 class InventoryPlanningModel {
   const InventoryPlanningModel({
+    required this.openingStock,
     required this.currentStock,
     required this.deliveryLeadDays,
     required this.alertBeforeDays,
     required this.updatedAt,
   });
 
+  final Map<String, double> openingStock;
   final Map<String, double> currentStock;
   final int deliveryLeadDays;
   final int alertBeforeDays;
   final String updatedAt;
 
   factory InventoryPlanningModel.fromJson(Map<String, dynamic> json) {
+    final openingStock =
+        json['openingStock'] as Map<String, dynamic>? ??
+        json['currentStock'] as Map<String, dynamic>? ??
+        const {};
     final currentStock =
-        json['currentStock'] as Map<String, dynamic>? ?? const {};
+        json['currentStock'] as Map<String, dynamic>? ??
+        json['openingStock'] as Map<String, dynamic>? ??
+        const {};
     return InventoryPlanningModel(
+      openingStock: {
+        'petrol': (openingStock['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (openingStock['diesel'] as num?)?.toDouble() ?? 0,
+        'two_t_oil': (openingStock['two_t_oil'] as num?)?.toDouble() ?? 0,
+      },
       currentStock: {
         'petrol': (currentStock['petrol'] as num?)?.toDouble() ?? 0,
         'diesel': (currentStock['diesel'] as num?)?.toDouble() ?? 0,
@@ -585,6 +598,7 @@ class InventoryPlanningModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'openingStock': openingStock,
       'currentStock': currentStock,
       'deliveryLeadDays': deliveryLeadDays,
       'alertBeforeDays': alertBeforeDays,
@@ -683,6 +697,7 @@ class DeliveryReceiptModel {
     required this.fuelTypeId,
     required this.date,
     required this.quantity,
+    required this.quantities,
     required this.note,
     required this.createdBy,
     required this.createdAt,
@@ -693,17 +708,29 @@ class DeliveryReceiptModel {
   final String fuelTypeId;
   final String date;
   final double quantity;
+  final Map<String, double> quantities;
   final String note;
   final String createdBy;
   final String createdAt;
 
   factory DeliveryReceiptModel.fromJson(Map<String, dynamic> json) {
+    final quantitiesJson =
+        json['quantities'] as Map<String, dynamic>? ??
+        {
+          json['fuelTypeId']?.toString() ?? 'petrol':
+              (json['quantity'] as num?)?.toDouble() ?? 0,
+        };
     return DeliveryReceiptModel(
       id: json['id']?.toString() ?? '',
       stationId: json['stationId']?.toString() ?? '',
       fuelTypeId: json['fuelTypeId']?.toString() ?? '',
       date: json['date']?.toString() ?? '',
       quantity: (json['quantity'] as num?)?.toDouble() ?? 0,
+      quantities: {
+        'petrol': (quantitiesJson['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (quantitiesJson['diesel'] as num?)?.toDouble() ?? 0,
+        'two_t_oil': (quantitiesJson['two_t_oil'] as num?)?.toDouble() ?? 0,
+      },
       note: json['note']?.toString() ?? '',
       createdBy: json['createdBy']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',

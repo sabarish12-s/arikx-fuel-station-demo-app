@@ -107,15 +107,17 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
     });
   }
 
-  Future<void> _editPriceHistory(FuelPriceModel price) async {
-    final result = await showDialog<FuelPriceModel>(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (_) => _FuelPriceEditorDialog(
-            title: _prettyFuelLabel(price.fuelTypeId),
-            initialPrice: _clonePrice(price),
-          ),
+  Future<void> _openPriceHistory(FuelPriceModel price) async {
+    final result = await Navigator.of(context).push<FuelPriceModel>(
+      MaterialPageRoute<FuelPriceModel>(
+        builder:
+            (_) => _FuelPriceHistoryScreen(
+              title: _prettyFuelLabel(price.fuelTypeId),
+              initialPrice: _clonePrice(price),
+              canEdit: widget.canEdit,
+              startInEditMode: _isEditing,
+            ),
+      ),
     );
     if (!mounted || result == null) {
       return;
@@ -182,7 +184,6 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
           updatedAt: price.updatedAt,
           updatedBy: price.updatedBy,
         );
-    final periods = [...price.periods].reversed.toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -206,12 +207,19 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                   ),
                 ),
               ),
-              if (_isEditing && widget.canEdit)
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : () => _editPriceHistory(price),
-                  icon: const Icon(Icons.edit_calendar_rounded),
-                  label: const Text('Edit History'),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : () => _openPriceHistory(price),
+                icon: Icon(
+                  _isEditing && widget.canEdit
+                      ? Icons.edit_calendar_rounded
+                      : Icons.history_rounded,
                 ),
+                label: Text(
+                  _isEditing && widget.canEdit
+                      ? 'History & Edit'
+                      : 'View History',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -284,38 +292,44 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Price history',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF293340),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F9FF),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Price history',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${price.periods.length} period${price.periods.length == 1 ? '' : 's'} saved for ${_prettyFuelLabel(price.fuelTypeId)}.',
+                        style: const TextStyle(
+                          color: Color(0xFF55606E),
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Text(
-                '${price.periods.length} period${price.periods.length == 1 ? '' : 's'}',
-                style: const TextStyle(color: Color(0xFF55606E)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ...periods.map(
-            (period) => _PriceHistoryTile(
-              title: _periodLabel(period),
-              effectiveFrom: period.effectiveFrom,
-              effectiveTo: period.effectiveTo,
-              updatedAt: period.updatedAt,
-              costPrice: period.costPrice,
-              sellingPrice: period.sellingPrice,
-              isCurrent:
-                  period.effectiveFrom == activePeriod.effectiveFrom &&
-                  period.effectiveTo == activePeriod.effectiveTo &&
-                  period.costPrice == activePeriod.costPrice &&
-                  period.sellingPrice == activePeriod.sellingPrice,
+                const SizedBox(width: 12),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF55606E),
+                ),
+              ],
             ),
           ),
         ],
@@ -357,7 +371,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                       ),
                       const Expanded(
                         child: Text(
-                          'Fuel Price Settings',
+                          'Fuel Prices',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -442,9 +456,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
               if (widget.canEdit && _isEditing)
                 FilledButton(
                   onPressed: _saving ? null : _save,
-                  child: Text(
-                    _saving ? 'Saving...' : 'Save All Price Settings',
-                  ),
+                  child: Text(_saving ? 'Saving...' : 'Save Fuel Prices'),
                 ),
             ],
           ),
@@ -458,7 +470,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Fuel Price Settings'),
+        title: const Text('Fuel Prices'),
         actions: [
           if (widget.canEdit)
             FutureBuilder<List<FuelPriceModel>>(
@@ -639,26 +651,33 @@ class _PriceHistoryTile extends StatelessWidget {
   }
 }
 
-class _FuelPriceEditorDialog extends StatefulWidget {
-  const _FuelPriceEditorDialog({
+class _FuelPriceHistoryScreen extends StatefulWidget {
+  const _FuelPriceHistoryScreen({
     required this.title,
     required this.initialPrice,
+    required this.canEdit,
+    this.startInEditMode = false,
   });
 
   final String title;
   final FuelPriceModel initialPrice;
+  final bool canEdit;
+  final bool startInEditMode;
 
   @override
-  State<_FuelPriceEditorDialog> createState() => _FuelPriceEditorDialogState();
+  State<_FuelPriceHistoryScreen> createState() =>
+      _FuelPriceHistoryScreenState();
 }
 
-class _FuelPriceEditorDialogState extends State<_FuelPriceEditorDialog> {
+class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final List<_EditablePricePeriod> _periods;
+  late bool _isEditing;
 
   @override
   void initState() {
     super.initState();
+    _isEditing = widget.startInEditMode && widget.canEdit;
     final source =
         widget.initialPrice.periods.isNotEmpty
             ? widget.initialPrice.periods
@@ -804,230 +823,324 @@ class _FuelPriceEditorDialogState extends State<_FuelPriceEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 640,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+    final periods = [
+      ..._periods.map(
+        (period) => FuelPricePeriodModel(
+          effectiveFrom: period.effectiveFrom,
+          effectiveTo: period.effectiveTo,
+          costPrice: double.tryParse(period.costController.text.trim()) ?? 0,
+          sellingPrice:
+              double.tryParse(period.sellingController.text.trim()) ?? 0,
+          updatedAt: period.updatedAt,
+          updatedBy: period.updatedBy,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 12, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${widget.title} Price History',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF293340),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'Edit every price period with its start and end dates.',
-                          style: TextStyle(color: Color(0xFF55606E)),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded),
-                  ),
-                ],
-              ),
+      ),
+    ]..sort((left, right) => right.effectiveFrom.compareTo(left.effectiveFrom));
+
+    final current =
+        periods.isEmpty
+            ? null
+            : periods.where((period) => period.effectiveTo.isEmpty).isNotEmpty
+            ? periods.where((period) => period.effectiveTo.isEmpty).first
+            : periods.first;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FF),
+      appBar: AppBar(
+        title: Text('${widget.title} Price History'),
+        actions: [
+          if (widget.canEdit)
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _isEditing = !_isEditing;
+                });
+              },
+              child: Text(_isEditing ? 'View' : 'Edit'),
             ),
-            const Divider(height: 1),
-            Flexible(
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
-                  20,
-                  20,
-                  20,
-                  20 + MediaQuery.viewInsetsOf(context).bottom,
+                  18,
+                  18,
+                  18,
+                  18 + MediaQuery.viewInsetsOf(context).bottom,
                 ),
-                child: Form(
-                  key: _formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  child: Column(
-                    children: [
-                      ..._periods.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final period = entry.value;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FF),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      'Period ${index + 1}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF293340),
-                                      ),
-                                    ),
-                                  ),
-                                  if (_periods.length > 1)
-                                    IconButton(
-                                      onPressed: () => _removePeriod(index),
-                                      icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed:
-                                          () => _pickDate(
-                                            period: period,
-                                            isFrom: true,
-                                          ),
-                                      icon: const Icon(
-                                        Icons.calendar_month_rounded,
-                                      ),
-                                      label: Text(
-                                        period.effectiveFrom.isEmpty
-                                            ? 'From date'
-                                            : formatDateLabel(
-                                              period.effectiveFrom,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed:
-                                          () => _pickDate(
-                                            period: period,
-                                            isFrom: false,
-                                          ),
-                                      icon: const Icon(
-                                        Icons.event_available_rounded,
-                                      ),
-                                      label: Text(
-                                        period.effectiveTo.isEmpty
-                                            ? 'To date: Ongoing'
-                                            : formatDateLabel(
-                                              period.effectiveTo,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              if (period.effectiveTo.isNotEmpty)
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: TextButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        period.effectiveTo = '';
-                                      });
-                                    },
-                                    child: const Text('Clear end date'),
-                                  ),
-                                ),
-                              if (period.updatedAt.trim().isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 8),
-                                  child: Text(
-                                    'Last updated ${formatDateLabel(period.updatedAt)}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF55606E),
-                                    ),
-                                  ),
-                                ),
-                              TextFormField(
-                                controller: period.costController,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: const InputDecoration(
-                                  labelText: 'Cost price',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                                validator: (_) => _validatePeriod(period),
-                              ),
-                              const SizedBox(height: 12),
-                              TextFormField(
-                                controller: period.sellingController,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: const InputDecoration(
-                                  labelText: 'Selling price',
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                ),
-                                validator: (_) => _validatePeriod(period),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: OutlinedButton.icon(
-                          onPressed: _addPeriod,
-                          icon: const Icon(Icons.add_rounded),
-                          label: const Text('Add Price Period'),
-                        ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                    ],
-                  ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.title,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF293340),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _isEditing
+                                ? 'Edit each price period on its own page section. This keeps long history manageable.'
+                                : 'View all saved price periods on a separate page instead of crowding the main price screen.',
+                            style: const TextStyle(
+                              color: Color(0xFF55606E),
+                              height: 1.4,
+                            ),
+                          ),
+                          if (current != null) ...[
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _PriceMetric(
+                                    label: 'Current cost',
+                                    value: formatCurrency(current.costPrice),
+                                    accent: const Color(0xFF7C3AED),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _PriceMetric(
+                                    label: 'Current selling',
+                                    value: formatCurrency(current.sellingPrice),
+                                    accent: const Color(0xFF0F9D58),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (_isEditing)
+                      Form(
+                        key: _formKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: Column(
+                          children: [
+                            ..._periods.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final period = entry.value;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 14),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            'Period ${index + 1}',
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF293340),
+                                            ),
+                                          ),
+                                        ),
+                                        if (_periods.length > 1)
+                                          IconButton(
+                                            onPressed:
+                                                () => _removePeriod(index),
+                                            icon: const Icon(
+                                              Icons.delete_outline_rounded,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed:
+                                                () => _pickDate(
+                                                  period: period,
+                                                  isFrom: true,
+                                                ),
+                                            icon: const Icon(
+                                              Icons.calendar_month_rounded,
+                                            ),
+                                            label: Text(
+                                              period.effectiveFrom.isEmpty
+                                                  ? 'From date'
+                                                  : formatDateLabel(
+                                                    period.effectiveFrom,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed:
+                                                () => _pickDate(
+                                                  period: period,
+                                                  isFrom: false,
+                                                ),
+                                            icon: const Icon(
+                                              Icons.event_available_rounded,
+                                            ),
+                                            label: Text(
+                                              period.effectiveTo.isEmpty
+                                                  ? 'To date: Ongoing'
+                                                  : formatDateLabel(
+                                                    period.effectiveTo,
+                                                  ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    if (period.effectiveTo.isNotEmpty)
+                                      Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: TextButton(
+                                          onPressed: () {
+                                            setState(() {
+                                              period.effectiveTo = '';
+                                            });
+                                          },
+                                          child: const Text('Clear end date'),
+                                        ),
+                                      ),
+                                    if (period.updatedAt.trim().isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
+                                        child: Text(
+                                          'Last updated ${formatDateLabel(period.updatedAt)}',
+                                          style: const TextStyle(
+                                            color: Color(0xFF55606E),
+                                          ),
+                                        ),
+                                      ),
+                                    TextFormField(
+                                      controller: period.costController,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Cost price',
+                                        filled: true,
+                                        fillColor: Color(0xFFF8F9FF),
+                                      ),
+                                      validator: (_) => _validatePeriod(period),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    TextFormField(
+                                      controller: period.sellingController,
+                                      keyboardType:
+                                          const TextInputType.numberWithOptions(
+                                            decimal: true,
+                                          ),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Selling price',
+                                        filled: true,
+                                        fillColor: Color(0xFFF8F9FF),
+                                      ),
+                                      validator: (_) => _validatePeriod(period),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: OutlinedButton.icon(
+                                onPressed: _addPeriod,
+                                icon: const Icon(Icons.add_rounded),
+                                label: const Text('Add Price Period'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Column(
+                        children:
+                            periods
+                                .map(
+                                  (period) => _PriceHistoryTile(
+                                    title:
+                                        '${_formatHistoryDate(period.effectiveFrom)} to ${_formatHistoryDate(period.effectiveTo, empty: 'Ongoing')}',
+                                    effectiveFrom: period.effectiveFrom,
+                                    effectiveTo: period.effectiveTo,
+                                    updatedAt: period.updatedAt,
+                                    costPrice: period.costPrice,
+                                    sellingPrice: period.sellingPrice,
+                                    isCurrent:
+                                        current != null &&
+                                        period.effectiveFrom ==
+                                            current.effectiveFrom &&
+                                        period.effectiveTo ==
+                                            current.effectiveTo &&
+                                        period.costPrice == current.costPrice &&
+                                        period.sellingPrice ==
+                                            current.sellingPrice,
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                  ],
                 ),
               ),
             ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
+            if (_isEditing)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _save,
-                      child: const Text('Save History'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _save,
+                        child: const Text('Save History'),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatHistoryDate(String raw, {String empty = 'Not set'}) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return empty;
+    }
+    return formatDateLabel(trimmed);
   }
 }
 

@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import 'credit_ledger_screen.dart';
+import 'delivery_history_screen.dart';
 import 'delivery_receipt_screen.dart';
 import 'inventory_planning_settings_screen.dart';
 
@@ -73,6 +74,15 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     }
   }
 
+  Future<void> _openDeliveryHistory() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(builder: (_) => const DeliveryHistoryScreen()),
+    );
+    if (mounted) {
+      await _refresh();
+    }
+  }
+
   String _displayDate(String raw) {
     if (raw.trim().isEmpty) {
       return 'Not available';
@@ -82,22 +92,9 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
 
   String _daysRemainingLabel(double? value) {
     if (value == null) {
-      return 'Not enough approved sales yet';
+      return 'Not enough sales yet';
     }
     return '${value.toStringAsFixed(1)} day(s)';
-  }
-
-  String _fuelLabel(String fuelTypeId) {
-    switch (fuelTypeId) {
-      case 'petrol':
-        return 'Petrol';
-      case 'diesel':
-        return 'Diesel';
-      case 'two_t_oil':
-        return '2T Oil';
-      default:
-        return fuelTypeId;
-    }
   }
 
   Color _fuelColor(String fuelTypeId) {
@@ -280,7 +277,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'This stock planner uses station tank stock in liters. Pump opening stock settings remain separate for meter entry logic.',
+                      'Current stock is calculated from the tank baseline, plus delivery receipts, minus saved sales entries. Pump opening readings remain separate from inventory.',
                       style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
                   ],
@@ -361,17 +358,28 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Recent Deliveries',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF293340),
-                      ),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Recent Delivery',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF293340),
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _openDeliveryHistory,
+                          icon: const Icon(Icons.history_rounded),
+                          label: const Text('History'),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Receipts update stock immediately after saving.',
+                      'The latest delivery event is shown here. Open history to review every past delivery receipt.',
                       style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
                     const SizedBox(height: 14),
@@ -381,71 +389,10 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         style: TextStyle(color: Color(0xFF55606E)),
                       )
                     else
-                      ...data.deliveries
-                          .take(10)
-                          .map(
-                            (delivery) => Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8F9FF),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor: const Color(0xFFE9EEF7),
-                                    child: Text(
-                                      delivery.fuelTypeId == 'petrol'
-                                          ? 'P'
-                                          : delivery.fuelTypeId == 'diesel'
-                                          ? 'D'
-                                          : '2T',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF1E5CBA),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _fuelLabel(delivery.fuelTypeId),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w800,
-                                            color: Color(0xFF293340),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          '${formatDateLabel(delivery.date)}  |  ${formatLiters(delivery.quantity)}',
-                                          style: const TextStyle(
-                                            color: Color(0xFF55606E),
-                                          ),
-                                        ),
-                                        if (delivery.note.trim().isNotEmpty)
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            child: Text(
-                                              delivery.note,
-                                              style: const TextStyle(
-                                                color: Color(0xFF55606E),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                      DeliveryReceiptSummaryCard(
+                        delivery: data.deliveries.first,
+                        margin: EdgeInsets.zero,
+                      ),
                   ],
                 ),
               ),

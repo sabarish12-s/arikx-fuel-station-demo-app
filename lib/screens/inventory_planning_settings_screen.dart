@@ -60,12 +60,12 @@ class _InventoryPlanningSettingsScreenState
       return;
     }
     final planning = station.inventoryPlanning;
-    _petrolController.text =
-        (planning.currentStock['petrol'] ?? 0).toStringAsFixed(2);
-    _dieselController.text =
-        (planning.currentStock['diesel'] ?? 0).toStringAsFixed(2);
-    _twoTController.text =
-        (planning.currentStock['two_t_oil'] ?? 0).toStringAsFixed(2);
+    _petrolController.text = (planning.openingStock['petrol'] ?? 0)
+        .toStringAsFixed(2);
+    _dieselController.text = (planning.openingStock['diesel'] ?? 0)
+        .toStringAsFixed(2);
+    _twoTController.text = (planning.openingStock['two_t_oil'] ?? 0)
+        .toStringAsFixed(2);
     _deliveryLeadController.text = planning.deliveryLeadDays.toString();
     _alertBeforeController.text = planning.alertBeforeDays.toString();
     _seeded = true;
@@ -105,6 +105,10 @@ class _InventoryPlanningSettingsScreenState
       return;
     }
 
+    final petrolValue = petrol ?? 0;
+    final dieselValue = diesel ?? 0;
+    final twoTValue = twoT ?? 0;
+
     setState(() => _saving = true);
     try {
       final updated = StationConfigModel(
@@ -117,10 +121,15 @@ class _InventoryPlanningSettingsScreenState
         baseReadings: station.baseReadings,
         meterLimits: station.meterLimits,
         inventoryPlanning: InventoryPlanningModel(
+          openingStock: {
+            'petrol': petrolValue,
+            'diesel': dieselValue,
+            'two_t_oil': twoTValue,
+          },
           currentStock: {
-            'petrol': petrol!,
-            'diesel': diesel!,
-            'two_t_oil': twoT!,
+            'petrol': petrolValue,
+            'diesel': dieselValue,
+            'two_t_oil': twoTValue,
           },
           deliveryLeadDays: deliveryLead,
           alertBeforeDays: alertBefore,
@@ -137,9 +146,9 @@ class _InventoryPlanningSettingsScreenState
         _seeded = false;
         _future = _inventoryService.fetchStationConfig();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Inventory planning settings saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Planning rules saved.')));
     } catch (error) {
       if (!mounted) {
         return;
@@ -192,7 +201,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const Expanded(
                         child: Text(
-                          'Inventory Planning',
+                          'Tank Stock & Reorder Planning',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -251,7 +260,10 @@ class _InventoryPlanningSettingsScreenState
                     const SizedBox(height: 4),
                     Text(
                       'Alerts start ${planning.alertBeforeDays} day(s) before projected order date.',
-                      style: const TextStyle(color: Colors.white70, height: 1.4),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        height: 1.4,
+                      ),
                     ),
                     if (planning.updatedAt.trim().isNotEmpty) ...[
                       const SizedBox(height: 8),
@@ -291,7 +303,7 @@ class _InventoryPlanningSettingsScreenState
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'This stock is separate from pump opening meter readings. Delivery receipts are added on top of this baseline.',
+                      'This stock is separate from pump opening meter readings. Deliveries add to this baseline and saved sales reduce inventory automatically.',
                       style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
                     const SizedBox(height: 18),
@@ -358,7 +370,8 @@ class _InventoryPlanningSettingsScreenState
               if (widget.canEdit) ...[
                 const SizedBox(height: 20),
                 FilledButton.icon(
-                  onPressed: _isEditing && !_saving ? () => _save(station) : null,
+                  onPressed:
+                      _isEditing && !_saving ? () => _save(station) : null,
                   icon:
                       _saving
                           ? const SizedBox(
@@ -367,7 +380,7 @@ class _InventoryPlanningSettingsScreenState
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                           : const Icon(Icons.save_outlined),
-                  label: Text(_saving ? 'Saving...' : 'Save Planning Settings'),
+                  label: Text(_saving ? 'Saving...' : 'Save Planning Rules'),
                 ),
               ],
             ],
@@ -383,7 +396,7 @@ class _InventoryPlanningSettingsScreenState
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
-        title: const Text('Inventory Planning'),
+        title: const Text('Tank Stock & Reorder Planning'),
         actions: [
           if (widget.canEdit)
             FutureBuilder<StationConfigModel>(

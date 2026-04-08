@@ -19,12 +19,12 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _salesService.fetchEntries(month: _month);
+    _future = _salesService.fetchEntries(month: _month, summary: true);
   }
 
   void _reload() {
     setState(() {
-      _future = _salesService.fetchEntries(month: _month);
+      _future = _salesService.fetchEntries(month: _month, summary: true);
     });
   }
 

@@ -21,24 +21,24 @@ class DeliveryReceiptScreen extends StatefulWidget {
 
 class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
   final InventoryService _inventoryService = InventoryService();
-  final TextEditingController _quantityController = TextEditingController();
+  final TextEditingController _petrolController = TextEditingController();
+  final TextEditingController _dieselController = TextEditingController();
+  final TextEditingController _twoTController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
-  late String _selectedFuelTypeId;
   late DateTime _selectedDate;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedFuelTypeId =
-        widget.initialFuelTypeId ??
-        (widget.fuels.isNotEmpty ? widget.fuels.first.fuelTypeId : 'petrol');
     _selectedDate = DateTime.now();
   }
 
   @override
   void dispose() {
-    _quantityController.dispose();
+    _petrolController.dispose();
+    _dieselController.dispose();
+    _twoTController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -49,21 +49,8 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
     return '${_selectedDate.year}-$month-$day';
   }
 
-  String _fuelLabel(String fuelTypeId) {
-    final match = widget.fuels.where((fuel) => fuel.fuelTypeId == fuelTypeId);
-    if (match.isNotEmpty) {
-      return match.first.label;
-    }
-    switch (fuelTypeId) {
-      case 'petrol':
-        return 'Petrol';
-      case 'diesel':
-        return 'Diesel';
-      case 'two_t_oil':
-        return '2T Oil';
-      default:
-        return fuelTypeId;
-    }
+  double _parseQuantity(String raw) {
+    return double.tryParse(raw.trim()) ?? 0;
   }
 
   Future<void> _pickDate() async {
@@ -83,12 +70,37 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
   }
 
   Future<void> _save() async {
-    final quantity = double.tryParse(_quantityController.text.trim());
-    if (quantity == null || quantity <= 0) {
+    final petrol = _parseQuantity(_petrolController.text);
+    final diesel = _parseQuantity(_dieselController.text);
+    final twoT = _parseQuantity(_twoTController.text);
+
+    if (petrol < 0 || diesel < 0 || twoT < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFB91C1C),
-          content: Text('Enter a delivery quantity greater than zero.'),
+          content: Text('Delivery quantities cannot be negative.'),
+        ),
+      );
+      return;
+    }
+    final hasMainDelivery = petrol > 0 || diesel > 0;
+    final hasTwoTDelivery = twoT > 0;
+    if (!hasMainDelivery && !hasTwoTDelivery) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFB91C1C),
+          content: Text(
+            'Enter at least one delivery quantity greater than zero.',
+          ),
+        ),
+      );
+      return;
+    }
+    if (hasMainDelivery && hasTwoTDelivery) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFB91C1C),
+          content: Text('Record 2T oil in a separate delivery receipt.'),
         ),
       );
       return;
@@ -97,9 +109,8 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
     setState(() => _saving = true);
     try {
       await _inventoryService.createDeliveryReceipt(
-        fuelTypeId: _selectedFuelTypeId,
         date: _apiDate,
-        quantity: quantity,
+        quantities: {'petrol': petrol, 'diesel': diesel, 'two_t_oil': twoT},
         note: _noteController.text.trim(),
       );
       if (!mounted) {
@@ -156,41 +167,10 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Use this when stock physically arrives. The station tank stock forecast updates from this receipt.',
+                  'Record the normal tanker arrival with petrol and diesel together. Record 2T oil in a separate receipt when it arrives independently.',
                   style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                 ),
                 const SizedBox(height: 18),
-                DropdownButtonFormField<String>(
-                  initialValue: _selectedFuelTypeId,
-                  decoration: InputDecoration(
-                    labelText: 'Fuel',
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FF),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  items:
-                      widget.fuels
-                          .map(
-                            (fuel) => DropdownMenuItem<String>(
-                              value: fuel.fuelTypeId,
-                              child: Text(fuel.label),
-                            ),
-                          )
-                          .toList(),
-                  onChanged:
-                      _saving
-                          ? null
-                          : (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setState(() => _selectedFuelTypeId = value);
-                          },
-                ),
-                const SizedBox(height: 12),
                 InkWell(
                   onTap: _saving ? null : _pickDate,
                   borderRadius: BorderRadius.circular(18),
@@ -205,7 +185,10 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.event_rounded, color: Color(0xFF1E5CBA)),
+                        const Icon(
+                          Icons.event_rounded,
+                          color: Color(0xFF1E5CBA),
+                        ),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,23 +216,117 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _quantityController,
-                  enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FF),
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                  ],
-                  decoration: InputDecoration(
-                    labelText: 'Delivered liters',
-                    filled: true,
-                    fillColor: const Color(0xFFF8F9FF),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
-                      borderSide: BorderSide.none,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Main tanker delivery',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Enter petrol and diesel together for the same tanker arrival.',
+                        style: TextStyle(color: Color(0xFF55606E), height: 1.4),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _petrolController,
+                        enabled: !_saving,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Petrol delivered liters',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _dieselController,
+                        enabled: !_saving,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'Diesel delivered liters',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FF),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '2T oil delivery',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Record 2T oil separately when it arrives on its own.',
+                        style: TextStyle(color: Color(0xFF55606E), height: 1.4),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _twoTController,
+                        enabled: !_saving,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: '2T oil delivered liters',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -278,11 +355,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                           : const Icon(Icons.save_outlined),
-                  label: Text(
-                    _saving
-                        ? 'Saving...'
-                        : 'Record ${_fuelLabel(_selectedFuelTypeId)} Delivery',
-                  ),
+                  label: Text(_saving ? 'Saving...' : 'Record Delivery'),
                 ),
               ],
             ),

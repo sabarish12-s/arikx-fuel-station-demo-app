@@ -114,21 +114,18 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       name: _nameController.text.trim(),
       code: _codeController.text.trim(),
       city: _cityController.text.trim(),
-      shifts:
-          _shiftsController.text.contains('daily')
-              ? const ['daily']
-              : const ['daily'],
-      pumps:
-          station.pumps
-              .map(
-                (pump) => StationPumpModel(
-                  id: pump.id,
-                  label:
-                      _controllers['${pump.id}_label']?.text.trim() ??
-                      pump.label,
-                ),
-              )
-              .toList(),
+      shifts: _shiftsController.text.contains('daily')
+          ? const ['daily']
+          : const ['daily'],
+      pumps: station.pumps
+          .map(
+            (pump) => StationPumpModel(
+              id: pump.id,
+              label:
+                  _controllers['${pump.id}_label']?.text.trim() ?? pump.label,
+            ),
+          )
+          .toList(),
       baseReadings: station.baseReadings,
       meterLimits: {
         for (final pump in station.pumps)
@@ -160,7 +157,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     }
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Station settings saved.')));
+    ).showSnackBar(const SnackBar(content: Text('Station profile saved.')));
     setState(() {
       _isEditing = false;
       _seeded = false;
@@ -202,7 +199,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                       ),
                       const Expanded(
                         child: Text(
-                          'Station Settings',
+                          'Station Profile & Pumps',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w900,
@@ -253,20 +250,18 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color:
-                                _isEditing
-                                    ? const Color(0xFFE0E7FF)
-                                    : const Color(0xFFE5F7EE),
+                            color: _isEditing
+                                ? const Color(0xFFE0E7FF)
+                                : const Color(0xFFE5F7EE),
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _isEditing ? 'Editing' : 'View only',
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color:
-                                  _isEditing
-                                      ? const Color(0xFF1E40AF)
-                                      : const Color(0xFF047857),
+                              color: _isEditing
+                                  ? const Color(0xFF1E40AF)
+                                  : const Color(0xFF047857),
                             ),
                           ),
                         ),
@@ -336,7 +331,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Only pump names are managed here. Sales details are not shown in station settings.',
+                      'Only pump names are managed here. Sales details are not shown on this page.',
                       style: TextStyle(color: Color(0xFF55606E)),
                     ),
                     const SizedBox(height: 16),
@@ -457,7 +452,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
               if (widget.canEdit && _isEditing)
                 FilledButton(
                   onPressed: () => _save(station),
-                  child: const Text('Save Station Settings'),
+                  child: const Text('Save Station Profile'),
                 ),
             ],
           ),
@@ -471,7 +466,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Station Settings'),
+        title: const Text('Station Profile & Pumps'),
         actions: [
           if (widget.canEdit)
             FutureBuilder<StationConfigModel>(
@@ -479,19 +474,18 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed:
-                      station == null
-                          ? null
-                          : () {
-                            setState(() {
-                              if (_isEditing) {
-                                _isEditing = false;
-                                _resetFromStation(station);
-                              } else {
-                                _isEditing = true;
-                              }
-                            });
-                          },
+                  onPressed: station == null
+                      ? null
+                      : () {
+                          setState(() {
+                            if (_isEditing) {
+                              _isEditing = false;
+                              _resetFromStation(station);
+                            } else {
+                              _isEditing = true;
+                            }
+                          });
+                        },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },

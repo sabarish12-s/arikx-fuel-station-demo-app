@@ -27,8 +27,16 @@ class SalesService {
     return SalesDashboardModel.fromJson(_apiClient.decodeObject(response));
   }
 
-  Future<List<ShiftEntryModel>> fetchEntries({String? month}) async {
-    final String suffix = month == null ? '' : '?month=$month';
+  Future<List<ShiftEntryModel>> fetchEntries({
+    String? month,
+    bool summary = false,
+  }) async {
+    final params = <String, String>{
+      if (month != null && month.isNotEmpty) 'month': month,
+      if (summary) 'view': 'summary',
+    };
+    final String suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get('/sales/entries$suffix');
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(

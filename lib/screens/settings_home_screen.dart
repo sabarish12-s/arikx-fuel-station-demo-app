@@ -103,7 +103,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           padding: const EdgeInsets.all(18),
           children: [
             _SettingsTile(
-              title: 'Station Settings',
+              title: 'Station Profile & Pumps',
+              subtitle: 'Station details, code, city, and pump names',
               icon: Icons.settings_suggest_outlined,
               onTap: () {
                 setState(() {
@@ -113,7 +114,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             ),
             const SizedBox(height: 12),
             _SettingsTile(
-              title: 'Opening Stock Settings',
+              title: 'Pump Opening Readings',
+              subtitle: 'Starting meter readings for each pump',
               icon: Icons.speed_outlined,
               onTap: () {
                 setState(() {
@@ -123,7 +125,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             ),
             const SizedBox(height: 12),
             _SettingsTile(
-              title: 'Inventory Planning',
+              title: 'Tank Stock & Reorder Planning',
+              subtitle: 'Tank stock baseline and reorder rules',
               icon: Icons.inventory_2_outlined,
               onTap: () {
                 setState(() {
@@ -133,7 +136,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             ),
             const SizedBox(height: 12),
             _SettingsTile(
-              title: 'Fuel Price Settings',
+              title: 'Fuel Prices',
+              subtitle: 'Selling and cost prices for each fuel',
               icon: Icons.payments_outlined,
               onTap: () {
                 setState(() {
@@ -143,7 +147,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             ),
             const SizedBox(height: 12),
             _SettingsTile(
-              title: 'Fuel Type Manager',
+              title: 'Fuel Types',
+              subtitle: 'Fuel categories and labels used in the app',
               icon: Icons.category_outlined,
               onTap: () {
                 setState(() {
@@ -153,7 +158,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             ),
             const SizedBox(height: 12),
             _SettingsTile(
-              title: 'Flag Threshold',
+              title: 'Variance Rules',
+              subtitle: 'Difference limit that flags an entry',
               icon: Icons.flag_outlined,
               onTap: () {
                 setState(() {
@@ -164,7 +170,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             if (_isSuperAdmin) ...[
               const SizedBox(height: 12),
               _SettingsTile(
-                title: 'User Management',
+                title: 'Users & Roles',
+                subtitle: 'Manage admin and station access',
                 icon: Icons.manage_accounts_outlined,
                 onTap: () {
                   setState(() {
@@ -199,11 +206,13 @@ enum _SettingsPanel {
 class _SettingsTile extends StatelessWidget {
   const _SettingsTile({
     required this.title,
+    required this.subtitle,
     required this.icon,
     this.onTap,
   });
 
   final String title;
+  final String subtitle;
   final IconData icon;
   final VoidCallback? onTap;
 
@@ -234,6 +243,14 @@ class _SettingsTile extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Color(0xFF55606E),
+                        height: 1.35,
                       ),
                     ),
                   ],
