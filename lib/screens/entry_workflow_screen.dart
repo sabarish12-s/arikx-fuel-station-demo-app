@@ -284,6 +284,35 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     _savePumpEdit(result.key, result.value);
   }
 
+  Future<void> _editPumpCashCollection(StationPumpModel pump) async {
+    final result = await showPumpCashCollectionDialog(
+      context: context,
+      pump: pump,
+      initialDraft: PumpEntryDraft(
+        attendant: _draft.pumpAttendants[pump.id] ?? '',
+        closingReadings: _draft.closingReadings[pump.id],
+        testing:
+            _draft.pumpTesting[pump.id] ??
+            const PumpTestingModel(petrol: 0, diesel: 0),
+        payments:
+            _draft.pumpPayments[pump.id] ??
+            const PumpPaymentBreakdownModel(
+              cash: 0,
+              check: 0,
+              upi: 0,
+              credit: 0,
+            ),
+        creditEntries:
+            _draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
+        mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
+      ),
+    );
+    if (!mounted || result == null) {
+      return;
+    }
+    _savePumpEdit(result.key, result.value);
+  }
+
   Future<void> _submitEntry() async {
     final missingPumps =
         widget.station.pumps
@@ -501,7 +530,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                       alignment: WrapAlignment.end,
                       children: [
                         OutlinedButton.icon(
-                          onPressed: () => _editPump(pump),
+                          onPressed: () => _editPumpCashCollection(pump),
                           icon: const Icon(Icons.payments_outlined),
                           label: const Text('Cash Collection'),
                         ),

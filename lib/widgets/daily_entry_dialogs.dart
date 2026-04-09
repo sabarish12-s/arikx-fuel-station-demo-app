@@ -1349,6 +1349,28 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
   );
 }
 
+Future<MapEntry<String, PumpEntryDraft>?> showPumpCashCollectionDialog({
+  required BuildContext context,
+  required StationPumpModel pump,
+  required PumpEntryDraft initialDraft,
+}) async {
+  return showDialog<MapEntry<String, PumpEntryDraft>>(
+    context: context,
+    barrierDismissible: false,
+    builder:
+        (dialogContext) => Dialog(
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 24,
+          ),
+          child: _PumpCashCollectionDialog(
+            pump: pump,
+            initialDraft: initialDraft,
+          ),
+        ),
+  );
+}
+
 Future<PaymentEntryDraft?> showPaymentEntryDialog({
   required BuildContext context,
   required PaymentEntryDraft initialDraft,
@@ -3567,6 +3589,165 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
               child: const Text('Update Payments & Credit'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PumpCashCollectionDialog extends StatefulWidget {
+  const _PumpCashCollectionDialog({
+    required this.pump,
+    required this.initialDraft,
+  });
+
+  final StationPumpModel pump;
+  final PumpEntryDraft initialDraft;
+
+  @override
+  State<_PumpCashCollectionDialog> createState() =>
+      _PumpCashCollectionDialogState();
+}
+
+class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
+  late final TextEditingController _attendantController;
+  late final TextEditingController _cashController;
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _attendantController = TextEditingController(
+      text: widget.initialDraft.attendant,
+    );
+    _cashController = TextEditingController(
+      text:
+          widget.initialDraft.payments.cash == 0
+              ? ''
+              : widget.initialDraft.payments.cash.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _attendantController.dispose();
+    _cashController.dispose();
+    super.dispose();
+  }
+
+  double _parseAmount(String raw) => double.tryParse(raw.trim()) ?? 0;
+
+  String? _validateCash(String raw) {
+    if (raw.trim().isEmpty) {
+      return null;
+    }
+    final value = double.tryParse(raw.trim());
+    if (value == null) {
+      return 'Enter a valid cash amount.';
+    }
+    if (value < 0) {
+      return 'Cash cannot be negative.';
+    }
+    return null;
+  }
+
+  void _save() {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+    final cash = _parseAmount(_cashController.text);
+    Navigator.of(context).pop(
+      MapEntry(
+        widget.pump.id,
+        PumpEntryDraft(
+          attendant: _attendantController.text.trim(),
+          closingReadings: widget.initialDraft.closingReadings,
+          testing: widget.initialDraft.testing,
+          payments: PumpPaymentBreakdownModel(
+            cash: cash,
+            check: widget.initialDraft.payments.check,
+            upi: widget.initialDraft.payments.upi,
+            credit: widget.initialDraft.payments.credit,
+          ),
+          creditEntries: widget.initialDraft.creditEntries,
+          mismatchReason: widget.initialDraft.mismatchReason,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 460),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Cash Collection',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                formatPumpLabel(widget.pump.id, widget.pump.label),
+                style: const TextStyle(
+                  color: Color(0xFF55606E),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _attendantController,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Cash collected from',
+                  helperText: 'Pump attendant name',
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _cashController,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                textInputAction: TextInputAction.done,
+                decoration: const InputDecoration(
+                  labelText: 'Cash',
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                validator: (value) => _validateCash(value ?? ''),
+                onFieldSubmitted: (_) => _save(),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _save,
+                      child: const Text('Save Cash'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

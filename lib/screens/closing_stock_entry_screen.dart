@@ -336,6 +336,53 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     _savePumpEdit(result.key, result.value);
   }
 
+  Future<void> _editPumpCashCollection(StationPumpModel pump) async {
+    final dashboard = _dashboard;
+    final draft = _draft;
+    if (dashboard == null || draft == null) {
+      return;
+    }
+
+    if (dashboard.entryExists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This date already has a saved entry. Admin can edit it from Entries.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final result = await showPumpCashCollectionDialog(
+      context: context,
+      pump: pump,
+      initialDraft: PumpEntryDraft(
+        attendant: draft.pumpAttendants[pump.id] ?? '',
+        closingReadings: draft.closingReadings[pump.id],
+        testing:
+            draft.pumpTesting[pump.id] ??
+            const PumpTestingModel(petrol: 0, diesel: 0),
+        payments:
+            draft.pumpPayments[pump.id] ??
+            const PumpPaymentBreakdownModel(
+              cash: 0,
+              check: 0,
+              upi: 0,
+              credit: 0,
+            ),
+        creditEntries:
+            draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
+        mismatchReason: draft.pumpMismatchReasons[pump.id] ?? '',
+      ),
+    );
+    if (!mounted || result == null) {
+      return;
+    }
+
+    _savePumpEdit(result.key, result.value);
+  }
+
   Future<void> _submitEntry() async {
     final dashboard = _dashboard;
     final draft = _draft;
@@ -674,7 +721,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                   onPressed:
                                       _submitting || dashboard.entryExists
                                           ? null
-                                          : () => _editPump(pump),
+                                          : () => _editPumpCashCollection(pump),
                                   icon: const Icon(Icons.payments_outlined),
                                   label: const Text('Cash Collection'),
                                 ),

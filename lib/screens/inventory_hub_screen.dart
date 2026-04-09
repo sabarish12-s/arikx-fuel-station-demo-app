@@ -6,7 +6,6 @@ import '../utils/formatters.dart';
 import 'credit_ledger_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_receipt_screen.dart';
-import 'fuel_price_settings_screen.dart';
 import 'inventory_planning_settings_screen.dart';
 
 class InventoryHubScreen extends StatefulWidget {
@@ -69,17 +68,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   Future<void> _openCreditLedger() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()),
-    );
-    if (mounted) {
-      await _refresh();
-    }
-  }
-
-  Future<void> _openFuelPrices() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const FuelPriceSettingsScreen(canEdit: true),
-      ),
     );
     if (mounted) {
       await _refresh();
@@ -224,11 +212,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     onPressed: _openCreditLedger,
                     icon: const Icon(Icons.payments_outlined),
                     label: const Text('Credit Ledger'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _openFuelPrices,
-                    icon: const Icon(Icons.payments_rounded),
-                    label: const Text('Fuel Prices'),
                   ),
                   if (widget.canManagePlanning)
                     OutlinedButton.icon(
