@@ -49,23 +49,26 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     super.initState();
     _draft = widget.initialDraft;
     _resolvedPriceSnapshot = mergePriceSnapshots(primary: widget.priceSnapshot);
-    _resolvingPriceSnapshot = !hasRequiredSellingPrices(
-      _resolvedPriceSnapshot,
-      const <String>['petrol', 'diesel'],
-    );
+    _resolvingPriceSnapshot =
+        !hasRequiredSellingPrices(_resolvedPriceSnapshot, const <String>[
+          'petrol',
+          'diesel',
+        ]);
     _loadAuxiliaryData();
   }
 
   Future<void> _loadAuxiliaryData() async {
-    final needsPriceFallback = !hasRequiredSellingPrices(
-      _resolvedPriceSnapshot,
-      const <String>['petrol', 'diesel'],
-    );
+    final needsPriceFallback =
+        !hasRequiredSellingPrices(_resolvedPriceSnapshot, const <String>[
+          'petrol',
+          'diesel',
+        ]);
     try {
       final customersFuture = _creditService.fetchCustomers();
-      final pricesFuture = needsPriceFallback
-          ? _inventoryService.fetchPrices(activeOnly: true)
-          : null;
+      final pricesFuture =
+          needsPriceFallback
+              ? _inventoryService.fetchPrices(activeOnly: true)
+              : null;
 
       final customers = (await customersFuture).$2;
       List<FuelPriceModel> prices = const <FuelPriceModel>[];
@@ -99,9 +102,8 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   void _savePumpEdit(String pumpId, PumpEntryDraft pumpDraft) {
-    final remainingCredits = _draft.creditEntries
-        .where((item) => item.pumpId != pumpId)
-        .toList();
+    final remainingCredits =
+        _draft.creditEntries.where((item) => item.pumpId != pumpId).toList();
     setState(() {
       _draft = _draft.copyWith(
         closingReadings: {
@@ -126,16 +128,17 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   String _buildEntryMismatchReason() {
-    final reasons = widget.station.pumps
-        .map((pump) {
-          final reason = _draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
-          if (reason.isEmpty) {
-            return null;
-          }
-          return '${formatPumpLabel(pump.id, pump.label)}: $reason';
-        })
-        .whereType<String>()
-        .toList();
+    final reasons =
+        widget.station.pumps
+            .map((pump) {
+              final reason = _draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
+              if (reason.isEmpty) {
+                return null;
+              }
+              return '${formatPumpLabel(pump.id, pump.label)}: $reason';
+            })
+            .whereType<String>()
+            .toList();
     if (reasons.isNotEmpty) {
       return reasons.join('\n');
     }
@@ -143,6 +146,18 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
+
+  String _twoTSoldLabel(PumpReadings opening, PumpReadings? closing) {
+    if (closing == null) {
+      return 'Not entered';
+    }
+    return formatLiters(closing.twoT - opening.twoT);
+  }
+
+  String _cashCollectedFromLabel(String pumpId) {
+    final name = _draft.pumpAttendants[pumpId]?.trim() ?? '';
+    return name.isEmpty ? 'Not entered' : name;
+  }
 
   PumpReadings _soldTotals() {
     double petrol = 0;
@@ -159,12 +174,14 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           const PumpTestingModel(petrol: 0, diesel: 0);
       final rawPetrol = closing.petrol - opening.petrol;
       final rawDiesel = closing.diesel - opening.diesel;
-      petrol += rawPetrol > 0
-          ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
-          : rawPetrol;
-      diesel += rawDiesel > 0
-          ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
-          : rawDiesel;
+      petrol +=
+          rawPetrol > 0
+              ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
+              : rawPetrol;
+      diesel +=
+          rawDiesel > 0
+              ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
+              : rawDiesel;
       if (_supportsTwoT(pump.id)) {
         twoT += closing.twoT - opening.twoT;
       }
@@ -251,9 +268,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
               upi: 0,
               credit: 0,
             ),
-        creditEntries: _draft.creditEntries
-            .where((item) => item.pumpId == pump.id)
-            .toList(),
+        creditEntries:
+            _draft.creditEntries
+                .where((item) => item.pumpId == pump.id)
+                .toList(),
         mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
       ),
       suggestedCustomers: _suggestedCustomers,
@@ -267,10 +285,11 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   Future<void> _submitEntry() async {
-    final missingPumps = widget.station.pumps
-        .where((pump) => !_draft.closingReadings.containsKey(pump.id))
-        .map((pump) => formatPumpLabel(pump.id, pump.label))
-        .toList();
+    final missingPumps =
+        widget.station.pumps
+            .where((pump) => !_draft.closingReadings.containsKey(pump.id))
+            .map((pump) => formatPumpLabel(pump.id, pump.label))
+            .toList();
     if (missingPumps.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -282,10 +301,11 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       return;
     }
 
-    final missingCollections = widget.station.pumps
-        .where((pump) => !_draft.pumpPayments.containsKey(pump.id))
-        .map((pump) => formatPumpLabel(pump.id, pump.label))
-        .toList();
+    final missingCollections =
+        widget.station.pumps
+            .where((pump) => !_draft.pumpPayments.containsKey(pump.id))
+            .map((pump) => formatPumpLabel(pump.id, pump.label))
+            .toList();
     if (missingCollections.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -438,68 +458,39 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                     value: formatLiters(opening.diesel),
                     accent: const Color(0xFF006C5C),
                   ),
-                  if (_supportsTwoT(pump.id))
-                    _WorkflowRow(
-                      label: 'Opening 2T oil meter',
-                      value: formatLiters(opening.twoT),
-                      accent: const Color(0xFFB45309),
-                    ),
                   _WorkflowRow(
                     label: 'Entered closing petrol meter',
-                    value: closing == null
-                        ? 'Not entered'
-                        : formatLiters(closing.petrol),
+                    value:
+                        closing == null
+                            ? 'Not entered'
+                            : formatLiters(closing.petrol),
                     accent: const Color(0xFF1E5CBA),
                   ),
                   _WorkflowRow(
                     label: 'Entered closing diesel meter',
-                    value: closing == null
-                        ? 'Not entered'
-                        : formatLiters(closing.diesel),
+                    value:
+                        closing == null
+                            ? 'Not entered'
+                            : formatLiters(closing.diesel),
                     accent: const Color(0xFF006C5C),
                   ),
                   if (_supportsTwoT(pump.id))
                     _WorkflowRow(
-                      label: 'Entered closing 2T oil meter',
-                      value: closing == null
-                          ? 'Not entered'
-                          : formatLiters(closing.twoT),
+                      label: 'Entered 2T oil sold',
+                      value: _twoTSoldLabel(opening, closing),
                       accent: const Color(0xFFB45309),
                     ),
+                  _WorkflowRow(
+                    label: 'Cash collected from',
+                    value: _cashCollectedFromLabel(pump.id),
+                    accent: const Color(0xFF92400E),
+                  ),
                   _WorkflowRow(
                     label: 'Cash',
                     value: formatCurrency(
                       _draft.pumpPayments[pump.id]?.cash ?? 0,
                     ),
                     accent: const Color(0xFFB45309),
-                  ),
-                  _WorkflowRow(
-                    label: 'Check',
-                    value: formatCurrency(
-                      _draft.pumpPayments[pump.id]?.check ?? 0,
-                    ),
-                    accent: const Color(0xFF6B7280),
-                  ),
-                  _WorkflowRow(
-                    label: 'UPI',
-                    value: formatCurrency(
-                      _draft.pumpPayments[pump.id]?.upi ?? 0,
-                    ),
-                    accent: const Color(0xFF7C3AED),
-                  ),
-                  _WorkflowRow(
-                    label: 'Credit',
-                    value: formatCurrency(
-                      _draft.pumpPayments[pump.id]?.credit ?? 0,
-                    ),
-                    accent: const Color(0xFFDC2626),
-                  ),
-                  _WorkflowRow(
-                    label: 'Testing',
-                    value: (_draft.pumpTesting[pump.id]?.enabled ?? false)
-                        ? 'Petrol ${formatLiters(_draft.pumpTesting[pump.id]?.petrol ?? 0)}, Diesel ${formatLiters(_draft.pumpTesting[pump.id]?.diesel ?? 0)} excluded'
-                        : 'Off',
-                    accent: const Color(0xFF7C3AED),
                   ),
                   const SizedBox(height: 10),
                   Align(

@@ -376,6 +376,86 @@ class FuelTypeModel {
   }
 }
 
+String _fuelPriceDateKeyForNow() {
+  final now = DateTime.now();
+  final month = now.month.toString().padLeft(2, '0');
+  final day = now.day.toString().padLeft(2, '0');
+  return '${now.year}-$month-$day';
+}
+
+String _normalizedFuelPriceDateKey(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) {
+    return '';
+  }
+  if (trimmed.length >= 10) {
+    final prefix = trimmed.substring(0, 10);
+    final matched = RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(prefix);
+    if (matched) {
+      return prefix;
+    }
+  }
+  final parsed = DateTime.tryParse(trimmed);
+  if (parsed == null) {
+    return '';
+  }
+  final month = parsed.month.toString().padLeft(2, '0');
+  final day = parsed.day.toString().padLeft(2, '0');
+  return '${parsed.year}-$month-$day';
+}
+
+int _compareFuelPricePeriods(
+  FuelPricePeriodModel left,
+  FuelPricePeriodModel right,
+) {
+  final leftFrom = _normalizedFuelPriceDateKey(left.effectiveFrom);
+  final rightFrom = _normalizedFuelPriceDateKey(right.effectiveFrom);
+  final fromCompare = leftFrom.compareTo(rightFrom);
+  if (fromCompare != 0) {
+    return fromCompare;
+  }
+  final leftTo = _normalizedFuelPriceDateKey(left.effectiveTo);
+  final rightTo = _normalizedFuelPriceDateKey(right.effectiveTo);
+  return leftTo.compareTo(rightTo);
+}
+
+bool _fuelPricePeriodAppliesOn(
+  FuelPricePeriodModel period,
+  String referenceDate,
+) {
+  final effectiveFrom = _normalizedFuelPriceDateKey(period.effectiveFrom);
+  if (effectiveFrom.isEmpty || effectiveFrom.compareTo(referenceDate) > 0) {
+    return false;
+  }
+  final effectiveTo = _normalizedFuelPriceDateKey(period.effectiveTo);
+  return effectiveTo.isEmpty || effectiveTo.compareTo(referenceDate) >= 0;
+}
+
+FuelPricePeriodModel? _resolveActiveFuelPricePeriod(
+  List<FuelPricePeriodModel> periods,
+) {
+  if (periods.isEmpty) {
+    return null;
+  }
+  final sorted = [...periods]..sort(_compareFuelPricePeriods);
+  final todayKey = _fuelPriceDateKeyForNow();
+  final applicable = sorted.where(
+    (period) => _fuelPricePeriodAppliesOn(period, todayKey),
+  );
+  if (applicable.isNotEmpty) {
+    return applicable.last;
+  }
+  final started = sorted.where(
+    (period) =>
+        _normalizedFuelPriceDateKey(period.effectiveFrom).compareTo(todayKey) <=
+        0,
+  );
+  if (started.isNotEmpty) {
+    return started.last;
+  }
+  return sorted.first;
+}
+
 class FuelPriceModel {
   const FuelPriceModel({
     required this.fuelTypeId,
@@ -398,15 +478,7 @@ class FuelPriceModel {
   final List<FuelPricePeriodModel> periods;
 
   FuelPricePeriodModel? get activePeriod {
-    if (periods.isEmpty) {
-      return null;
-    }
-    final openEnded =
-        periods.where((period) => period.effectiveTo.isEmpty).toList();
-    if (openEnded.isNotEmpty) {
-      return openEnded.last;
-    }
-    return periods.last;
+    return _resolveActiveFuelPricePeriod(periods);
   }
 
   factory FuelPriceModel.fromJson(Map<String, dynamic> json) {

@@ -67,7 +67,8 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
       _saving = true;
     });
     try {
-      final saved = await _inventoryService.savePrices(_draftPrices);
+      await _inventoryService.savePrices(_draftPrices);
+      final saved = await _inventoryService.fetchPrices();
       if (!mounted) {
         return;
       }
@@ -756,6 +757,37 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     return null;
   }
 
+  String? _validateAllPeriods() {
+    final normalized =
+        _periods
+            .map(
+              (period) => FuelPricePeriodModel(
+                effectiveFrom: period.effectiveFrom,
+                effectiveTo: period.effectiveTo,
+                costPrice:
+                    double.tryParse(period.costController.text.trim()) ?? 0,
+                sellingPrice:
+                    double.tryParse(period.sellingController.text.trim()) ?? 0,
+                updatedAt: period.updatedAt,
+                updatedBy: period.updatedBy,
+              ),
+            )
+            .toList()
+          ..sort(
+            (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
+          );
+
+    for (var index = 1; index < normalized.length; index += 1) {
+      final previous = normalized[index - 1];
+      final current = normalized[index];
+      if (previous.effectiveTo.isEmpty ||
+          current.effectiveFrom.compareTo(previous.effectiveTo) <= 0) {
+        return 'Price periods cannot overlap. Close the previous period before starting the next one.';
+      }
+    }
+    return null;
+  }
+
   void _addPeriod() {
     setState(() {
       _periods.add(
@@ -785,6 +817,13 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     if (formState == null || !formState.validate()) {
       return;
     }
+    final overlapError = _validateAllPeriods();
+    if (overlapError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(overlapError)));
+      return;
+    }
 
     final nextPeriods =
         _periods
@@ -806,9 +845,15 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
           );
 
     final current =
-        nextPeriods.where((period) => period.effectiveTo.isEmpty).isNotEmpty
-            ? nextPeriods.where((period) => period.effectiveTo.isEmpty).last
-            : nextPeriods.last;
+        FuelPriceModel(
+          fuelTypeId: widget.initialPrice.fuelTypeId,
+          costPrice: widget.initialPrice.costPrice,
+          sellingPrice: widget.initialPrice.sellingPrice,
+          updatedAt: widget.initialPrice.updatedAt,
+          updatedBy: widget.initialPrice.updatedBy,
+          periods: nextPeriods,
+        ).activePeriod ??
+        nextPeriods.last;
 
     Navigator.of(context).pop(
       widget.initialPrice.copyWith(
@@ -840,9 +885,14 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     final current =
         periods.isEmpty
             ? null
-            : periods.where((period) => period.effectiveTo.isEmpty).isNotEmpty
-            ? periods.where((period) => period.effectiveTo.isEmpty).first
-            : periods.first;
+            : FuelPriceModel(
+              fuelTypeId: widget.initialPrice.fuelTypeId,
+              costPrice: widget.initialPrice.costPrice,
+              sellingPrice: widget.initialPrice.sellingPrice,
+              updatedAt: widget.initialPrice.updatedAt,
+              updatedBy: widget.initialPrice.updatedBy,
+              periods: periods,
+            ).activePeriod;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),

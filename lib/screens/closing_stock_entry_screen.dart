@@ -131,9 +131,8 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     if (draft == null) {
       return;
     }
-    final remainingCredits = draft.creditEntries
-        .where((item) => item.pumpId != pumpId)
-        .toList();
+    final remainingCredits =
+        draft.creditEntries.where((item) => item.pumpId != pumpId).toList();
     setState(() {
       _draft = draft.copyWith(
         closingReadings: {
@@ -159,16 +158,17 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   String _buildEntryMismatchReason(DailyEntryDraft draft) {
     final pumps = _dashboard?.station.pumps ?? const <StationPumpModel>[];
-    final reasons = pumps
-        .map((pump) {
-          final reason = draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
-          if (reason.isEmpty) {
-            return null;
-          }
-          return '${formatPumpLabel(pump.id, pump.label)}: $reason';
-        })
-        .whereType<String>()
-        .toList();
+    final reasons =
+        pumps
+            .map((pump) {
+              final reason = draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
+              if (reason.isEmpty) {
+                return null;
+              }
+              return '${formatPumpLabel(pump.id, pump.label)}: $reason';
+            })
+            .whereType<String>()
+            .toList();
     if (reasons.isNotEmpty) {
       return reasons.join('\n');
     }
@@ -230,6 +230,21 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
 
+  String _twoTSoldLabel(PumpReadings opening, PumpReadings? closing) {
+    if (closing == null) {
+      return 'Not entered';
+    }
+    return formatLiters(closing.twoT - opening.twoT);
+  }
+
+  String _cashCollectedFromLabel(String pumpId, DailyEntryDraft? draft) {
+    final name =
+        draft?.pumpAttendants[pumpId]?.trim() ??
+        _dashboard?.selectedEntry?.pumpAttendants[pumpId]?.trim() ??
+        '';
+    return name.isEmpty ? 'Not entered' : name;
+  }
+
   PumpReadings _draftSoldTotals(
     SalesDashboardModel dashboard,
     DailyEntryDraft draft,
@@ -248,12 +263,14 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           const PumpTestingModel(petrol: 0, diesel: 0);
       final rawPetrol = closing.petrol - opening.petrol;
       final rawDiesel = closing.diesel - opening.diesel;
-      petrol += rawPetrol > 0
-          ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
-          : rawPetrol;
-      diesel += rawDiesel > 0
-          ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
-          : rawDiesel;
+      petrol +=
+          rawPetrol > 0
+              ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
+              : rawPetrol;
+      diesel +=
+          rawDiesel > 0
+              ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
+              : rawDiesel;
       if (_supportsTwoT(pump.id)) {
         twoT += closing.twoT - opening.twoT;
       }
@@ -302,9 +319,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
               upi: 0,
               credit: 0,
             ),
-        creditEntries: draft.creditEntries
-            .where((item) => item.pumpId == pump.id)
-            .toList(),
+        creditEntries:
+            draft.creditEntries
+                .where((item) => item.pumpId == pump.id)
+                .toList(),
         mismatchReason: draft.pumpMismatchReasons[pump.id] ?? '',
       ),
       suggestedCustomers: _suggestedCustomers,
@@ -336,10 +354,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return;
     }
 
-    final missingPumps = dashboard.station.pumps
-        .where((pump) => !draft.closingReadings.containsKey(pump.id))
-        .map((pump) => formatPumpLabel(pump.id, pump.label))
-        .toList();
+    final missingPumps =
+        dashboard.station.pumps
+            .where((pump) => !draft.closingReadings.containsKey(pump.id))
+            .map((pump) => formatPumpLabel(pump.id, pump.label))
+            .toList();
     if (missingPumps.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -351,10 +370,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return;
     }
 
-    final missingCollections = dashboard.station.pumps
-        .where((pump) => !draft.pumpPayments.containsKey(pump.id))
-        .map((pump) => formatPumpLabel(pump.id, pump.label))
-        .toList();
+    final missingCollections =
+        dashboard.station.pumps
+            .where((pump) => !draft.pumpPayments.containsKey(pump.id))
+            .map((pump) => formatPumpLabel(pump.id, pump.label))
+            .toList();
     if (missingCollections.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -451,99 +471,214 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
   Widget build(BuildContext context) {
     final dashboard = _dashboard;
     final draft = _draft;
-    final summary = dashboard != null && draft != null
-        ? _draftSoldTotals(dashboard, draft)
-        : const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
+    final summary =
+        dashboard != null && draft != null
+            ? _draftSoldTotals(dashboard, draft)
+            : const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
-      body: dashboard == null
-          ? Center(
-              child: _error == null
-                  ? const CircularProgressIndicator()
-                  : Text(_error!, textAlign: TextAlign.center),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+      body:
+          dashboard == null
+              ? Center(
+                child:
+                    _error == null
+                        ? const CircularProgressIndicator()
+                        : Text(_error!, textAlign: TextAlign.center),
+              )
+              : ListView(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Daily Opening Meter Readings',
+                          style: TextStyle(
+                            fontSize: 12,
+                            letterSpacing: 1.1,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF55606E),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${dashboard.station.name} - ${formatDateLabel(_selectedDate ?? dashboard.date)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF293340),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        OutlinedButton.icon(
+                          onPressed: _pickDate,
+                          icon: const Icon(Icons.calendar_month_rounded),
+                          label: Text(
+                            'Date: ${formatDateLabel(_selectedDate ?? dashboard.date)}',
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            _HeaderMetric(
+                              label: 'Revenue today',
+                              value: formatCurrency(dashboard.revenue),
+                            ),
+                            _HeaderMetric(
+                              label: 'Collected today',
+                              value: formatCurrency(dashboard.paymentTotal),
+                            ),
+                            _HeaderMetric(
+                              label: 'Entries today',
+                              value: '${dashboard.entriesCompleted}/1',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Add pump readings first. Payments and credit are updated from the overall summary section below.',
+                          style: TextStyle(
+                            color: Color(0xFF55606E),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Daily Opening Meter Readings',
-                        style: TextStyle(
-                          fontSize: 12,
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF55606E),
-                        ),
+                  const SizedBox(height: 16),
+                  ...dashboard.station.pumps.map((pump) {
+                    final opening =
+                        dashboard.openingReadings[pump.id] ??
+                        const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
+                    final existing = dashboard.selectedEntry;
+                    final sold =
+                        existing?.soldByPump[pump.id] ??
+                        const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
+                    final attendant =
+                        draft?.pumpAttendants[pump.id] ??
+                        existing?.pumpAttendants[pump.id] ??
+                        '';
+                    final closing =
+                        draft?.closingReadings[pump.id] ??
+                        existing?.closingReadings[pump.id];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${dashboard.station.name} - ${formatDateLabel(_selectedDate ?? dashboard.date)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF293340),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      OutlinedButton.icon(
-                        onPressed: _pickDate,
-                        icon: const Icon(Icons.calendar_month_rounded),
-                        label: Text(
-                          'Date: ${formatDateLabel(_selectedDate ?? dashboard.date)}',
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _HeaderMetric(
-                            label: 'Revenue today',
-                            value: formatCurrency(dashboard.revenue),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  formatPumpLabel(pump.id, pump.label),
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF293340),
+                                  ),
+                                ),
+                              ),
+                              if (attendant.isNotEmpty)
+                                Chip(label: Text(attendant)),
+                            ],
                           ),
-                          _HeaderMetric(
-                            label: 'Collected today',
-                            value: formatCurrency(dashboard.paymentTotal),
+                          const SizedBox(height: 12),
+                          _PumpRow(
+                            label: 'Opening petrol meter',
+                            value: formatLiters(opening.petrol),
+                            accent: const Color(0xFF1E5CBA),
                           ),
-                          _HeaderMetric(
-                            label: 'Entries today',
-                            value: '${dashboard.entriesCompleted}/1',
+                          _PumpRow(
+                            label: 'Opening diesel meter',
+                            value: formatLiters(opening.diesel),
+                            accent: const Color(0xFF006C5C),
+                          ),
+                          const SizedBox(height: 10),
+                          _PumpRow(
+                            label: 'Entered closing petrol meter',
+                            value:
+                                closing == null
+                                    ? 'Not entered'
+                                    : formatLiters(closing.petrol),
+                            accent: const Color(0xFF1E5CBA),
+                          ),
+                          _PumpRow(
+                            label: 'Entered closing diesel meter',
+                            value:
+                                closing == null
+                                    ? 'Not entered'
+                                    : formatLiters(closing.diesel),
+                            accent: const Color(0xFF006C5C),
+                          ),
+                          if (_supportsTwoT(pump.id))
+                            _PumpRow(
+                              label: 'Entered 2T oil sold',
+                              value: _twoTSoldLabel(opening, closing),
+                              accent: const Color(0xFFB45309),
+                            ),
+                          _PumpRow(
+                            label: 'Cash collected from',
+                            value: _cashCollectedFromLabel(pump.id, draft),
+                            accent: const Color(0xFF92400E),
+                          ),
+                          _PumpRow(
+                            label: 'Cash',
+                            value:
+                                draft?.pumpPayments.containsKey(pump.id) == true
+                                    ? formatCurrency(
+                                      draft?.pumpPayments[pump.id]?.cash ?? 0,
+                                    )
+                                    : 'Not entered',
+                            accent: const Color(0xFFB45309),
+                          ),
+                          if (existing != null) ...[
+                            const SizedBox(height: 10),
+                            _PumpRow(
+                              label: 'Petrol sold',
+                              value: formatLiters(sold.petrol),
+                              accent: const Color(0xFF1E5CBA),
+                            ),
+                            _PumpRow(
+                              label: 'Diesel sold',
+                              value: formatLiters(sold.diesel),
+                              accent: const Color(0xFF006C5C),
+                            ),
+                            if (_supportsTwoT(pump.id))
+                              _PumpRow(
+                                label: '2T oil sold',
+                                value: formatLiters(sold.twoT),
+                                accent: const Color(0xFFB45309),
+                              ),
+                          ],
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: OutlinedButton.icon(
+                              onPressed:
+                                  _submitting || dashboard.entryExists
+                                      ? null
+                                      : () => _editPump(pump),
+                              icon: const Icon(Icons.edit_rounded),
+                              label: const Text('Update Pump'),
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Add pump readings first. Payments and credit are updated from the overall summary section below.',
-                        style: TextStyle(color: Color(0xFF55606E), height: 1.4),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...dashboard.station.pumps.map((pump) {
-                  final opening =
-                      dashboard.openingReadings[pump.id] ??
-                      const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
-                  final existing = dashboard.selectedEntry;
-                  final sold =
-                      existing?.soldByPump[pump.id] ??
-                      const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
-                  final attendant =
-                      draft?.pumpAttendants[pump.id] ??
-                      existing?.pumpAttendants[pump.id] ??
-                      '';
-                  final closing =
-                      draft?.closingReadings[pump.id] ??
-                      existing?.closingReadings[pump.id];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 14),
+                    );
+                  }),
+                  Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -554,349 +689,196 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                       children: [
                         Row(
                           children: [
-                            Expanded(
+                            const Expanded(
                               child: Text(
-                                formatPumpLabel(pump.id, pump.label),
-                                style: const TextStyle(
-                                  fontSize: 20,
+                                'Overall Summary',
+                                style: TextStyle(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w800,
                                   color: Color(0xFF293340),
                                 ),
                               ),
                             ),
-                            if (attendant.isNotEmpty)
-                              Chip(label: Text(attendant)),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        _PumpRow(
-                          label: 'Opening petrol meter',
-                          value: formatLiters(opening.petrol),
-                          accent: const Color(0xFF1E5CBA),
-                        ),
-                        _PumpRow(
-                          label: 'Opening diesel meter',
-                          value: formatLiters(opening.diesel),
-                          accent: const Color(0xFF006C5C),
-                        ),
-                        if (_supportsTwoT(pump.id))
-                          _PumpRow(
-                            label: 'Opening 2T oil meter',
-                            value: formatLiters(opening.twoT),
-                            accent: const Color(0xFFB45309),
+                        const Text(
+                          'Cash, check, UPI, and pump credit come from the pump entries. Pump credit is calculated from the added credit rows for each pump. Old credit collection is handled from Credit Ledger.',
+                          style: TextStyle(
+                            color: Color(0xFF55606E),
+                            height: 1.4,
                           ),
-                        const SizedBox(height: 10),
-                        _PumpRow(
-                          label: 'Entered closing petrol meter',
-                          value: closing == null
-                              ? 'Not entered'
-                              : formatLiters(closing.petrol),
-                          accent: const Color(0xFF1E5CBA),
                         ),
-                        _PumpRow(
-                          label: 'Entered closing diesel meter',
-                          value: closing == null
-                              ? 'Not entered'
-                              : formatLiters(closing.diesel),
-                          accent: const Color(0xFF006C5C),
+                        const SizedBox(height: 12),
+                        _PaymentRow(
+                          label: 'Total petrol sold',
+                          value: formatLiters(summary.petrol),
                         ),
-                        if (_supportsTwoT(pump.id))
-                          _PumpRow(
-                            label: 'Entered closing 2T oil meter',
-                            value: closing == null
-                                ? 'Not entered'
-                                : formatLiters(closing.twoT),
-                            accent: const Color(0xFFB45309),
+                        _PaymentRow(
+                          label: 'Total diesel sold',
+                          value: formatLiters(summary.diesel),
+                        ),
+                        _PaymentRow(
+                          label: 'Total 2T oil sold',
+                          value: formatLiters(summary.twoT),
+                        ),
+                        _PaymentRow(
+                          label: 'Pump collection total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _pumpCollectionTotal(draft),
                           ),
-                        _PumpRow(
-                          label: 'Cash',
-                          value:
-                              draft?.pumpPayments.containsKey(pump.id) == true
-                              ? formatCurrency(
-                                  draft?.pumpPayments[pump.id]?.cash ?? 0,
-                                )
-                              : 'Not entered',
-                          accent: const Color(0xFFB45309),
                         ),
-                        _PumpRow(
-                          label: 'Check',
-                          value:
-                              draft?.pumpPayments.containsKey(pump.id) == true
-                              ? formatCurrency(
-                                  draft?.pumpPayments[pump.id]?.check ?? 0,
-                                )
-                              : 'Not entered',
-                          accent: const Color(0xFF6B7280),
-                        ),
-                        _PumpRow(
-                          label: 'UPI',
-                          value:
-                              draft?.pumpPayments.containsKey(pump.id) == true
-                              ? formatCurrency(
-                                  draft?.pumpPayments[pump.id]?.upi ?? 0,
-                                )
-                              : 'Not entered',
-                          accent: const Color(0xFF7C3AED),
-                        ),
-                        _PumpRow(
-                          label: 'Credit',
-                          value:
-                              draft?.pumpPayments.containsKey(pump.id) == true
-                              ? formatCurrency(
-                                  draft?.pumpPayments[pump.id]?.credit ?? 0,
-                                )
-                              : 'Not entered',
-                          accent: const Color(0xFFDC2626),
-                        ),
-                        _PumpRow(
-                          label: 'Total collection',
-                          value:
-                              draft?.pumpPayments.containsKey(pump.id) == true
-                              ? formatCurrency(
-                                  draft?.pumpPayments[pump.id]?.total ?? 0,
-                                )
-                              : 'Not entered',
-                          accent: const Color(0xFFB45309),
-                        ),
-                        _PumpRow(
-                          label: 'Testing',
-                          value: (draft?.pumpTesting[pump.id]?.enabled ?? false)
-                              ? 'Petrol ${formatLiters(draft?.pumpTesting[pump.id]?.petrol ?? 0)}, Diesel ${formatLiters(draft?.pumpTesting[pump.id]?.diesel ?? 0)} excluded'
-                              : 'Off',
-                          accent: const Color(0xFF7C3AED),
-                        ),
-                        if (existing != null) ...[
-                          const SizedBox(height: 10),
-                          _PumpRow(
-                            label: 'Petrol sold',
-                            value: formatLiters(sold.petrol),
-                            accent: const Color(0xFF1E5CBA),
+                        _PaymentRow(
+                          label: 'Cash total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _settlementModes(draft).cash,
                           ),
-                          _PumpRow(
-                            label: 'Diesel sold',
-                            value: formatLiters(sold.diesel),
-                            accent: const Color(0xFF006C5C),
+                        ),
+                        _PaymentRow(
+                          label: 'Check total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _settlementModes(draft).check,
                           ),
-                          if (_supportsTwoT(pump.id))
-                            _PumpRow(
-                              label: '2T oil sold',
-                              value: formatLiters(sold.twoT),
-                              accent: const Color(0xFFB45309),
-                            ),
-                        ],
-                        const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: OutlinedButton.icon(
-                            onPressed: _submitting || dashboard.entryExists
-                                ? null
-                                : () => _editPump(pump),
-                            icon: const Icon(Icons.edit_rounded),
-                            label: const Text('Update Pump'),
+                        ),
+                        _PaymentRow(
+                          label: 'UPI total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _settlementModes(draft).upi,
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Pump credit total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _pumpCreditTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'New credit issued',
+                          value: formatCurrency(
+                            draft == null ? 0 : _issuedCreditTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Old credit collected',
+                          value: formatCurrency(
+                            draft == null ? 0 : _collectionRecoveryTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Sales settlement total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _salesSettlementTotal(draft),
+                          ),
+                        ),
+                        _PaymentRow(
+                          label: 'Amount collected total',
+                          value: formatCurrency(
+                            draft == null ? 0 : _amountCollectedTotal(draft),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F9FF),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Credit customer details',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF293340),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                draft == null || _pumpCreditTotal(draft) <= 0
+                                    ? 'No pump credit added yet. Use Add Credit inside a pump to create customer-wise credit rows.'
+                                    : 'Pump credit is built from the customer-wise credit rows added inside each pump. Once approved, these names will be shown in Credit Ledger.',
+                                style: const TextStyle(
+                                  color: Color(0xFF55606E),
+                                  height: 1.4,
+                                ),
+                              ),
+                              if (draft != null &&
+                                  draft.creditEntries.isNotEmpty) ...[
+                                const SizedBox(height: 10),
+                                ...draft.creditEntries.map(
+                                  (item) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.person_outline_rounded,
+                                          size: 18,
+                                          color: Color(0xFF1E5CBA),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            item.name,
+                                            style: const TextStyle(
+                                              color: Color(0xFF293340),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        Text(
+                                          formatCurrency(item.amount),
+                                          style: const TextStyle(
+                                            color: Color(0xFF293340),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 10),
+                              const Text(
+                                'Use Update Pump on the relevant pump to add or change credit customer rows.',
+                                style: TextStyle(
+                                  color: Color(0xFF55606E),
+                                  height: 1.4,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                  );
-                }),
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Overall Summary',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF293340),
-                              ),
-                            ),
-                          ),
-                        ],
+                  if (_error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Color(0xFFB91C1C)),
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Cash, check, UPI, and pump credit come from the pump entries. Pump credit is calculated from the added credit rows for each pump. Old credit collection is handled from Credit Ledger.',
-                        style: TextStyle(color: Color(0xFF55606E), height: 1.4),
-                      ),
-                      const SizedBox(height: 12),
-                      _PaymentRow(
-                        label: 'Total petrol sold',
-                        value: formatLiters(summary.petrol),
-                      ),
-                      _PaymentRow(
-                        label: 'Total diesel sold',
-                        value: formatLiters(summary.diesel),
-                      ),
-                      _PaymentRow(
-                        label: 'Total 2T oil sold',
-                        value: formatLiters(summary.twoT),
-                      ),
-                      _PaymentRow(
-                        label: 'Pump collection total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _pumpCollectionTotal(draft),
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'Cash total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _settlementModes(draft).cash,
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'Check total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _settlementModes(draft).check,
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'UPI total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _settlementModes(draft).upi,
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'Pump credit total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _pumpCreditTotal(draft),
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'New credit issued',
-                        value: formatCurrency(
-                          draft == null ? 0 : _issuedCreditTotal(draft),
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'Old credit collected',
-                        value: formatCurrency(
-                          draft == null ? 0 : _collectionRecoveryTotal(draft),
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'Sales settlement total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _salesSettlementTotal(draft),
-                        ),
-                      ),
-                      _PaymentRow(
-                        label: 'Amount collected total',
-                        value: formatCurrency(
-                          draft == null ? 0 : _amountCollectedTotal(draft),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Credit customer details',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF293340),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              draft == null || _pumpCreditTotal(draft) <= 0
-                                  ? 'No pump credit added yet. Use Add Credit inside a pump to create customer-wise credit rows.'
-                                  : 'Pump credit is built from the customer-wise credit rows added inside each pump. Once approved, these names will be shown in Credit Ledger.',
-                              style: const TextStyle(
-                                color: Color(0xFF55606E),
-                                height: 1.4,
-                              ),
-                            ),
-                            if (draft != null &&
-                                draft.creditEntries.isNotEmpty) ...[
-                              const SizedBox(height: 10),
-                              ...draft.creditEntries.map(
-                                (item) => Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.person_outline_rounded,
-                                        size: 18,
-                                        color: Color(0xFF1E5CBA),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          item.name,
-                                          style: const TextStyle(
-                                            color: Color(0xFF293340),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                      Text(
-                                        formatCurrency(item.amount),
-                                        style: const TextStyle(
-                                          color: Color(0xFF293340),
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 10),
-                            const Text(
-                              'Use Update Pump on the relevant pump to add or change credit customer rows.',
-                              style: TextStyle(
-                                color: Color(0xFF55606E),
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(color: Color(0xFFB91C1C)),
+                    ),
+                  const SizedBox(height: 16),
+                  FilledButton.icon(
+                    onPressed: _submitting ? null : _submitEntry,
+                    icon: const Icon(Icons.edit_note_rounded),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      backgroundColor: const Color(0xFF1E5CBA),
+                    ),
+                    label: Text(
+                      _submitting
+                          ? 'Submitting...'
+                          : dashboard.entryExists
+                          ? 'Entry Already Submitted'
+                          : 'Submit Entry',
                     ),
                   ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: _submitting ? null : _submitEntry,
-                  icon: const Icon(Icons.edit_note_rounded),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 18),
-                    backgroundColor: const Color(0xFF1E5CBA),
-                  ),
-                  label: Text(
-                    _submitting
-                        ? 'Submitting...'
-                        : dashboard.entryExists
-                        ? 'Entry Already Submitted'
-                        : 'Submit Entry',
-                  ),
-                ),
-              ],
-            ),
+                ],
+              ),
     );
   }
 }

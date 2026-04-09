@@ -1788,7 +1788,9 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
           widget.initialDraft.closingReadings == null ||
                   widget.initialDraft.closingReadings!.twoT == 0
               ? ''
-              : widget.initialDraft.closingReadings!.twoT.toStringAsFixed(2),
+              : (widget.initialDraft.closingReadings!.twoT -
+                      widget.opening.twoT)
+                  .toStringAsFixed(2),
     );
     _cashController = TextEditingController(
       text:
@@ -1909,6 +1911,18 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     return double.tryParse(trimmed) ?? openingValue;
   }
 
+  double _parseDirectSaleAmount(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return 0;
+    }
+    return double.tryParse(trimmed) ?? 0;
+  }
+
+  double _twoTClosingFromDirectSales() {
+    return widget.opening.twoT + _parseDirectSaleAmount(_twoTController.text);
+  }
+
   double _parseTestingQuantity(String raw) {
     return parseTestingQuantity(raw);
   }
@@ -1954,6 +1968,28 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     }
     if (parsed < 0) {
       return '$label cannot be negative.';
+    }
+    return null;
+  }
+
+  String? _validateDirectSale(
+    String label,
+    String raw, {
+    required double limitValue,
+  }) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final parsed = double.tryParse(trimmed);
+    if (parsed == null) {
+      return 'Enter a valid number for $label.';
+    }
+    if (parsed < 0) {
+      return '$label cannot be negative.';
+    }
+    if (limitValue > 0 && parsed > limitValue) {
+      return '$label exceeds the daily limit of ${formatLiters(limitValue)}.';
     }
     return null;
   }
@@ -2005,13 +2041,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       _dieselController.text,
       openingValue: widget.opening.diesel,
     );
-    final twoTClosing =
-        _supportsTwoT
-            ? _parseClosingReadingForPreview(
-              _twoTController.text,
-              openingValue: widget.opening.twoT,
-            )
-            : 0;
+    final twoTClosing = _supportsTwoT ? _twoTClosingFromDirectSales() : 0;
     final petrolRaw = petrolClosing - widget.opening.petrol;
     final dieselRaw = dieselClosing - widget.opening.diesel;
     final twoTRaw = twoTClosing - widget.opening.twoT;
@@ -2155,7 +2185,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       _petrolController.text = widget.opening.petrol.toStringAsFixed(2);
       _dieselController.text = widget.opening.diesel.toStringAsFixed(2);
       if (_supportsTwoT) {
-        _twoTController.text = widget.opening.twoT.toStringAsFixed(2);
+        _twoTController.clear();
       }
       _cashController.clear();
       _checkController.clear();
@@ -2210,7 +2240,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
           closingReadings: PumpReadings(
             petrol: _parseAmount(_petrolController.text),
             diesel: _parseAmount(_dieselController.text),
-            twoT: _supportsTwoT ? _parseAmount(_twoTController.text) : 0,
+            twoT: _supportsTwoT ? _twoTClosingFromDirectSales() : 0,
           ),
           testing:
               _testingEnabled
@@ -2269,7 +2299,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'Enter the closing readings and collections for this pump.',
+                            'Enter petrol and diesel closing readings, then record 2T as direct sales.',
                             style: TextStyle(color: Color(0xFF55606E)),
                           ),
                         ],
@@ -2344,8 +2374,11 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                           ),
                           if (_supportsTwoT)
                             _PumpSummaryChip(
-                              label: '2T oil',
-                              value: formatLiters(widget.opening.twoT),
+                              label: '2T sold limit',
+                              value:
+                                  widget.limit.twoT == 0
+                                      ? 'Not set'
+                                      : formatLiters(widget.limit.twoT),
                               accent: const Color(0xFF7C3AED),
                             ),
                           _PumpSummaryChip(
@@ -2364,23 +2397,14 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                     : formatLiters(widget.limit.diesel),
                             accent: const Color(0xFFB45309),
                           ),
-                          if (_supportsTwoT)
-                            _PumpSummaryChip(
-                              label: 'Limit 2T',
-                              value:
-                                  widget.limit.twoT == 0
-                                      ? 'Not set'
-                                      : formatLiters(widget.limit.twoT),
-                              accent: const Color(0xFFB45309),
-                            ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
                     _PumpSectionCard(
-                      title: 'Meter readings',
+                      title: 'Meter readings and 2T sales',
                       subtitle:
-                          'Enter the final closing readings for this pump. Matching the opening value is allowed and means no sale.',
+                          'Enter final petrol and diesel closing readings. For 2T oil, enter direct liters sold.',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -2447,17 +2471,18 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                   ),
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                labelText: '2T oil closing meter reading',
+                                labelText: '2T oil sold',
                                 helperText:
-                                    "Opening ${formatLiters(widget.opening.twoT)}${widget.limit.twoT > 0 ? ' | Limit ${formatLiters(widget.limit.twoT)}' : ''}",
+                                    widget.limit.twoT > 0
+                                        ? 'Direct sale entry | Limit ${formatLiters(widget.limit.twoT)}'
+                                        : 'Direct sale entry. No meter reading required.',
                                 filled: true,
                                 fillColor: Colors.white,
                               ),
                               validator:
-                                  (value) => _validateRequiredReading(
-                                    '2T oil closing meter reading',
+                                  (value) => _validateDirectSale(
+                                    '2T oil sold',
                                     value ?? '',
-                                    openingValue: widget.opening.twoT,
                                     limitValue: widget.limit.twoT,
                                   ),
                             ),
