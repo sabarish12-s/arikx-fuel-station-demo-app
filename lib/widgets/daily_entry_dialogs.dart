@@ -2094,6 +2094,14 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     return widget.priceSnapshot[fuelKey]?['sellingPrice'] ?? 0;
   }
 
+  String _sellingPriceLabel(String fuelKey) {
+    final price = _sellingPriceFor(fuelKey);
+    if (price <= 0) {
+      return 'Not set';
+    }
+    return '${formatCurrency(price)}/L';
+  }
+
   double get _actualSalesValue {
     final sold = _soldLiters;
     return double.parse(
@@ -2377,48 +2385,29 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _PumpSectionCard(
-                      title: 'Opening readings',
+                      title: 'Fuel prices',
                       subtitle:
-                          'Reference snapshot for this pump before closing values are entered.',
+                          'Current selling prices used for this pump entry.',
                       child: Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
                           _PumpSummaryChip(
                             label: 'Petrol',
-                            value: formatLiters(widget.opening.petrol),
+                            value: _sellingPriceLabel('petrol'),
                             accent: const Color(0xFF1E5CBA),
                           ),
                           _PumpSummaryChip(
                             label: 'Diesel',
-                            value: formatLiters(widget.opening.diesel),
+                            value: _sellingPriceLabel('diesel'),
                             accent: const Color(0xFF0F766E),
                           ),
                           if (_supportsTwoT)
                             _PumpSummaryChip(
-                              label: '2T sold limit',
-                              value:
-                                  widget.limit.twoT == 0
-                                      ? 'Not set'
-                                      : formatLiters(widget.limit.twoT),
+                              label: '2T Oil',
+                              value: _sellingPriceLabel('two_t_oil'),
                               accent: const Color(0xFF7C3AED),
                             ),
-                          _PumpSummaryChip(
-                            label: 'Limit petrol',
-                            value:
-                                widget.limit.petrol == 0
-                                    ? 'Not set'
-                                    : formatLiters(widget.limit.petrol),
-                            accent: const Color(0xFFB45309),
-                          ),
-                          _PumpSummaryChip(
-                            label: 'Limit diesel',
-                            value:
-                                widget.limit.diesel == 0
-                                    ? 'Not set'
-                                    : formatLiters(widget.limit.diesel),
-                            accent: const Color(0xFFB45309),
-                          ),
                         ],
                       ),
                     ),
