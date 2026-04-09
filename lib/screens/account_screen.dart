@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_logo.dart';
+import 'fuel_price_settings_screen.dart';
 import 'login_screen.dart';
 
 class AccountScreen extends StatelessWidget {
@@ -33,6 +34,10 @@ class AccountScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canEditFuelPrices =
+        user.role == 'sales' ||
+        user.role == 'admin' ||
+        user.role == 'superadmin';
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
@@ -62,6 +67,22 @@ class AccountScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed:
+              canEditFuelPrices
+                  ? () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder:
+                            (_) => const FuelPriceSettingsScreen(canEdit: true),
+                      ),
+                    );
+                  }
+                  : null,
+          icon: const Icon(Icons.local_gas_station_rounded),
+          label: const Text('Fuel Prices'),
+        ),
+        const SizedBox(height: 12),
         FilledButton.icon(
           onPressed: () async {
             final shouldLogout = await _confirmLogout(context);

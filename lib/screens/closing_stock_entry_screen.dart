@@ -665,13 +665,28 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                           const SizedBox(height: 10),
                           Align(
                             alignment: Alignment.centerRight,
-                            child: OutlinedButton.icon(
-                              onPressed:
-                                  _submitting || dashboard.entryExists
-                                      ? null
-                                      : () => _editPump(pump),
-                              icon: const Icon(Icons.edit_rounded),
-                              label: const Text('Update Pump'),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              alignment: WrapAlignment.end,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      _submitting || dashboard.entryExists
+                                          ? null
+                                          : () => _editPump(pump),
+                                  icon: const Icon(Icons.payments_outlined),
+                                  label: const Text('Cash Collection'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed:
+                                      _submitting || dashboard.entryExists
+                                          ? null
+                                          : () => _editPump(pump),
+                                  icon: const Icon(Icons.edit_rounded),
+                                  label: const Text('Update Pump'),
+                                ),
+                              ],
                             ),
                           ),
                         ],
