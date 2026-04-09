@@ -176,7 +176,7 @@ class _InventoryPlanningSettingsScreenState
         }
         if (snapshot.hasError) {
           return ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
           );
         }
@@ -188,7 +188,7 @@ class _InventoryPlanningSettingsScreenState
         return RefreshIndicator(
           onRefresh: _reload,
           child: ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               if (widget.embedded)
                 Padding(
@@ -203,7 +203,7 @@ class _InventoryPlanningSettingsScreenState
                         child: Text(
                           'Tank Stock & Reorder Planning',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF293340),
                           ),
@@ -227,9 +227,9 @@ class _InventoryPlanningSettingsScreenState
                   ),
                 ),
               Container(
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(20),
                   gradient: const LinearGradient(
                     colors: [Color(0xFF153A8A), Color(0xFF1E5CBA)],
                     begin: Alignment.topLeft,
@@ -275,12 +275,12 @@ class _InventoryPlanningSettingsScreenState
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,7 +291,7 @@ class _InventoryPlanningSettingsScreenState
                           child: Text(
                             'Tank Stock Baseline',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF293340),
                             ),
@@ -306,7 +306,7 @@ class _InventoryPlanningSettingsScreenState
                       'This stock is separate from pump opening meter readings. Deliveries add to this baseline and saved sales reduce inventory automatically.',
                       style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     _PlanningNumberField(
                       label: 'Petrol stock liters',
                       controller: _petrolController,
@@ -327,12 +327,12 @@ class _InventoryPlanningSettingsScreenState
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,7 +340,7 @@ class _InventoryPlanningSettingsScreenState
                     const Text(
                       'Alert Timing',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
@@ -350,7 +350,7 @@ class _InventoryPlanningSettingsScreenState
                       'These settings are shared for petrol, diesel, and 2T oil reorder prediction.',
                       style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     _PlanningNumberField(
                       label: 'Delivery lead days after ordering',
                       controller: _deliveryLeadController,
@@ -368,7 +368,7 @@ class _InventoryPlanningSettingsScreenState
                 ),
               ),
               if (widget.canEdit) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed:
                       _isEditing && !_saving ? () => _save(station) : null,

@@ -111,7 +111,7 @@ class _FlagThresholdSettingsScreenState
         }
         if (snapshot.hasError) {
           return ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
           );
         }
@@ -120,7 +120,7 @@ class _FlagThresholdSettingsScreenState
         _seedController(station);
 
         return ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             if (widget.embedded && widget.onBack != null)
               TextButton.icon(
@@ -130,9 +130,9 @@ class _FlagThresholdSettingsScreenState
               ),
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.all(22),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(20),
                 gradient: const LinearGradient(
                   colors: [Color(0xFF153A8A), Color(0xFF1E5CBA)],
                   begin: Alignment.topLeft,
@@ -168,12 +168,12 @@ class _FlagThresholdSettingsScreenState
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +203,7 @@ class _FlagThresholdSettingsScreenState
                     'Set the minimum difference (in ₹) between collected payment and computed revenue that triggers a flag.',
                     style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   if (_isEditing) ...[
                     TextFormField(
                       controller: _thresholdController,
@@ -270,12 +270,12 @@ class _FlagThresholdSettingsScreenState
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -124,7 +124,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
         }
         final fuelTypes = snapshot.data ?? [];
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           itemCount: fuelTypes.length + (widget.embedded ? 1 : 0),
           itemBuilder: (context, index) {
             if (widget.embedded && index == 0) {
@@ -140,7 +140,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                       child: Text(
                         'Fuel Types',
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF293340),
                         ),
@@ -160,10 +160,10 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
             final fuelType = fuelTypes[widget.embedded ? index - 1 : index];
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,7 +172,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                     fuelType.name,
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 20,
+                      fontSize: 18,
                     ),
                   ),
                   const SizedBox(height: 6),

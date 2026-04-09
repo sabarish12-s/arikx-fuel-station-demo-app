@@ -62,10 +62,10 @@ class PendingApprovalScreen extends StatelessWidget {
               ),
               const SizedBox(height: 40),
               Container(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x10000000),
@@ -91,7 +91,7 @@ class PendingApprovalScreen extends StatelessWidget {
                             : const Color(0xFF695781),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     Text(
                       user?.status == 'rejected'
                           ? 'Access Request Rejected'
@@ -131,7 +131,7 @@ class PendingApprovalScreen extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEEF4FF),
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -194,7 +194,7 @@ class PendingApprovalScreen extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF1E5CBA),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
               ),

@@ -113,7 +113,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       'Choose the month you want to view.',
                       style: TextStyle(color: Color(0xFF55606E)),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 16),
                     DropdownButtonFormField<int>(
                       initialValue: selectedMonth,
                       decoration: const InputDecoration(
@@ -528,7 +528,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             }
             if (snapshot.hasError) {
               return ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   Center(
                     child: Text(
@@ -555,12 +555,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             );
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 30),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(22),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(20),
                     gradient: const LinearGradient(
                       colors: [Color(0xFF1E5CBA), Color(0xFF0F3D91)],
                       begin: Alignment.topLeft,
@@ -609,8 +609,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       ),
                       const SizedBox(height: 16),
                       Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           _DashboardChip(
                             label: 'Filtered',
@@ -633,18 +633,18 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final stacked = constraints.maxWidth < 640;
                       final quickEntryPanel = Container(
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8F9FF),
                           borderRadius: BorderRadius.circular(20),
@@ -690,7 +690,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         ),
                       );
                       final filterPanel = Container(
-                        padding: const EdgeInsets.all(18),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8F9FF),
                           borderRadius: BorderRadius.circular(20),
@@ -723,16 +723,16 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                                 height: 1.35,
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             Text(
                               selectedMonthLabel,
                               style: const TextStyle(
-                                fontSize: 24,
+                                fontSize: 22,
                                 fontWeight: FontWeight.w900,
                                 color: Color(0xFF293340),
                               ),
                             ),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 12),
                             FilledButton.icon(
                               onPressed: _openMonthFilterDialog,
                               icon: const Icon(Icons.calendar_month_rounded),
@@ -761,13 +761,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 if (entries.isEmpty)
                   Container(
-                    padding: const EdgeInsets.all(28),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Center(
                       child: Text('No entries found for this period.'),
@@ -781,10 +781,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             : entry.submittedBy.trim();
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(20),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x120F172A),
@@ -803,7 +803,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                                   formatDateLabel(entry.date),
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 20,
+                                    fontSize: 18,
                                   ),
                                 ),
                               ),
@@ -821,10 +821,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 12),
                           Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               _EntryMetricChip(
                                 label: 'Petrol',
@@ -858,12 +858,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             (name) => name.isNotEmpty,
                           ))
                             Container(
-                              margin: const EdgeInsets.only(top: 14),
+                              margin: const EdgeInsets.only(top: 12),
                               width: double.infinity,
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8F9FF),
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -894,12 +894,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             ),
                           if (entry.varianceNote.isNotEmpty)
                             Container(
-                              margin: const EdgeInsets.only(top: 14),
+                              margin: const EdgeInsets.only(top: 12),
                               width: double.infinity,
-                              padding: const EdgeInsets.all(14),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
                                   color: const Color(
                                     0xFFB91C1C,
@@ -917,8 +917,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             ),
                           const SizedBox(height: 16),
                           Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
                               OutlinedButton.icon(
                                 onPressed:
@@ -986,11 +986,11 @@ class _DashboardChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 116,
+      constraints: const BoxConstraints(minWidth: 80),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(

@@ -74,10 +74,10 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                     final entry = entries[index];
                     return Container(
                       margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,16 +87,17 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                               Expanded(
                                 child: Text(
                                   formatDateLabel(entry.date),
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 17,
+                                    fontSize: 18,
                                   ),
                                 ),
                               ),
                               Chip(label: Text(entry.status)),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           Text(
                             'Petrol ${formatLiters(entry.totals.sold.petrol)} - Diesel ${formatLiters(entry.totals.sold.diesel)} - 2T Oil ${formatLiters(entry.totals.sold.twoT)}',
                           ),

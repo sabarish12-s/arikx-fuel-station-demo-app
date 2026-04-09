@@ -271,10 +271,10 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
             children: [
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,7 +282,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                     const Text(
                       'Credit Filters',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
@@ -351,7 +351,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -360,14 +360,14 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                       value: '${summary.openCustomerCount}',
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: _CreditMetricCard(
                       label: 'Open balance',
                       value: formatCurrency(summary.openBalanceTotal),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: _CreditMetricCard(
                       label: 'Collected',
@@ -376,13 +376,13 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               if (customers.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(child: Text('No credit customers found.')),
                 )
@@ -392,10 +392,10 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.all(18),
+                      contentPadding: const EdgeInsets.all(16),
                       title: Text(
                         item.customer.name,
                         style: const TextStyle(fontWeight: FontWeight.w800),
@@ -614,10 +614,10 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,7 +628,7 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
                           child: Text(
                             detail.customer.name,
                             style: const TextStyle(
-                              fontSize: 24,
+                              fontSize: 22,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFF293340),
                             ),
@@ -639,7 +639,7 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
                     ),
                     const SizedBox(height: 12),
                     Wrap(
-                      spacing: 12,
+                      spacing: 8,
                       runSpacing: 8,
                       children: [
                         Text('Balance ${formatCurrency(detail.currentBalance)}'),
@@ -660,14 +660,14 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               ...detail.transactions.map(
                 (item) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -730,7 +730,7 @@ class _CreditMetricCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

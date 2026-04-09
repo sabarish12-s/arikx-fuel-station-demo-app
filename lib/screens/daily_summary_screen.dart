@@ -40,13 +40,13 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
         final entry = data.entries.isEmpty ? null : data.entries.first;
 
         return ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -54,11 +54,11 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                   Text(
                     formatDateLabel(data.date),
                     style: const TextStyle(
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   Text('Revenue ${formatCurrency(data.revenue)}'),
                   Text('Collected ${formatCurrency(data.paymentTotal)}'),
                   Text('Profit ${formatCurrency(data.profit)}'),
@@ -70,10 +70,10 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
             ),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: entry == null
                   ? const Text('No daily entry saved for this date.')
@@ -83,7 +83,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                         const Text(
                           'Payment Breakdown',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
                         ),

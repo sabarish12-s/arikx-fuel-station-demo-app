@@ -52,7 +52,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           }
           if (snapshot.hasError) {
             return ListView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 const SizedBox(height: 80),
                 Text(
@@ -70,7 +70,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   .length;
           final pendingEntries = data.todaysEntries.length - approvedEntries;
           return ListView(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               Text(
                 data.station.name,
@@ -83,9 +83,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               ),
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(20),
                   gradient: const LinearGradient(
                     colors: [Color(0xFF6799FB), Color(0xFF1E5CBA)],
                     begin: Alignment.topLeft,
@@ -113,7 +113,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
@@ -134,7 +134,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               _ActionCard(
                 title: 'Enter Daily Sales',
                 icon: Icons.propane_tank_outlined,
@@ -155,23 +155,23 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 iconBg: const Color(0xFFE5CEFF),
                 onTap: widget.onOpenDailySummary,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               const Text(
                 'Today\'s Entry Status',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF293340),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               ...data.todaysEntries.map(
                 (entry) => Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     children: [
@@ -284,9 +284,9 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -301,7 +301,7 @@ class _ActionCard extends StatelessWidget {
                 ),
                 child: Icon(icon, color: const Color(0xFF293340)),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -146,13 +146,13 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
         title: const Text('Delivery Receipt'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,10 +170,10 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                   'Record the normal tanker arrival with petrol and diesel together. Record 2T oil in a separate receipt when it arrives independently.',
                   style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 InkWell(
                   onTap: _saving ? null : _pickDate,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(20),
                   child: Ink(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -181,7 +181,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8F9FF),
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
@@ -221,7 +221,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8F9FF),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,7 +254,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide.none,
                           ),
                         ),
@@ -274,7 +274,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide.none,
                           ),
                         ),
@@ -288,7 +288,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8F9FF),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +321,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                           filled: true,
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                             borderSide: BorderSide.none,
                           ),
                         ),
@@ -339,12 +339,12 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                     filled: true,
                     fillColor: const Color(0xFFF8F9FF),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 FilledButton.icon(
                   onPressed: _saving ? null : _save,
                   icon:

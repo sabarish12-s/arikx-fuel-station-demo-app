@@ -418,13 +418,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(title: Text(widget.title)),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,11 +452,11 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             final attendant = _draft.pumpAttendants[pump.id] ?? '';
             final closing = _draft.closingReadings[pump.id];
             return Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.all(18),
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +467,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                         child: Text(
                           formatPumpLabel(pump.id, pump.label),
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF293340),
                           ),
@@ -521,7 +521,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                     ),
                     accent: const Color(0xFFB45309),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Wrap(
@@ -547,10 +547,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             );
           }),
           Container(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,10 +598,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                 const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8F9FF),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

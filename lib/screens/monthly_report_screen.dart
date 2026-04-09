@@ -26,6 +26,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    _fromDate = today.subtract(const Duration(days: 29));
+    _toDate = today;
     _future = _fetchReport();
   }
 
@@ -384,11 +388,121 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
 
   void _clearRange() {
+    _applyLast30Days();
+  }
+
+  void _applyLast30Days() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     setState(() {
-      _fromDate = null;
-      _toDate = null;
+      _fromDate = today.subtract(const Duration(days: 29));
+      _toDate = today;
       _future = _fetchReport();
     });
+  }
+
+  void _applyThisMonth() {
+    final now = DateTime.now();
+    setState(() {
+      _fromDate = DateTime(now.year, now.month, 1);
+      _toDate = DateTime(now.year, now.month + 1, 0);
+      _future = _fetchReport();
+    });
+  }
+
+  void _applyLastMonth() {
+    final now = DateTime.now();
+    setState(() {
+      _fromDate = DateTime(now.year, now.month - 1, 1);
+      _toDate = DateTime(now.year, now.month, 0);
+      _future = _fetchReport();
+    });
+  }
+
+  bool get _isLast30DaysPreset {
+    if (_fromDate == null || _toDate == null) return false;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final from = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+    final to = DateTime(_toDate!.year, _toDate!.month, _toDate!.day);
+    return from == today.subtract(const Duration(days: 29)) && to == today;
+  }
+
+  bool get _isThisMonthPreset {
+    if (_fromDate == null || _toDate == null) return false;
+    final now = DateTime.now();
+    final from = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+    final to = DateTime(_toDate!.year, _toDate!.month, _toDate!.day);
+    return from == DateTime(now.year, now.month, 1) &&
+        to == DateTime(now.year, now.month + 1, 0);
+  }
+
+  bool get _isLastMonthPreset {
+    if (_fromDate == null || _toDate == null) return false;
+    final now = DateTime.now();
+    final from = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+    final to = DateTime(_toDate!.year, _toDate!.month, _toDate!.day);
+    return from == DateTime(now.year, now.month - 1, 1) &&
+        to == DateTime(now.year, now.month, 0);
+  }
+
+  Widget _buildPresetChip(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1E5CBA) : const Color(0xFFF0F4FF),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : const Color(0xFF1E5CBA),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTile(String label, DateTime? date, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F9FF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFDDE3F0)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF55606E),
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              date == null ? '—' : _formatDisplayDate(date),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF293340),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -403,51 +517,44 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Report Filters',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF293340),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      OutlinedButton.icon(
-                        onPressed: _pickMonth,
-                        icon: const Icon(Icons.calendar_month_rounded),
-                        label: Text('Month: $_month'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: _pickFromDate,
-                        icon: const Icon(Icons.date_range_rounded),
-                        label: Text(
-                          _fromDate == null
-                              ? 'From date'
-                              : 'From: ${formatDateLabel(_toApiDate(_fromDate!))}',
+                      const Text(
+                        'Report Filters',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF293340),
                         ),
                       ),
-                      OutlinedButton.icon(
-                        onPressed: _pickToDate,
-                        icon: const Icon(Icons.event_rounded),
-                        label: Text(
-                          _toDate == null
-                              ? 'To date'
-                              : 'To: ${formatDateLabel(_toApiDate(_toDate!))}',
-                        ),
-                      ),
-                      if (_fromDate != null || _toDate != null)
-                        TextButton(
-                          onPressed: _clearRange,
-                          child: const Text('Clear Range'),
-                        ),
                       IconButton(
                         onPressed: _reload,
                         icon: const Icon(Icons.refresh_rounded),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildPresetChip('Last 30 days', _isLast30DaysPreset, _applyLast30Days),
+                        const SizedBox(width: 8),
+                        _buildPresetChip('This Month', _isThisMonthPreset, _applyThisMonth),
+                        const SizedBox(width: 8),
+                        _buildPresetChip('Last Month', _isLastMonthPreset, _applyLastMonth),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(child: _buildDateTile('FROM', _fromDate, _pickFromDate)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildDateTile('TO', _toDate, _pickToDate)),
                     ],
                   ),
                 ],

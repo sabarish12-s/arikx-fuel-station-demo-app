@@ -168,7 +168,7 @@ class _OpeningStockSettingsScreenState
         return RefreshIndicator(
           onRefresh: _reload,
           child: ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               if (widget.embedded)
                 Padding(
@@ -183,7 +183,7 @@ class _OpeningStockSettingsScreenState
                         child: Text(
                           'Pump Opening Readings',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF293340),
                           ),
@@ -207,10 +207,10 @@ class _OpeningStockSettingsScreenState
                   ),
                 ),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +221,7 @@ class _OpeningStockSettingsScreenState
                           child: Text(
                             'Current Pump Opening Readings',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF293340),
                             ),
@@ -270,11 +270,11 @@ class _OpeningStockSettingsScreenState
               const SizedBox(height: 16),
               ...station.pumps.map((pump) {
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

@@ -147,10 +147,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     ];
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,7 +158,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           const Text(
             'Owner View Range',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
               color: Color(0xFF293340),
             ),
@@ -171,10 +171,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               ...chips.map(
                 (chip) => ChoiceChip(
@@ -199,9 +199,9 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
   Widget _buildHeroCard(ManagementDashboardModel data) {
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(20),
         gradient: const LinearGradient(
           colors: [Color(0xFF153A8A), Color(0xFF1E5CBA)],
           begin: Alignment.topLeft,
@@ -234,10 +234,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             '${data.range.label}  |  Approved entries only',
             style: const TextStyle(color: Colors.white70),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 18,
-            runSpacing: 14,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _HeroMetric(
                 label: 'Collected Amount',
@@ -266,10 +266,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _StatusPill(
                 label: 'Variance Entries',
@@ -377,7 +377,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 },
                 performanceItems: pumpPerformanceItems,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               _ContributionPieCard(
                 title: 'Staff Contribution',
                 slices: staffSlices,
@@ -409,7 +409,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 performanceItems: pumpPerformanceItems,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 10),
             Expanded(
               child: _ContributionPieCard(
                 title: 'Staff Contribution',
@@ -433,10 +433,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     final trend = data.trend;
     if (trend.isEmpty) {
       return Container(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(20),
         ),
         child: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -444,7 +444,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             Text(
               'Fuel Sales Trend',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF293340),
               ),
@@ -647,10 +647,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -660,7 +660,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               const Text(
                 'Daily Trend',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF293340),
                 ),
@@ -691,7 +691,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             height: 200,
             child: LineChart(buildChartData(compact: true)),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           legend(),
         ],
       ),
@@ -710,7 +710,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           }
           if (snapshot.hasError) {
             return ListView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 Text('Failed to load dashboard\n${_errorText(snapshot.error)}'),
               ],
@@ -720,7 +720,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           final data = snapshot.data!;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               Text(
                 data.station.name,
@@ -791,30 +791,27 @@ class _HeroMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 150,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -881,10 +878,10 @@ class _ContributionPieCard extends StatelessWidget {
       (sum, item) => sum + item.amount,
     );
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -892,7 +889,7 @@ class _ContributionPieCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w800,
               color: Color(0xFF293340),
             ),
@@ -1049,7 +1046,7 @@ class _PerformanceTile extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FF),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1130,7 +1127,7 @@ class _MetricTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1201,7 +1198,7 @@ class _TrendChartPage extends StatelessWidget {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
