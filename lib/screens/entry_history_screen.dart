@@ -14,23 +14,21 @@ class EntryHistoryScreen extends StatefulWidget {
 
 class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   final SalesService _salesService = SalesService();
-  final TextEditingController _monthController = TextEditingController(
-    text: currentMonthKey(),
-  );
   late Future<List<ShiftEntryModel>> _future;
-  String _month = currentMonthKey();
-  DateTime? _fromDate;
-  DateTime? _toDate;
+  late DateTime _fromDate;
+  late DateTime _toDate;
 
   @override
   void initState() {
     super.initState();
+    final today = DateTime.now();
+    _toDate = DateTime(today.year, today.month, today.day);
+    _fromDate = _toDate.subtract(const Duration(days: 29));
     _future = _loadEntries();
   }
 
   @override
   void dispose() {
-    _monthController.dispose();
     super.dispose();
   }
 
@@ -42,9 +40,8 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
 
   Future<List<ShiftEntryModel>> _loadEntries() {
     return _salesService.fetchEntries(
-      month: _month.trim(),
-      fromDate: _fromDate == null ? null : _toApiDate(_fromDate!),
-      toDate: _toDate == null ? null : _toApiDate(_toDate!),
+      fromDate: _toApiDate(_fromDate),
+      toDate: _toApiDate(_toDate),
       summary: true,
     );
   }
@@ -52,16 +49,12 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   void _reload() {
     FocusScope.of(context).unfocus();
     setState(() {
-      _month = _monthController.text.trim();
       _future = _loadEntries();
     });
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate =
-        isFrom
-            ? (_fromDate ?? _toDate ?? DateTime.now())
-            : (_toDate ?? _fromDate ?? DateTime.now());
+    final initialDate = isFrom ? _fromDate : _toDate;
     final selected = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -84,9 +77,10 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   }
 
   void _clearDateRange() {
+    final today = DateTime.now();
     setState(() {
-      _fromDate = null;
-      _toDate = null;
+      _toDate = DateTime(today.year, today.month, today.day);
+      _fromDate = _toDate.subtract(const Duration(days: 29));
       _future = _loadEntries();
     });
   }
@@ -191,7 +185,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Use the filters here to narrow entries by month and date range.',
+            'Use the date filters here to narrow entries. The default view shows the last 30 days.',
             style: TextStyle(
               color: Colors.white70,
               height: 1.4,
@@ -199,37 +193,20 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          TextField(
-            controller: _monthController,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
-            decoration: InputDecoration(
-              labelText: 'Month (YYYY-MM)',
-              labelStyle: const TextStyle(color: Colors.white70),
-              filled: true,
-              fillColor: Colors.white.withValues(alpha: 0.10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: Colors.white.withValues(alpha: 0.18),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Colors.white70),
-              ),
-              suffixIcon: IconButton(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+            child: Text(
+              'Default range: Last 30 days',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
               ),
             ),
-            onSubmitted: (_) => _reload(),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -239,35 +216,26 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
               OutlinedButton.icon(
                 onPressed: () => _pickDate(isFrom: true),
                 icon: const Icon(Icons.event_available_rounded),
-                label: Text(
-                  _fromDate == null
-                      ? 'From date'
-                      : 'From: ${formatDateLabel(_toApiDate(_fromDate!))}',
-                ),
+                label: Text('From: ${formatDateLabel(_toApiDate(_fromDate))}'),
                 style: _historyFilterButtonStyle(),
               ),
               OutlinedButton.icon(
                 onPressed: () => _pickDate(isFrom: false),
                 icon: const Icon(Icons.event_rounded),
-                label: Text(
-                  _toDate == null
-                      ? 'To date'
-                      : 'To: ${formatDateLabel(_toApiDate(_toDate!))}',
-                ),
+                label: Text('To: ${formatDateLabel(_toApiDate(_toDate))}'),
                 style: _historyFilterButtonStyle(),
               ),
-              if (_fromDate != null || _toDate != null)
-                TextButton(
-                  onPressed: _clearDateRange,
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.08),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+              TextButton(
+                onPressed: _clearDateRange,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white.withValues(alpha: 0.08),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Text('Clear dates'),
                 ),
+                child: const Text('Last 30 days'),
+              ),
             ],
           ),
         ],
