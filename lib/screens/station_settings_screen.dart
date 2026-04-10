@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class StationSettingsScreen extends StatefulWidget {
   const StationSettingsScreen({
@@ -57,9 +58,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
   }
 
   void _seedControllers(StationConfigModel station) {
-    if (_seeded) {
-      return;
-    }
+    if (_seeded) return;
     _nameController.text = station.name;
     _codeController.text = station.code;
     _cityController.text = station.city;
@@ -152,12 +151,10 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     );
 
     await _inventoryService.saveStationConfig(updated);
-    if (!mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Station profile saved.')));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Station profile saved.')),
+    );
     setState(() {
       _isEditing = false;
       _seeded = false;
@@ -171,12 +168,18 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const ColoredBox(
+            color: kClayBg,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              snapshot.error.toString().replaceFirst('Exception: ', ''),
+          return ColoredBox(
+            color: kClayBg,
+            child: Center(
+              child: Text(
+                snapshot.error.toString().replaceFirst('Exception: ', ''),
+              ),
             ),
           );
         }
@@ -185,287 +188,218 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
 
         return RefreshIndicator(
           onRefresh: _reload,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
-              if (widget.embedded)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
+          child: ColoredBox(
+            color: kClayBg,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                if (widget.embedded)
+                  ClaySubHeader(
+                    title: 'Station Profile & Pumps',
+                    onBack: widget.onBack,
+                    trailing: widget.canEdit
+                        ? _EditTogglePill(
+                            isEditing: _isEditing,
+                            onTap: () {
+                              setState(() {
+                                if (_isEditing) {
+                                  _isEditing = false;
+                                  _resetFromStation(station);
+                                } else {
+                                  _isEditing = true;
+                                }
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+
+                // ── Station overview ───────────────────────────────
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        onPressed: widget.onBack,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Station Profile & Pumps',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF293340),
-                          ),
+                      const Text(
+                        'Station Overview',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
                         ),
                       ),
-                      if (widget.canEdit)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              if (_isEditing) {
-                                _isEditing = false;
-                                _resetFromStation(station);
-                              } else {
-                                _isEditing = true;
-                              }
-                            });
-                          },
-                          child: Text(_isEditing ? 'Cancel' : 'Edit'),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Pump count is fixed. Edit station details only when needed.',
+                        style: TextStyle(color: kClaySub, height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      _ClayField(
+                        controller: _nameController,
+                        label: 'Station Name',
+                        enabled: widget.canEdit && _isEditing,
+                      ),
+                      const SizedBox(height: 12),
+                      _ClayField(
+                        controller: _cityController,
+                        label: 'City',
+                        enabled: widget.canEdit && _isEditing,
+                      ),
+                      const SizedBox(height: 12),
+                      _ClayField(
+                        controller: _codeController,
+                        label: 'Code',
+                        enabled: widget.canEdit && _isEditing,
+                      ),
+                      const SizedBox(height: 12),
+                      _ClayField(
+                        controller: _shiftsController,
+                        label: 'Entry cycle',
+                        enabled: false,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Fixed pumps: ${station.pumps.map((pump) => formatPumpLabel(pump.id, pump.label)).join(', ')}',
+                        style: const TextStyle(
+                          color: kClaySub,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
+                      ),
                     ],
                   ),
                 ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Station Overview',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
+
+                // ── Pump labels ────────────────────────────────────
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pump Labels',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Only pump names are managed here.',
+                        style: TextStyle(color: kClaySub),
+                      ),
+                      const SizedBox(height: 16),
+                      ...station.pumps.map(
+                        (pump) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _ClayField(
+                            controller: _controllers['${pump.id}_label'],
+                            label: '${formatPumpLabel(pump.id, pump.label)} label',
+                            enabled: widget.canEdit && _isEditing,
+                            prefixIcon: Icons.local_gas_station_rounded,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Meter limits ───────────────────────────────────
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Daily Meter Limits',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Set the maximum daily meter sale per pump. Use 0 to disable.',
+                        style: TextStyle(color: kClaySub),
+                      ),
+                      const SizedBox(height: 16),
+                      ...station.pumps.map((pump) {
+                        final supportsTwoT = pump.id == 'pump2';
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: _isEditing
-                                ? const Color(0xFFE0E7FF)
-                                : const Color(0xFFE5F7EE),
-                            borderRadius: BorderRadius.circular(999),
+                            color: kClayBg,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Text(
-                            _isEditing ? 'Editing' : 'View only',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: _isEditing
-                                  ? const Color(0xFF1E40AF)
-                                  : const Color(0xFF047857),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Pump count is fixed. This screen is for viewing first, then editing station details only when needed.',
-                      style: const TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _nameController,
-                      enabled: widget.canEdit && _isEditing,
-                      decoration: const InputDecoration(
-                        labelText: 'Station Name',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _cityController,
-                      enabled: widget.canEdit && _isEditing,
-                      decoration: const InputDecoration(labelText: 'City'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _codeController,
-                      enabled: widget.canEdit && _isEditing,
-                      decoration: const InputDecoration(labelText: 'Code'),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _shiftsController,
-                      enabled: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Entry cycle',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Fixed pumps: ${station.pumps.map((pump) => formatPumpLabel(pump.id, pump.label)).join(', ')}',
-                      style: const TextStyle(
-                        color: Color(0xFF55606E),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Pump Labels',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF293340),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Only pump names are managed here. Sales details are not shown on this page.',
-                      style: TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 16),
-                    ...station.pumps.map(
-                      (pump) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: TextField(
-                          controller: _controllers['${pump.id}_label'],
-                          enabled: widget.canEdit && _isEditing,
-                          decoration: InputDecoration(
-                            labelText:
-                                '${formatPumpLabel(pump.id, pump.label)} label',
-                            prefixIcon: const Icon(
-                              Icons.local_gas_station_rounded,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Daily Meter Limits',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF293340),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Set the maximum daily meter sale per pump. Use 0 to keep the limit disabled.',
-                      style: TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 16),
-                    ...station.pumps.map((pump) {
-                      final supportsTwoT = pump.id == 'pump2';
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              formatPumpLabel(pump.id, pump.label),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF293340),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller:
-                                  _controllers[_limitKey(pump.id, 'petrol')],
-                              enabled: widget.canEdit && _isEditing,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Petrol daily meter limit',
-                                prefixIcon: Icon(Icons.speed_rounded),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller:
-                                  _controllers[_limitKey(pump.id, 'diesel')],
-                              enabled: widget.canEdit && _isEditing,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Diesel daily meter limit',
-                                prefixIcon: Icon(Icons.speed_rounded),
-                              ),
-                            ),
-                            if (supportsTwoT) ...[
-                              const SizedBox(height: 12),
-                              TextField(
-                                controller:
-                                    _controllers[_limitKey(pump.id, 'twoT')],
-                                enabled: widget.canEdit && _isEditing,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                                decoration: const InputDecoration(
-                                  labelText: '2T oil daily meter limit',
-                                  prefixIcon: Icon(Icons.speed_rounded),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                formatPumpLabel(pump.id, pump.label),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: kClayPrimary,
                                 ),
                               ),
+                              const SizedBox(height: 12),
+                              _ClayField(
+                                controller:
+                                    _controllers[_limitKey(pump.id, 'petrol')],
+                                label: 'Petrol daily meter limit',
+                                enabled: widget.canEdit && _isEditing,
+                                prefixIcon: Icons.speed_rounded,
+                                numeric: true,
+                              ),
+                              const SizedBox(height: 12),
+                              _ClayField(
+                                controller:
+                                    _controllers[_limitKey(pump.id, 'diesel')],
+                                label: 'Diesel daily meter limit',
+                                enabled: widget.canEdit && _isEditing,
+                                prefixIcon: Icons.speed_rounded,
+                                numeric: true,
+                              ),
+                              if (supportsTwoT) ...[
+                                const SizedBox(height: 12),
+                                _ClayField(
+                                  controller:
+                                      _controllers[_limitKey(pump.id, 'twoT')],
+                                  label: '2T oil daily meter limit',
+                                  enabled: widget.canEdit && _isEditing,
+                                  prefixIcon: Icons.speed_rounded,
+                                  numeric: true,
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-              ),
-              if (widget.canEdit && _isEditing)
-                FilledButton(
-                  onPressed: () => _save(station),
-                  child: const Text('Save Station Profile'),
-                ),
-            ],
+
+                if (widget.canEdit && _isEditing)
+                  FilledButton(
+                    onPressed: () => _save(station),
+                    child: const Text('Save Station Profile'),
+                  ),
+              ],
+            ),
           ),
         );
       },
     );
 
-    if (widget.embedded) {
-      return content;
-    }
+    if (widget.embedded) return content;
 
     return Scaffold(
+      backgroundColor: kClayBg,
       appBar: AppBar(
+        backgroundColor: kClayBg,
         title: const Text('Station Profile & Pumps'),
         actions: [
           if (widget.canEdit)
@@ -493,6 +427,85 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
         ],
       ),
       body: content,
+    );
+  }
+}
+
+// ─── Edit toggle pill ────────────────────────────────────────────────────────
+class _EditTogglePill extends StatelessWidget {
+  const _EditTogglePill({required this.isEditing, required this.onTap});
+  final bool isEditing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+              offset: const Offset(4, 4),
+              blurRadius: 10,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-3, -3),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Text(
+          isEditing ? 'Cancel' : 'Edit',
+          style: TextStyle(
+            color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Clay-styled text field ──────────────────────────────────────────────────
+class _ClayField extends StatelessWidget {
+  const _ClayField({
+    required this.label,
+    this.controller,
+    this.enabled = true,
+    this.prefixIcon,
+    this.numeric = false,
+  });
+
+  final String label;
+  final TextEditingController? controller;
+  final bool enabled;
+  final IconData? prefixIcon;
+  final bool numeric;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: numeric
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : null,
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: enabled ? kClayBg : const Color(0xFFE8EBF4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+      ),
     );
   }
 }

@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
 
-String formatCurrency(double value) => 'Rs ${value.toStringAsFixed(2)}';
+String _indianCommas(String digits) {
+  if (digits.length <= 3) return digits;
+  final last3 = digits.substring(digits.length - 3);
+  final rest = digits.substring(0, digits.length - 3);
+  final buf = StringBuffer();
+  final start = rest.length % 2;
+  if (start > 0) buf.write(rest.substring(0, start));
+  for (int i = start; i < rest.length; i += 2) {
+    if (buf.isNotEmpty) buf.write(',');
+    buf.write(rest.substring(i, i + 2));
+  }
+  return '${buf.isEmpty ? '' : '$buf,'}$last3';
+}
+
+String formatCurrency(double value) {
+  final isNeg = value < 0;
+  final abs = value.abs();
+  final intPart = abs.truncate();
+  final dec = (abs - intPart).toStringAsFixed(2).substring(1); // '.XX'
+  return '${isNeg ? '-' : ''}Rs ${_indianCommas(intPart.toString())}$dec';
+}
 
 String formatLiters(double value) => '${value.toStringAsFixed(2)} L';
 

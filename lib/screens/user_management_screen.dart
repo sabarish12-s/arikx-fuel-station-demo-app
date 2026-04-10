@@ -5,6 +5,7 @@ import '../models/auth_models.dart';
 import '../models/user_management_models.dart';
 import '../services/user_management_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({
@@ -298,14 +299,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return ListView(
-            children: [
-              Center(
-                child: Text(
-                  snapshot.error.toString().replaceFirst('Exception: ', ''),
-                ),
+          return ColoredBox(
+            color: kClayBg,
+            child: Center(
+              child: Text(
+                snapshot.error.toString().replaceFirst('Exception: ', ''),
               ),
-            ],
+            ),
           );
         }
 
@@ -318,36 +318,65 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             requests.isNotEmpty &&
             _selectedRequestIds.length == requests.length;
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        return ColoredBox(
+          color: kClayBg,
+          child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
-            Row(
-              children: [
-                if (widget.embedded)
-                  IconButton(
-                    onPressed: widget.onBack,
-                    icon: const Icon(Icons.arrow_back_rounded),
-                  ),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Manage staff, roles, and pending approvals.',
-                        style: TextStyle(color: Color(0xFF55606E)),
-                      ),
-                    ],
+            if (widget.embedded)
+              ClaySubHeader(
+                title: 'Users & Roles',
+                onBack: widget.onBack,
+                trailing: GestureDetector(
+                  onTap: () => _openAddStaffDialog(canManageSuperAdmins),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+                          offset: const Offset(4, 4),
+                          blurRadius: 10,
+                        ),
+                        const BoxShadow(
+                          color: Colors.white,
+                          offset: Offset(-3, -3),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person_add_alt_1_rounded,
+                            size: 15, color: kClayPrimary),
+                        SizedBox(width: 5),
+                        Text(
+                          'Add User',
+                          style: TextStyle(
+                            color: kClayPrimary,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                if (widget.embedded)
-                  FilledButton.icon(
-                    onPressed: () => _openAddStaffDialog(canManageSuperAdmins),
-                    icon: const Icon(Icons.person_add_alt_1_rounded),
-                    label: const Text('Add User'),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Manage staff, roles, and pending approvals.',
+                  style: const TextStyle(color: kClaySub),
+                ),
+              ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -373,7 +402,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const Expanded(
                   child: Text(
                     'Pending Requests',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: kClayPrimary,
+                    ),
                   ),
                 ),
                 if (requests.isNotEmpty)
@@ -505,7 +538,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             const SizedBox(height: 12),
             const Text(
               'Current Staff',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: kClayPrimary,
+              ),
             ),
             const SizedBox(height: 8),
             ...users.map((user) {
@@ -633,6 +670,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               );
             }),
           ],
+        ),
         );
       },
     );
@@ -642,6 +680,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     }
 
     return Scaffold(
+      backgroundColor: kClayBg,
       floatingActionButton: FutureBuilder<UserManagementOverview>(
         future: _future,
         builder: (context, snapshot) {
@@ -669,19 +708,23 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minWidth: 80),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      padding: const EdgeInsets.all(14),
+      decoration: clayCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Color(0xFF55606E))),
-          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(color: kClaySub, fontSize: 12),
+          ),
+          const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22),
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+              color: kClayPrimary,
+            ),
           ),
         ],
       ),
@@ -696,13 +739,8 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ClayCard(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: child,
     );
   }
@@ -715,16 +753,12 @@ class _EmptyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return ClayCard(
+      margin: const EdgeInsets.only(bottom: 12),
       child: Text(
         message,
         style: const TextStyle(
-          color: Color(0xFF55606E),
+          color: kClaySub,
           fontWeight: FontWeight.w600,
         ),
       ),

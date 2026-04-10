@@ -31,9 +31,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     'November',
     'December',
   ];
-  final TextEditingController _monthController = TextEditingController(
-    text: currentMonthKey(),
-  );
+  // Filter state — either month mode or date-range mode
+  String _filterMonth = currentMonthKey(); // 'YYYY-MM'
+  String? _filterFromDate;                 // 'YYYY-MM-DD'
+  String? _filterToDate;                   // 'YYYY-MM-DD'
+  bool _filterByDateRange = false;
+
   late Future<_EntryManagementData> _future;
   bool _submitting = false;
 
@@ -43,49 +46,117 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     _future = _loadData();
   }
 
-  @override
-  void dispose() {
-    _monthController.dispose();
-    super.dispose();
-  }
-
   Future<_EntryManagementData> _loadData() async {
     final results = await Future.wait([
-      _managementService.fetchEntries(month: _monthController.text.trim()),
+      _filterByDateRange
+          ? _managementService.fetchEntries(
+              fromDate: _filterFromDate,
+              toDate: _filterToDate,
+            )
+          : _managementService.fetchEntries(month: _filterMonth),
       _salesService.fetchDashboard(),
     ]);
+
+    var entries = results[0] as List<ShiftEntryModel>;
+
+    // Client-side safety filter for date range mode
+    if (_filterByDateRange) {
+      final from = _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
+      final to = _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
+      entries = entries.where((e) {
+        final d = DateTime.tryParse(e.date);
+        if (d == null) return true;
+        final day = DateTime(d.year, d.month, d.day);
+        if (from != null && day.isBefore(DateTime(from.year, from.month, from.day))) return false;
+        if (to != null && day.isAfter(DateTime(to.year, to.month, to.day))) return false;
+        return true;
+      }).toList();
+    }
+
     return _EntryManagementData(
-      entries: results[0] as List<ShiftEntryModel>,
+      entries: entries,
       dashboard: results[1] as SalesDashboardModel,
     );
   }
 
   Future<void> _reload() async {
-    setState(() {
-      _future = _loadData();
-    });
+    setState(() => _future = _loadData());
     await _future;
   }
 
-  String _formatMonthFilter(String raw) {
-    final parts = raw.trim().split('-');
-    if (parts.length != 2) {
-      return raw.trim().isEmpty ? 'No month selected' : raw.trim();
+  static String _fmtDate(String raw) => formatDateLabel(raw);
+
+  String get _periodLabel {
+    if (_filterByDateRange) {
+      final from = _filterFromDate != null ? _fmtDate(_filterFromDate!) : '—';
+      final to = _filterToDate != null ? _fmtDate(_filterToDate!) : '—';
+      return '$from – $to';
     }
-    final year = int.tryParse(parts[0]);
-    final month = int.tryParse(parts[1]);
-    if (year == null || month == null || month < 1 || month > 12) {
-      return raw.trim();
-    }
-    return '${_monthNames[month - 1]} $year';
+    final parts = _filterMonth.split('-');
+    if (parts.length != 2) return _filterMonth;
+    final y = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (y == null || m == null || m < 1 || m > 12) return _filterMonth;
+    return '${_monthNames[m - 1]} $y';
   }
 
-  Future<void> _openMonthFilterDialog() async {
+  String get _periodShort {
+    if (_filterByDateRange) {
+      const short = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      String _s(String? d) {
+        if (d == null) return '—';
+        final dt = DateTime.tryParse(d);
+        if (dt == null) return d;
+        return '${short[dt.month - 1]} ${dt.day}';
+      }
+      return '${_s(_filterFromDate)} – ${_s(_filterToDate)}';
+    }
+    final parts = _filterMonth.split('-');
+    if (parts.length != 2) return _filterMonth;
+    final y = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (y == null || m == null || m < 1 || m > 12) return _filterMonth;
+    const short = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return '${short[m - 1]} $y';
+  }
+
+  Future<void> _openFilterDialog() async {
     final now = DateTime.now();
-    final parts = _monthController.text.trim().split('-');
-    int selectedYear = int.tryParse(parts.firstOrNull ?? '') ?? now.year;
-    int selectedMonth =
-        int.tryParse(parts.length > 1 ? parts[1] : '') ?? now.month;
+
+    // Local dialog state
+    bool byRange = _filterByDateRange;
+    final parts = _filterMonth.split('-');
+    int selYear = int.tryParse(parts.firstOrNull ?? '') ?? now.year;
+    int selMonth = int.tryParse(parts.length > 1 ? parts[1] : '') ?? now.month;
+    DateTime? fromDt = _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
+    DateTime? toDt = _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
+
+    Future<void> pickFrom(StateSetter set) async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: fromDt ?? now,
+        firstDate: DateTime(2024),
+        lastDate: now,
+        helpText: 'From date',
+      );
+      if (picked != null) set(() => fromDt = picked);
+    }
+
+    Future<void> pickTo(StateSetter set) async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: toDt ?? now,
+        firstDate: DateTime(2024),
+        lastDate: now,
+        helpText: 'To date',
+      );
+      if (picked != null) set(() => toDt = picked);
+    }
+
+    String _fmtDt(DateTime? dt) {
+      if (dt == null) return 'Tap to choose';
+      return formatDateLabel('${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}');
+    }
 
     final applied = await showDialog<bool>(
       context: context,
@@ -95,13 +166,11 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
           builder: (dialogContext, setDialogState) {
             final years = List<int>.generate(
               now.year - 2024 + 1,
-              (index) => now.year - index,
+              (i) => now.year - i,
             );
+
             return AlertDialog(
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 24,
-              ),
+              insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
               title: const Text('Filter Entries'),
               content: SizedBox(
                 width: double.maxFinite,
@@ -109,89 +178,102 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Choose the month you want to view.',
-                      style: TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<int>(
-                      initialValue: selectedMonth,
-                      decoration: const InputDecoration(
-                        labelText: 'Month',
-                        filled: true,
-                      ),
-                      items: List.generate(
-                        _monthNames.length,
-                        (index) => DropdownMenuItem<int>(
-                          value: index + 1,
-                          child: Text(_monthNames[index]),
-                        ),
-                      ),
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        setDialogState(() {
-                          selectedMonth = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<int>(
-                      initialValue: selectedYear,
-                      decoration: const InputDecoration(
-                        labelText: 'Year',
-                        filled: true,
-                      ),
-                      items:
-                          years
-                              .map(
-                                (year) => DropdownMenuItem<int>(
-                                  value: year,
-                                  child: Text('$year'),
-                                ),
-                              )
-                              .toList(),
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        setDialogState(() {
-                          selectedYear = value;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 16),
+                    // ── Mode toggle ─────────────────────────────
                     Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FF),
-                        borderRadius: BorderRadius.circular(16),
+                        color: const Color(0xFFECEFF8),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        'Selected period: ${_monthNames[selectedMonth - 1]} $selectedYear',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF293340),
-                        ),
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        children: [
+                          _ToggleTab(
+                            label: 'By Month',
+                            selected: !byRange,
+                            onTap: () => setDialogState(() => byRange = false),
+                          ),
+                          _ToggleTab(
+                            label: 'Date Range',
+                            selected: byRange,
+                            onTap: () => setDialogState(() => byRange = true),
+                          ),
+                        ],
                       ),
                     ),
+                    const SizedBox(height: 20),
+
+                    if (!byRange) ...[
+                      // ── Month mode ───────────────────────────
+                      DropdownButtonFormField<int>(
+                        value: selMonth,
+                        decoration: const InputDecoration(
+                          labelText: 'Month',
+                          filled: true,
+                        ),
+                        items: List.generate(
+                          _monthNames.length,
+                          (i) => DropdownMenuItem<int>(
+                            value: i + 1,
+                            child: Text(_monthNames[i]),
+                          ),
+                        ),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selMonth = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        value: selYear,
+                        decoration: const InputDecoration(
+                          labelText: 'Year',
+                          filled: true,
+                        ),
+                        items: years
+                            .map((y) => DropdownMenuItem<int>(
+                                  value: y,
+                                  child: Text('$y'),
+                                ))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selYear = v);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _PreviewBox(
+                        text: '${_monthNames[selMonth - 1]} $selYear',
+                      ),
+                    ] else ...[
+                      // ── Date range mode ──────────────────────
+                      _DatePickerRow(
+                        label: 'From',
+                        value: _fmtDt(fromDt),
+                        onTap: () => pickFrom(setDialogState),
+                      ),
+                      const SizedBox(height: 10),
+                      _DatePickerRow(
+                        label: 'To',
+                        value: _fmtDt(toDt),
+                        onTap: () => pickTo(setDialogState),
+                      ),
+                      const SizedBox(height: 16),
+                      if (fromDt != null && toDt != null)
+                        _PreviewBox(
+                          text: '${_fmtDt(fromDt)} – ${_fmtDt(toDt)}',
+                        ),
+                    ],
                   ],
                 ),
               ),
               actions: [
                 TextButton(
                   onPressed: () {
-                    final current = currentMonthKey();
-                    final currentParts = current.split('-');
-                    final currentYear =
-                        int.tryParse(currentParts[0]) ?? now.year;
-                    final currentMonth =
-                        int.tryParse(currentParts[1]) ?? now.month;
+                    final cur = currentMonthKey().split('-');
                     setDialogState(() {
-                      selectedYear = currentYear;
-                      selectedMonth = currentMonth;
+                      byRange = false;
+                      selYear = int.tryParse(cur[0]) ?? now.year;
+                      selMonth = int.tryParse(cur[1]) ?? now.month;
                     });
                   },
                   child: const Text('This Month'),
@@ -201,7 +283,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   child: const Text('Cancel'),
                 ),
                 FilledButton.icon(
-                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  onPressed: () {
+                    if (byRange && (fromDt == null || toDt == null)) return;
+                    Navigator.of(dialogContext).pop(true);
+                  },
                   icon: const Icon(Icons.filter_alt_rounded),
                   label: const Text('Apply'),
                 ),
@@ -212,12 +297,23 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       },
     );
 
-    if (applied != true) {
-      return;
-    }
+    if (applied != true) return;
 
-    final month = selectedMonth.toString().padLeft(2, '0');
-    _monthController.text = '$selectedYear-$month';
+    setState(() {
+      _filterByDateRange = byRange;
+      if (byRange) {
+        _filterFromDate = fromDt != null
+            ? '${fromDt!.year}-${fromDt!.month.toString().padLeft(2,'0')}-${fromDt!.day.toString().padLeft(2,'0')}'
+            : null;
+        _filterToDate = toDt != null
+            ? '${toDt!.year}-${toDt!.month.toString().padLeft(2,'0')}-${toDt!.day.toString().padLeft(2,'0')}'
+            : null;
+      } else {
+        _filterMonth = '$selYear-${selMonth.toString().padLeft(2,'0')}';
+        _filterFromDate = null;
+        _filterToDate = null;
+      }
+    });
     await _reload();
   }
 
@@ -248,9 +344,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       lastDate: DateTime.now(),
       helpText: 'Select entry date',
     );
-    if (picked == null) {
-      return null;
-    }
+    if (picked == null) return null;
     final month = picked.month.toString().padLeft(2, '0');
     final day = picked.day.toString().padLeft(2, '0');
     return '${picked.year}-$month-$day';
@@ -258,105 +352,88 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
   Future<void> _openAdminEntryDialog([String? preselectedDate]) async {
     final date = preselectedDate ?? await _pickEntryDate();
-    if (date == null) {
-      return;
-    }
+    if (date == null) return;
 
-    setState(() {
-      _submitting = true;
-    });
+    setState(() => _submitting = true);
 
     try {
       final dashboard = await _salesService.fetchDashboardForDate(date: date);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       final created = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
-          builder:
-              (_) => EntryWorkflowScreen(
-                title:
-                    dashboard.selectedEntry == null
-                        ? 'Daily Admin Entry'
-                        : 'Edit Daily Entry',
-                station: dashboard.station,
-                openingReadings:
-                    dashboard.selectedEntry?.openingReadings ??
-                    dashboard.openingReadings,
-                priceSnapshot: mergePriceSnapshots(
-                  primary:
-                      dashboard.selectedEntry?.priceSnapshot ??
-                      const <String, Map<String, double>>{},
-                  fallback: dashboard.priceSnapshot,
-                ),
-                initialDraft:
-                    dashboard.selectedEntry == null
-                        ? DailyEntryDraft(
-                          date: date,
-                          closingReadings: const {},
-                          pumpAttendants: {
-                            for (final pump in dashboard.station.pumps)
-                              pump.id: '',
-                          },
-                          pumpTesting: {
-                            for (final pump in dashboard.station.pumps)
-                              pump.id: const PumpTestingModel(
-                                petrol: 0,
-                                diesel: 0,
-                              ),
-                          },
-                          pumpPayments: const {},
-                          pumpCollections: const {},
-                          paymentBreakdown: const PaymentBreakdownModel(
-                            cash: 0,
-                            check: 0,
-                            upi: 0,
-                          ),
-                          creditEntries: const [],
-                          creditCollections: const [],
-                        )
-                        : _draftFromEntry(dashboard.selectedEntry!),
-                onSubmit: (draft, mismatchReason) async {
-                  if (dashboard.selectedEntry == null) {
-                    await _salesService.submitEntry(
-                      date: draft.date,
-                      closingReadings: draft.closingReadings,
-                      pumpAttendants: draft.pumpAttendants,
-                      pumpTesting: draft.pumpTesting,
-                      pumpPayments: draft.pumpPayments,
-                      pumpCollections: draft.pumpCollections,
-                      paymentBreakdown: draft.paymentBreakdown,
-                      creditEntries: draft.creditEntries,
-                      creditCollections: draft.creditCollections,
-                      mismatchReason: mismatchReason,
-                    );
-                  } else {
-                    await _managementService.updateEntry(
-                      entryId: dashboard.selectedEntry!.id,
-                      closingReadings: draft.closingReadings,
-                      pumpAttendants: draft.pumpAttendants,
-                      pumpTesting: draft.pumpTesting,
-                      pumpPayments: draft.pumpPayments,
-                      pumpCollections: draft.pumpCollections,
-                      paymentBreakdown: draft.paymentBreakdown,
-                      creditEntries: draft.creditEntries,
-                      creditCollections: draft.creditCollections,
-                      mismatchReason: mismatchReason,
-                    );
-                  }
-                },
-              ),
+          builder: (_) => EntryWorkflowScreen(
+            title: dashboard.selectedEntry == null
+                ? 'Daily Admin Entry'
+                : 'Edit Daily Entry',
+            station: dashboard.station,
+            openingReadings:
+                dashboard.selectedEntry?.openingReadings ??
+                dashboard.openingReadings,
+            priceSnapshot: mergePriceSnapshots(
+              primary:
+                  dashboard.selectedEntry?.priceSnapshot ??
+                  const <String, Map<String, double>>{},
+              fallback: dashboard.priceSnapshot,
+            ),
+            initialDraft: dashboard.selectedEntry == null
+                ? DailyEntryDraft(
+                    date: date,
+                    closingReadings: const {},
+                    pumpAttendants: {
+                      for (final pump in dashboard.station.pumps) pump.id: '',
+                    },
+                    pumpTesting: {
+                      for (final pump in dashboard.station.pumps)
+                        pump.id: const PumpTestingModel(petrol: 0, diesel: 0),
+                    },
+                    pumpPayments: const {},
+                    pumpCollections: const {},
+                    paymentBreakdown: const PaymentBreakdownModel(
+                      cash: 0,
+                      check: 0,
+                      upi: 0,
+                    ),
+                    creditEntries: const [],
+                    creditCollections: const [],
+                  )
+                : _draftFromEntry(dashboard.selectedEntry!),
+            onSubmit: (draft, mismatchReason) async {
+              if (dashboard.selectedEntry == null) {
+                await _salesService.submitEntry(
+                  date: draft.date,
+                  closingReadings: draft.closingReadings,
+                  pumpAttendants: draft.pumpAttendants,
+                  pumpTesting: draft.pumpTesting,
+                  pumpPayments: draft.pumpPayments,
+                  pumpCollections: draft.pumpCollections,
+                  paymentBreakdown: draft.paymentBreakdown,
+                  creditEntries: draft.creditEntries,
+                  creditCollections: draft.creditCollections,
+                  mismatchReason: mismatchReason,
+                );
+              } else {
+                await _managementService.updateEntry(
+                  entryId: dashboard.selectedEntry!.id,
+                  closingReadings: draft.closingReadings,
+                  pumpAttendants: draft.pumpAttendants,
+                  pumpTesting: draft.pumpTesting,
+                  pumpPayments: draft.pumpPayments,
+                  pumpCollections: draft.pumpCollections,
+                  paymentBreakdown: draft.paymentBreakdown,
+                  creditEntries: draft.creditEntries,
+                  creditCollections: draft.creditCollections,
+                  mismatchReason: mismatchReason,
+                );
+              }
+            },
+          ),
         ),
       );
-      if (created != true) {
-        return;
-      }
+      if (created != true) return;
       await _reload();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
@@ -364,11 +441,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-        });
-      }
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -376,50 +449,41 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     ShiftEntryModel entry,
     StationConfigModel station,
   ) async {
-    setState(() {
-      _submitting = true;
-    });
+    setState(() => _submitting = true);
     try {
       final detailedEntry = await _managementService.fetchEntryDetail(entry.id);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
-          builder:
-              (_) => EntryWorkflowScreen(
-                title: 'Edit Daily Entry',
-                station: station,
-                openingReadings: detailedEntry.openingReadings,
-                priceSnapshot: detailedEntry.priceSnapshot,
-                initialDraft: _draftFromEntry(detailedEntry),
-                onSubmit: (draft, mismatchReason) async {
-                  await _managementService.updateEntry(
-                    entryId: detailedEntry.id,
-                    closingReadings: draft.closingReadings,
-                    pumpAttendants: draft.pumpAttendants,
-                    pumpTesting: draft.pumpTesting,
-                    pumpPayments: draft.pumpPayments,
-                    pumpCollections: draft.pumpCollections,
-                    paymentBreakdown: draft.paymentBreakdown,
-                    creditEntries: draft.creditEntries,
-                    creditCollections: draft.creditCollections,
-                    mismatchReason: mismatchReason,
-                  );
-                },
-              ),
+          builder: (_) => EntryWorkflowScreen(
+            title: 'Edit Daily Entry',
+            station: station,
+            openingReadings: detailedEntry.openingReadings,
+            priceSnapshot: detailedEntry.priceSnapshot,
+            initialDraft: _draftFromEntry(detailedEntry),
+            onSubmit: (draft, mismatchReason) async {
+              await _managementService.updateEntry(
+                entryId: detailedEntry.id,
+                closingReadings: draft.closingReadings,
+                pumpAttendants: draft.pumpAttendants,
+                pumpTesting: draft.pumpTesting,
+                pumpPayments: draft.pumpPayments,
+                pumpCollections: draft.pumpCollections,
+                paymentBreakdown: draft.paymentBreakdown,
+                creditEntries: draft.creditEntries,
+                creditCollections: draft.creditCollections,
+                mismatchReason: mismatchReason,
+              );
+            },
+          ),
         ),
       );
 
-      if (saved != true) {
-        return;
-      }
+      if (saved != true) return;
       await _reload();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
@@ -427,11 +491,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-        });
-      }
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -444,47 +504,40 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final isApproved = entry.status == 'approved';
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
-            content: Text(
-              isApproved
-                  ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
-                  : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFB91C1C),
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(isApproved ? 'Override Delete' : 'Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
+        content: Text(
+          isApproved
+              ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
+              : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(isApproved ? 'Override Delete' : 'Delete'),
+          ),
+        ],
+      ),
     );
     return confirmed == true;
   }
 
   Future<void> _deleteEntry(ShiftEntryModel entry) async {
     final confirmed = await _confirmDeleteEntry(entry);
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
-    setState(() {
-      _submitting = true;
-    });
+    setState(() => _submitting = true);
 
     try {
       await _managementService.deleteEntry(entry.id);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -496,9 +549,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       );
       await _reload();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
@@ -506,18 +557,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _submitting = false;
-        });
-      }
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
+      backgroundColor: const Color(0xFFECEFF8),
       body: RefreshIndicator(
         onRefresh: _reload,
         child: FutureBuilder<_EntryManagementData>(
@@ -542,235 +589,180 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             final data = snapshot.data!;
             final entries = data.entries;
             final approvedCount =
-                entries.where((entry) => entry.status == 'approved').length;
-            final flaggedCount =
-                entries
-                    .where(
-                      (entry) => entry.flagged && entry.status != 'approved',
-                    )
-                    .length;
+                entries.where((e) => e.status == 'approved').length;
+            final flaggedCount = entries
+                .where((e) => e.flagged && e.status != 'approved')
+                .length;
             final pendingCount = entries.length - approvedCount;
-            final selectedMonthLabel = _formatMonthFilter(
-              _monthController.text,
-            );
+            final periodLabel = _periodLabel;
+            final periodShort = _periodShort;
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
+                // ── Hero header ─────────────────────────────────────────
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(24),
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF1E5CBA), Color(0xFF0F3D91)],
+                      colors: [Color(0xFF1A3A7A), Color(0xFF0D2460)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF0D2460).withValues(alpha: 0.45),
+                        offset: const Offset(0, 10),
+                        blurRadius: 24,
+                      ),
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Text(
-                          'ENTRY CONTROL',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.9,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Entries Overview',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${data.dashboard.station.name}  |  $selectedMonthLabel',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
                         children: [
-                          _DashboardChip(
-                            label: 'Filtered',
-                            value: '${entries.length}',
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  data.dashboard.station.name,
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                const Text(
+                                  'Entries',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          _DashboardChip(
+                          // Period pill
+                          GestureDetector(
+                            onTap: _openFilterDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_month_rounded,
+                                    color: Colors.white70,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    periodShort,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: Colors.white60,
+                                    size: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          _HeroStat(label: 'Total', value: '${entries.length}'),
+                          const SizedBox(width: 8),
+                          _HeroStat(
                             label: 'Approved',
                             value: '$approvedCount',
+                            highlight: true,
                           ),
-                          _DashboardChip(
-                            label: 'Pending',
-                            value: '$pendingCount',
-                          ),
-                          _DashboardChip(
-                            label: 'Flagged',
-                            value: '$flaggedCount',
-                          ),
+                          const SizedBox(width: 8),
+                          _HeroStat(label: 'Pending', value: '$pendingCount'),
+                          const SizedBox(width: 8),
+                          _HeroStat(label: 'Flagged', value: '$flaggedCount'),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final stacked = constraints.maxWidth < 640;
-                      final quickEntryPanel = Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(
-                                  Icons.add_task_rounded,
-                                  color: Color(0xFF1E5CBA),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Quick Daily Entry',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF293340),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Open the full daily entry workflow for any date.',
-                              style: TextStyle(
-                                color: Color(0xFF55606E),
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            FilledButton.icon(
-                              onPressed:
-                                  _submitting ? null : _openAdminEntryDialog,
-                              icon: const Icon(Icons.open_in_new_rounded),
-                              label: Text(
-                                _submitting ? 'Opening...' : 'Open Entry',
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                      final filterPanel = Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FF),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(
-                                  Icons.filter_alt_rounded,
-                                  color: Color(0xFF1E5CBA),
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Entry Filter',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF293340),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Choose the month you want to review or manage.',
-                              style: TextStyle(
-                                color: Color(0xFF55606E),
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              selectedMonthLabel,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w900,
-                                color: Color(0xFF293340),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton.icon(
-                              onPressed: _openMonthFilterDialog,
-                              icon: const Icon(Icons.calendar_month_rounded),
-                              label: const Text('Change Period'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (stacked) {
-                        return Column(
-                          children: [
-                            quickEntryPanel,
-                            const SizedBox(height: 12),
-                            filterPanel,
-                          ],
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: quickEntryPanel),
-                          const SizedBox(width: 12),
-                          Expanded(child: filterPanel),
-                        ],
-                      );
-                    },
+
+                const SizedBox(height: 14),
+
+                // ── New Entry button ─────────────────────────────────────
+                _ClayButton(
+                  icon: Icons.add_rounded,
+                  label: _submitting ? 'Opening...' : 'New Entry',
+                  onTap: _submitting ? null : _openAdminEntryDialog,
+                ),
+
+                const SizedBox(height: 18),
+
+                // ── Period label ─────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 10),
+                  child: Text(
+                    periodLabel,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF8A93B8),
+                      letterSpacing: 0.2,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 12),
+
+                // ── Entry cards ──────────────────────────────────────────
                 if (entries.isEmpty)
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.symmetric(vertical: 36),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFB8C0DC).withValues(alpha: 0.7),
+                          offset: const Offset(6, 6),
+                          blurRadius: 16,
+                        ),
+                        const BoxShadow(
+                          color: Colors.white,
+                          offset: Offset(-5, -5),
+                          blurRadius: 12,
+                        ),
+                      ],
                     ),
                     child: const Center(
-                      child: Text('No entries found for this period.'),
+                      child: Text(
+                        'No entries found for this period.',
+                        style: TextStyle(color: Color(0xFF8A93B8), fontSize: 14),
+                      ),
                     ),
                   )
                 else
@@ -779,191 +771,600 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         entry.submittedByName.trim().isNotEmpty
                             ? entry.submittedByName.trim()
                             : entry.submittedBy.trim();
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x120F172A),
-                            blurRadius: 18,
-                            offset: Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  formatDateLabel(entry.date),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ),
-                              _EntryStatusBadge(
-                                status: entry.status,
-                                flagged: entry.flagged,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Submitted by $submittedLabel',
-                            style: const TextStyle(
-                              color: Color(0xFF55606E),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _EntryMetricChip(
-                                label: 'Petrol',
-                                value: formatLiters(entry.totals.sold.petrol),
-                                accent: const Color(0xFF1E5CBA),
-                              ),
-                              _EntryMetricChip(
-                                label: 'Diesel',
-                                value: formatLiters(entry.totals.sold.diesel),
-                                accent: const Color(0xFF0F766E),
-                              ),
-                              if (entry.totals.sold.twoT > 0)
-                                _EntryMetricChip(
-                                  label: '2T Oil',
-                                  value: formatLiters(entry.totals.sold.twoT),
-                                  accent: const Color(0xFFB45309),
-                                ),
-                              _EntryMetricChip(
-                                label: 'Revenue',
-                                value: formatCurrency(entry.revenue),
-                                accent: const Color(0xFF7C3AED),
-                              ),
-                              _EntryMetricChip(
-                                label: 'Collected',
-                                value: formatCurrency(entry.paymentTotal),
-                                accent: const Color(0xFF059669),
-                              ),
-                            ],
-                          ),
-                          if (entry.pumpAttendants.values.any(
-                            (name) => name.isNotEmpty,
-                          ))
-                            Container(
-                              margin: const EdgeInsets.only(top: 12),
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8F9FF),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Pump attendants',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                      color: Color(0xFF293340),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    entry.pumpAttendants.entries
-                                        .where((item) => item.value.isNotEmpty)
-                                        .map(
-                                          (item) =>
-                                              '${formatPumpLabel(item.key)}: ${item.value}',
-                                        )
-                                        .join(' | '),
-                                    style: const TextStyle(
-                                      color: Color(0xFF55606E),
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (entry.varianceNote.isNotEmpty)
-                            Container(
-                              margin: const EdgeInsets.only(top: 12),
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFFB91C1C,
-                                  ).withValues(alpha: 0.12),
-                                ),
-                              ),
-                              child: Text(
-                                entry.varianceNote,
-                                style: const TextStyle(
-                                  color: Color(0xFFB91C1C),
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 16),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed:
-                                    _submitting
-                                        ? null
-                                        : () => _editEntry(
-                                          entry,
-                                          data.dashboard.station,
-                                        ),
-                                icon: const Icon(Icons.edit_outlined),
-                                label: const Text('Edit Entry'),
-                              ),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFB91C1C),
-                                ),
-                                onPressed:
-                                    _submitting
-                                        ? null
-                                        : () => _deleteEntry(entry),
-                                icon: const Icon(Icons.delete_outline_rounded),
-                                label: Text(
-                                  entry.status == 'approved'
-                                      ? 'Override Delete'
-                                      : 'Delete Entry',
-                                ),
-                              ),
-                              if (entry.status != 'approved')
-                                FilledButton.icon(
-                                  onPressed:
-                                      _submitting
-                                          ? null
-                                          : () => _approveEntry(entry),
-                                  icon: const Icon(Icons.verified_rounded),
-                                  label: const Text('Approve'),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
+                    return _EntryCard(
+                      entry: entry,
+                      submittedLabel: submittedLabel,
+                      submitting: _submitting,
+                      onEdit: () => _editEntry(entry, data.dashboard.station),
+                      onDelete: () => _deleteEntry(entry),
+                      onApprove: () => _approveEntry(entry),
                     );
                   }),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Clay action button ────────────────────────────────────────────────────────
+class _ClayButton extends StatefulWidget {
+  const _ClayButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  State<_ClayButton> createState() => _ClayButtonState();
+}
+
+class _ClayButtonState extends State<_ClayButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = widget.onTap == null;
+    return GestureDetector(
+      onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
+      onTapUp: disabled
+          ? null
+          : (_) {
+              setState(() => _pressed = false);
+              widget.onTap!();
+            },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        height: 52,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A3A7A),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: _pressed || disabled
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.3),
+                    offset: const Offset(2, 2),
+                    blurRadius: 6,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.5),
+                    offset: const Offset(0, 8),
+                    blurRadius: 20,
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(widget.icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              widget.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Hero stat cell ────────────────────────────────────────────────────────────
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+  final String label;
+  final String value;
+  final bool highlight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: highlight
+              ? Colors.white.withValues(alpha: 0.18)
+              : Colors.white.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: highlight
+              ? Border.all(color: Colors.white.withValues(alpha: 0.25))
+              : null,
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: highlight ? Colors.white : Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: highlight ? Colors.white70 : Colors.white54,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Entry card ────────────────────────────────────────────────────────────────
+class _EntryCard extends StatelessWidget {
+  const _EntryCard({
+    required this.entry,
+    required this.submittedLabel,
+    required this.submitting,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onApprove,
+  });
+
+  final ShiftEntryModel entry;
+  final String submittedLabel;
+  final bool submitting;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onApprove;
+
+  @override
+  Widget build(BuildContext context) {
+    final isApproved = entry.status == 'approved';
+    final isFlagged = entry.flagged;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8C0DC).withValues(alpha: 0.75),
+            offset: const Offset(6, 6),
+            blurRadius: 16,
+          ),
+          const BoxShadow(
+            color: Colors.white,
+            offset: Offset(-5, -5),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Date + status ──────────────────────────────────────────
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  formatDateLabel(entry.date),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 17,
+                    color: Color(0xFF1A2561),
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+              _StatusBadge(status: entry.status, flagged: isFlagged),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'by $submittedLabel',
+            style: const TextStyle(
+              color: Color(0xFF8A93B8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Metrics grid ───────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECEFF8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _MetricCell(
+                      label: 'Petrol',
+                      value: formatLiters(entry.totals.sold.petrol),
+                    ),
+                    const _MetricDivider(),
+                    _MetricCell(
+                      label: 'Diesel',
+                      value: formatLiters(entry.totals.sold.diesel),
+                    ),
+                  ],
+                ),
+                if (entry.totals.sold.twoT > 0) ...[
+                  const _MetricRowDivider(),
+                  Row(
+                    children: [
+                      _MetricCell(
+                        label: '2T Oil',
+                        value: formatLiters(entry.totals.sold.twoT),
+                      ),
+                      const _MetricDivider(),
+                      const Expanded(child: SizedBox()),
+                    ],
+                  ),
+                ],
+                const _MetricRowDivider(),
+                Row(
+                  children: [
+                    _MetricCell(
+                      label: 'Revenue',
+                      value: formatCurrency(entry.revenue),
+                      accent: const Color(0xFF1A3A7A),
+                    ),
+                    const _MetricDivider(),
+                    _MetricCell(
+                      label: 'Collected',
+                      value: formatCurrency(entry.paymentTotal),
+                      accent: const Color(0xFF1A7A5A),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // ── Pump attendants ────────────────────────────────────────
+          if (entry.pumpAttendants.values.any((n) => n.isNotEmpty)) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final item in entry.pumpAttendants.entries)
+                  if (item.value.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECEFF8),
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                            offset: const Offset(2, 2),
+                            blurRadius: 5,
+                          ),
+                          const BoxShadow(
+                            color: Colors.white,
+                            offset: Offset(-2, -2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        '${formatPumpLabel(item.key)}: ${item.value}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF4A5598),
+                        ),
+                      ),
+                    ),
+              ],
+            ),
+          ],
+
+          // ── Variance note ──────────────────────────────────────────
+          if (entry.varianceNote.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: const Color(0xFFB91C1C).withValues(alpha: 0.15),
+                ),
+              ),
+              child: Text(
+                entry.varianceNote,
+                style: const TextStyle(
+                  color: Color(0xFFB91C1C),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+
+          // ── Action buttons ─────────────────────────────────────────
+          Row(
+            children: [
+              _ActionBtn(
+                icon: Icons.edit_rounded,
+                label: 'Edit',
+                onTap: submitting ? null : onEdit,
+              ),
+              const SizedBox(width: 8),
+              _ActionBtn(
+                icon: Icons.delete_outline_rounded,
+                label: isApproved ? 'Override' : 'Delete',
+                onTap: submitting ? null : onDelete,
+                danger: true,
+              ),
+              if (!isApproved) ...[
+                const SizedBox(width: 8),
+                _ActionBtn(
+                  icon: Icons.verified_rounded,
+                  label: 'Approve',
+                  onTap: submitting ? null : onApprove,
+                  filled: true,
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Metric cell ───────────────────────────────────────────────────────────────
+class _MetricCell extends StatelessWidget {
+  const _MetricCell({
+    required this.label,
+    required this.value,
+    this.accent,
+  });
+  final String label;
+  final String value;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8A93B8),
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: accent ?? const Color(0xFF1A2561),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 32,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      color: const Color(0xFFD8DCF0),
+    );
+  }
+}
+
+class _MetricRowDivider extends StatelessWidget {
+  const _MetricRowDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      color: const Color(0xFFD8DCF0),
+    );
+  }
+}
+
+// ─── Status badge ──────────────────────────────────────────────────────────────
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status, required this.flagged});
+  final String status;
+  final bool flagged;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color bg;
+    final Color fg;
+    final String label;
+    final IconData icon;
+
+    if (flagged) {
+      bg = const Color(0xFFFEF2F2);
+      fg = const Color(0xFFB91C1C);
+      label = 'Flagged';
+      icon = Icons.flag_rounded;
+    } else if (status == 'approved') {
+      bg = const Color(0xFFE8F8EF);
+      fg = const Color(0xFF0A7A4A);
+      label = 'Approved';
+      icon = Icons.verified_rounded;
+    } else {
+      bg = const Color(0xFFEEF2FF);
+      fg = const Color(0xFF3D5AFE);
+      label = _capitalize(status);
+      icon = Icons.hourglass_top_rounded;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _capitalize(String v) =>
+      v.isEmpty ? v : '${v[0].toUpperCase()}${v.substring(1)}';
+}
+
+// ─── Action button ─────────────────────────────────────────────────────────────
+class _ActionBtn extends StatefulWidget {
+  const _ActionBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+    this.filled = false,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool danger;
+  final bool filled;
+
+  @override
+  State<_ActionBtn> createState() => _ActionBtnState();
+}
+
+class _ActionBtnState extends State<_ActionBtn> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = widget.onTap == null;
+
+    final Color bg;
+    final Color fg;
+    if (widget.filled) {
+      bg = const Color(0xFF1A3A7A);
+      fg = Colors.white;
+    } else if (widget.danger) {
+      bg = const Color(0xFFFEF2F2);
+      fg = const Color(0xFFB91C1C);
+    } else {
+      bg = const Color(0xFFECEFF8);
+      fg = const Color(0xFF1A2561);
+    }
+
+    return Expanded(
+      child: GestureDetector(
+        onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
+        onTapUp: disabled
+            ? null
+            : (_) {
+                setState(() => _pressed = false);
+                widget.onTap!();
+              },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 80),
+          height: 40,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: widget.filled && !_pressed && !disabled
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                      offset: const Offset(0, 4),
+                      blurRadius: 10,
+                    ),
+                  ]
+                : !widget.filled && !widget.danger && !_pressed && !disabled
+                    ? [
+                        BoxShadow(
+                          color:
+                              const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+                          offset: const Offset(3, 3),
+                          blurRadius: 8,
+                        ),
+                        const BoxShadow(
+                          color: Colors.white,
+                          offset: Offset(-2, -2),
+                          blurRadius: 6,
+                        ),
+                      ]
+                    : [],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.icon, size: 14, color: disabled ? fg.withValues(alpha: 0.4) : fg),
+              const SizedBox(width: 5),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: disabled ? fg.withValues(alpha: 0.4) : fg,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -977,128 +1378,154 @@ class _EntryManagementData {
   final SalesDashboardModel dashboard;
 }
 
-class _DashboardChip extends StatelessWidget {
-  const _DashboardChip({required this.label, required this.value});
-
+// ─── Dialog toggle tab ─────────────────────────────────────────────────────────
+class _ToggleTab extends StatelessWidget {
+  const _ToggleTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
   final String label;
-  final String value;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 80),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                      offset: const Offset(2, 2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? const Color(0xFF1A2561) : const Color(0xFF8A93B8),
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EntryStatusBadge extends StatelessWidget {
-  const _EntryStatusBadge({required this.status, required this.flagged});
-
-  final String status;
-  final bool flagged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color:
-            flagged
-                ? const Color(0xFFFEF2F2)
-                : status == 'approved'
-                ? const Color(0xFFE7F8EE)
-                : const Color(0xFFEFF4FF),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        flagged ? 'Flagged' : _capitalize(status),
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          color:
-              flagged
-                  ? const Color(0xFFB91C1C)
-                  : status == 'approved'
-                  ? const Color(0xFF047857)
-                  : const Color(0xFF1E5CBA),
         ),
       ),
     );
   }
+}
 
-  String _capitalize(String value) {
-    if (value.isEmpty) {
-      return value;
-    }
-    return '${value[0].toUpperCase()}${value.substring(1)}';
+// ─── Date picker row ───────────────────────────────────────────────────────────
+class _DatePickerRow extends StatelessWidget {
+  const _DatePickerRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value != 'Tap to choose';
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+              offset: const Offset(3, 3),
+              blurRadius: 8,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-2, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: hasValue ? const Color(0xFF1A3A7A) : const Color(0xFF8A93B8),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF8A93B8),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: hasValue
+                          ? const Color(0xFF1A2561)
+                          : const Color(0xFFAAB3D0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF8A93B8),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
-class _EntryMetricChip extends StatelessWidget {
-  const _EntryMetricChip({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
+// ─── Preview box ───────────────────────────────────────────────────────────────
+class _PreviewBox extends StatelessWidget {
+  const _PreviewBox({required this.text});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 126),
-      padding: const EdgeInsets.all(12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF55606E),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.w800, color: accent),
-          ),
-        ],
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF1A2561),
+          fontSize: 13,
+        ),
       ),
     );
   }

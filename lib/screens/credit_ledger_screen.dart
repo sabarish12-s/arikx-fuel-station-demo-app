@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/credit_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class CreditLedgerScreen extends StatefulWidget {
   const CreditLedgerScreen({super.key});
@@ -19,7 +20,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   DateTime? _toDate;
   List<CreditCustomerSummaryModel> _latestCustomers = const [];
   late Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>
-  _future;
+      _future;
 
   String _errorText(Object? error) {
     return error.toString().replaceFirst('Exception: ', '');
@@ -61,14 +62,13 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   Future<void> _pickDate(bool isFrom) async {
     final selected = await showDatePicker(
       context: context,
-      initialDate: isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now()),
+      initialDate:
+          isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now()),
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
       helpText: isFrom ? 'Select from date' : 'Select to date',
     );
-    if (selected == null) {
-      return;
-    }
+    if (selected == null) return;
     setState(() {
       if (isFrom) {
         _fromDate = selected;
@@ -92,170 +92,169 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
 
     final created = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: const Text('Record Credit Collection'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DropdownMenu<String>(
-                          width: double.infinity,
-                          enableFilter: true,
-                          enableSearch: true,
-                          requestFocusOnTap: true,
-                          label: const Text('Customer'),
-                          hintText: 'Search and select existing customer',
-                          onSelected: (value) {
-                            setState(() {
-                              selectedCustomerId = value;
-                            });
-                          },
-                          dropdownMenuEntries:
-                              customers
-                                  .map(
-                                    (item) => DropdownMenuEntry<String>(
-                                      value: item.customer.id,
-                                      label: item.customer.name,
-                                    ),
-                                  )
-                                  .toList(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Record Credit Collection'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownMenu<String>(
+                  width: double.infinity,
+                  enableFilter: true,
+                  enableSearch: true,
+                  requestFocusOnTap: true,
+                  label: const Text('Customer'),
+                  hintText: 'Search and select existing customer',
+                  onSelected: (value) {
+                    setState(() {
+                      selectedCustomerId = value;
+                    });
+                  },
+                  dropdownMenuEntries: customers
+                      .map(
+                        (item) => DropdownMenuEntry<String>(
+                          value: item.customer.id,
+                          label: item.customer.name,
                         ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: amountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Amount',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: dateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Date (YYYY-MM-DD)',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: paymentMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Payment mode',
-                            filled: true,
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                            DropdownMenuItem(value: 'check', child: Text('HP Pay')),
-                            DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              paymentMode = value ?? 'cash';
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: noteController,
-                          decoration: const InputDecoration(
-                            labelText: 'Note (optional)',
-                            filled: true,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () async {
-                        CreditCustomerSummaryModel? selectedCustomer;
-                        for (final item in customers) {
-                          if (item.customer.id == selectedCustomerId) {
-                            selectedCustomer = item;
-                            break;
-                          }
-                        }
-                        if (selectedCustomer == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Color(0xFFB91C1C),
-                              content: Text(
-                                'Select an existing customer from the list.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        try {
-                          await _creditService.recordCollection(
-                            customerId: selectedCustomer.customer.id,
-                            name: selectedCustomer.customer.name,
-                            amount:
-                                double.tryParse(amountController.text.trim()) ??
-                                0,
-                            date: dateController.text.trim(),
-                            paymentMode: paymentMode,
-                            note: noteController.text.trim(),
-                          );
-                          if (!context.mounted) {
-                            return;
-                          }
-                          Navigator.of(context).pop(true);
-                        } catch (error) {
-                          if (!context.mounted) {
-                            return;
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(
-                                error.toString().replaceFirst('Exception: ', ''),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
+                      )
+                      .toList(),
                 ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: amountController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount',
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: dateController,
+                  decoration: const InputDecoration(
+                    labelText: 'Date (YYYY-MM-DD)',
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMode,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment mode',
+                    filled: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                    DropdownMenuItem(value: 'check', child: Text('HP Pay')),
+                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      paymentMode = value ?? 'cash';
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                    filled: true,
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                CreditCustomerSummaryModel? selectedCustomer;
+                for (final item in customers) {
+                  if (item.customer.id == selectedCustomerId) {
+                    selectedCustomer = item;
+                    break;
+                  }
+                }
+                if (selectedCustomer == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFFB91C1C),
+                      content: Text(
+                          'Select an existing customer from the list.'),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await _creditService.recordCollection(
+                    customerId: selectedCustomer.customer.id,
+                    name: selectedCustomer.customer.name,
+                    amount:
+                        double.tryParse(amountController.text.trim()) ?? 0,
+                    date: dateController.text.trim(),
+                    paymentMode: paymentMode,
+                    note: noteController.text.trim(),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(true);
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      content: Text(
+                        error.toString().replaceFirst('Exception: ', ''),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
 
     amountController.dispose();
     dateController.dispose();
     noteController.dispose();
 
-    if (created == true) {
-      _reload();
-    }
+    if (created == true) _reload();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
-      appBar: AppBar(title: const Text('Credit Ledger')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed:
-            _latestCustomers.isEmpty
-                ? null
-                : () => _openStandaloneCollectionDialog(_latestCustomers),
-        icon: const Icon(Icons.payments_outlined),
-        label: const Text('Record Collection'),
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        title: const Text(
+          'Credit Ledger',
+          style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
+        ),
+        iconTheme: const IconThemeData(color: kClayPrimary),
       ),
-      body: FutureBuilder<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>(
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _latestCustomers.isEmpty
+            ? null
+            : () => _openStandaloneCollectionDialog(_latestCustomers),
+        backgroundColor: const Color(0xFF1A3A7A),
+        icon: const Icon(Icons.payments_outlined, color: Colors.white),
+        label: const Text(
+          'Record Collection',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: FutureBuilder<
+          (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -267,24 +266,66 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
 
           final (summary, customers) = snapshot.data!;
           _latestCustomers = customers;
+
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             children: [
+              // ── Hero summary ──────────────────────────────────
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: const LinearGradient(
+                    colors: [kClayHeroStart, kClayHeroEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kClayHeroEnd.withValues(alpha: 0.45),
+                      offset: const Offset(0, 10),
+                      blurRadius: 24,
+                    ),
+                  ],
                 ),
+                child: Row(
+                  children: [
+                    _HeroMetric(
+                      label: 'Open',
+                      value: '${summary.openCustomerCount}',
+                      sub: 'customers',
+                    ),
+                    _HeroDivider(),
+                    _HeroMetric(
+                      label: 'Balance',
+                      value: formatCurrency(summary.openBalanceTotal),
+                      sub: 'outstanding',
+                    ),
+                    _HeroDivider(),
+                    _HeroMetric(
+                      label: 'Collected',
+                      value: formatCurrency(summary.collectedInRangeTotal),
+                      sub: 'in range',
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // ── Filters ───────────────────────────────────────
+              ClayCard(
+                margin: const EdgeInsets.only(bottom: 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Credit Filters',
+                      'FILTERS',
                       style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF293340),
+                        color: kClaySub,
+                        letterSpacing: 1.1,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -293,7 +334,11 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                       decoration: InputDecoration(
                         hintText: 'Search by customer name',
                         filled: true,
-                        fillColor: const Color(0xFFF8F9FF),
+                        fillColor: kClayBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
                         suffixIcon: IconButton(
                           onPressed: _reload,
                           icon: const Icon(Icons.search_rounded),
@@ -307,135 +352,83 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                       runSpacing: 8,
                       children: [
                         for (final option in const ['all', 'open', 'closed'])
-                          ChoiceChip(
-                            label: Text(option.toUpperCase()),
+                          _StatusPill(
+                            label: option.toUpperCase(),
                             selected: _status == option,
-                            onSelected: (_) {
+                            onTap: () {
                               setState(() {
                                 _status = option;
                                 _future = _load();
                               });
                             },
                           ),
-                        OutlinedButton.icon(
-                          onPressed: () => _pickDate(true),
-                          icon: const Icon(Icons.date_range_rounded),
-                          label: Text(
-                            _fromDate == null
-                                ? 'From'
-                                : formatDateLabel(_toApiDate(_fromDate!)),
-                          ),
+                        _DatePill(
+                          icon: Icons.date_range_rounded,
+                          label: _fromDate == null
+                              ? 'From'
+                              : formatDateLabel(_toApiDate(_fromDate!)),
+                          onTap: () => _pickDate(true),
                         ),
-                        OutlinedButton.icon(
-                          onPressed: () => _pickDate(false),
-                          icon: const Icon(Icons.event_rounded),
-                          label: Text(
-                            _toDate == null
-                                ? 'To'
-                                : formatDateLabel(_toApiDate(_toDate!)),
-                          ),
+                        _DatePill(
+                          icon: Icons.event_rounded,
+                          label: _toDate == null
+                              ? 'To'
+                              : formatDateLabel(_toApiDate(_toDate!)),
+                          onTap: () => _pickDate(false),
                         ),
                         if (_fromDate != null || _toDate != null)
-                          TextButton(
-                            onPressed: () {
+                          GestureDetector(
+                            onTap: () {
                               setState(() {
                                 _fromDate = null;
                                 _toDate = null;
                                 _future = _load();
                               });
                             },
-                            child: const Text('Clear Range'),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 6),
+                              child: Text(
+                                'Clear Range',
+                                style: TextStyle(
+                                  color: Color(0xFFCE5828),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
                           ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _CreditMetricCard(
-                      label: 'Open customers',
-                      value: '${summary.openCustomerCount}',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _CreditMetricCard(
-                      label: 'Open balance',
-                      value: formatCurrency(summary.openBalanceTotal),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _CreditMetricCard(
-                      label: 'Collected',
-                      value: formatCurrency(summary.collectedInRangeTotal),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+
+              // ── Customer list ─────────────────────────────────
               if (customers.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
+                ClayCard(
+                  child: const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No credit customers found.',
+                        style: TextStyle(color: kClaySub),
+                      ),
+                    ),
                   ),
-                  child: const Center(child: Text('No credit customers found.')),
                 )
               else
                 ...customers.map(
-                  (item) => Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.all(16),
-                      title: Text(
-                        item.customer.name,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Balance ${formatCurrency(item.currentBalance)} • Issued ${formatCurrency(item.totalIssued)} • Collected ${formatCurrency(item.totalCollected)}',
-                            ),
-                            if (item.lastActivityDate.isNotEmpty)
-                              Text(
-                                'Last activity ${formatDateLabel(item.lastActivityDate)}',
-                                style: const TextStyle(
-                                  color: Color(0xFF55606E),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      trailing: Chip(
-                        label: Text(item.status.toUpperCase()),
-                        backgroundColor:
-                            item.status == 'open'
-                                ? const Color(0xFFFFF7ED)
-                                : const Color(0xFFF3F4F6),
-                      ),
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder:
-                                (_) => CreditCustomerDetailScreen(
-                                  customerId: item.customer.id,
-                                ),
+                  (item) => _CustomerCard(
+                    item: item,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => CreditCustomerDetailScreen(
+                            customerId: item.customer.id,
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
             ],
@@ -446,6 +439,239 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   }
 }
 
+// ─── Hero metric ─────────────────────────────────────────────────────────────
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
+  final String label;
+  final String value;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            sub,
+            style: const TextStyle(color: Colors.white54, fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      color: Colors.white.withValues(alpha: 0.20),
+    );
+  }
+}
+
+// ─── Status pill ─────────────────────────────────────────────────────────────
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? kClayPrimary : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: selected
+              ? null
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
+                    offset: const Offset(3, 3),
+                    blurRadius: 8,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-2, -2),
+                    blurRadius: 6,
+                  ),
+                ],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : kClaySub,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Date pill ───────────────────────────────────────────────────────────────
+class _DatePill extends StatelessWidget {
+  const _DatePill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
+              offset: const Offset(3, 3),
+              blurRadius: 8,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-2, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: kClaySub),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                color: kClaySub,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Customer card ────────────────────────────────────────────────────────────
+class _CustomerCard extends StatelessWidget {
+  const _CustomerCard({required this.item, required this.onTap});
+  final CreditCustomerSummaryModel item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isOpen = item.status == 'open';
+    return GestureDetector(
+      onTap: onTap,
+      child: ClayCard(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isOpen
+                    ? const Color(0xFFCE5828).withValues(alpha: 0.10)
+                    : const Color(0xFF2AA878).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isOpen ? Icons.pending_rounded : Icons.check_circle_rounded,
+                color: isOpen
+                    ? const Color(0xFFCE5828)
+                    : const Color(0xFF2AA878),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.customer.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: kClayPrimary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Balance ${formatCurrency(item.currentBalance)}  ·  Issued ${formatCurrency(item.totalIssued)}',
+                    style: const TextStyle(color: kClaySub, fontSize: 12),
+                  ),
+                  if (item.lastActivityDate.isNotEmpty)
+                    Text(
+                      'Last activity ${formatDateLabel(item.lastActivityDate)}',
+                      style: const TextStyle(color: kClaySub, fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: kClaySub,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Credit Customer Detail Screen
+// ─────────────────────────────────────────────────────────────────────────────
 class CreditCustomerDetailScreen extends StatefulWidget {
   const CreditCustomerDetailScreen({super.key, required this.customerId});
 
@@ -456,7 +682,8 @@ class CreditCustomerDetailScreen extends StatefulWidget {
       _CreditCustomerDetailScreenState();
 }
 
-class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen> {
+class _CreditCustomerDetailScreenState
+    extends State<CreditCustomerDetailScreen> {
   final CreditService _creditService = CreditService();
   late Future<CreditCustomerDetailModel> _future;
 
@@ -486,119 +713,116 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
 
     final saved = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: Text('Collect from ${detail.customer.name}'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: amountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Amount',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: dateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Date (YYYY-MM-DD)',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: paymentMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Payment mode',
-                            filled: true,
-                          ),
-                          items: const [
-                            DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                            DropdownMenuItem(value: 'check', child: Text('HP Pay')),
-                            DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              paymentMode = value ?? 'cash';
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: noteController,
-                          decoration: const InputDecoration(
-                            labelText: 'Note (optional)',
-                            filled: true,
-                          ),
-                        ),
-                      ],
-                    ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Collect from ${detail.customer.name}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount',
+                    filled: true,
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () async {
-                        try {
-                          await _creditService.recordCollection(
-                            customerId: detail.customer.id,
-                            name: detail.customer.name,
-                            amount:
-                                double.tryParse(amountController.text.trim()) ??
-                                0,
-                            date: dateController.text.trim(),
-                            paymentMode: paymentMode,
-                            note: noteController.text.trim(),
-                          );
-                          if (!context.mounted) {
-                            return;
-                          }
-                          Navigator.of(context).pop(true);
-                        } catch (error) {
-                          if (!context.mounted) {
-                            return;
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(
-                                error.toString().replaceFirst('Exception: ', ''),
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
                 ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: dateController,
+                  decoration: const InputDecoration(
+                    labelText: 'Date (YYYY-MM-DD)',
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMode,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment mode',
+                    filled: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                    DropdownMenuItem(value: 'check', child: Text('HP Pay')),
+                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      paymentMode = value ?? 'cash';
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                    filled: true,
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await _creditService.recordCollection(
+                    customerId: detail.customer.id,
+                    name: detail.customer.name,
+                    amount:
+                        double.tryParse(amountController.text.trim()) ?? 0,
+                    date: dateController.text.trim(),
+                    paymentMode: paymentMode,
+                    note: noteController.text.trim(),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(true);
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      content: Text(
+                        error.toString().replaceFirst('Exception: ', ''),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
 
     amountController.dispose();
     noteController.dispose();
     dateController.dispose();
-    if (saved == true) {
-      _reload();
-    }
+    if (saved == true) _reload();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
-      appBar: AppBar(title: const Text('Credit Detail')),
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        iconTheme: const IconThemeData(color: kClayPrimary),
+        title: const Text(
+          'Credit Detail',
+          style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
+        ),
+      ),
       body: FutureBuilder<CreditCustomerDetailModel>(
         future: _future,
         builder: (context, snapshot) {
@@ -610,14 +834,28 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
           }
 
           final detail = snapshot.data!;
+          final isOpen = detail.status == 'open';
+
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
+              // ── Customer hero ────────────────────────────────
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: const LinearGradient(
+                    colors: [kClayHeroStart, kClayHeroEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: kClayHeroEnd.withValues(alpha: 0.45),
+                      offset: const Offset(0, 10),
+                      blurRadius: 24,
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -628,88 +866,136 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
                           child: Text(
                             detail.customer.name,
                             style: const TextStyle(
-                              fontSize: 22,
+                              fontSize: 20,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF293340),
+                              color: Colors.white,
                             ),
                           ),
                         ),
-                        Chip(label: Text(detail.status.toUpperCase())),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            detail.status.toUpperCase(),
+                            style: TextStyle(
+                              color: isOpen
+                                  ? const Color(0xFFFFB649)
+                                  : const Color(0xFF7EEFC0),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    const SizedBox(height: 14),
+                    Row(
                       children: [
-                        Text('Balance ${formatCurrency(detail.currentBalance)}'),
-                        Text('Issued ${formatCurrency(detail.totalIssued)}'),
-                        Text('Collected ${formatCurrency(detail.totalCollected)}'),
-                        if (detail.openedAt.isNotEmpty)
-                          Text('Opened ${formatDateLabel(detail.openedAt)}'),
-                        if (detail.lastClosedAt.isNotEmpty)
-                          Text('Closed ${formatDateLabel(detail.lastClosedAt)}'),
+                        _DetailMetric(
+                          label: 'Balance',
+                          value: formatCurrency(detail.currentBalance),
+                        ),
+                        _DetailDivider(),
+                        _DetailMetric(
+                          label: 'Issued',
+                          value: formatCurrency(detail.totalIssued),
+                        ),
+                        _DetailDivider(),
+                        _DetailMetric(
+                          label: 'Collected',
+                          value: formatCurrency(detail.totalCollected),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    FilledButton.icon(
-                      onPressed: () => _recordCollection(detail),
-                      icon: const Icon(Icons.payments_outlined),
-                      label: const Text('Record Collection'),
+                    if (detail.openedAt.isNotEmpty ||
+                        detail.lastClosedAt.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 12,
+                        children: [
+                          if (detail.openedAt.isNotEmpty)
+                            Text(
+                              'Opened ${formatDateLabel(detail.openedAt)}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                          if (detail.lastClosedAt.isNotEmpty)
+                            Text(
+                              'Closed ${formatDateLabel(detail.lastClosedAt)}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    GestureDetector(
+                      onTap: () => _recordCollection(detail),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.30),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.payments_outlined,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Record Collection',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              ...detail.transactions.map(
-                (item) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${item.type.toUpperCase()} • ${formatDateLabel(item.date)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          Text(
-                            formatCurrency(item.amount),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF293340),
-                            ),
-                          ),
-                        ],
+
+              const SizedBox(height: 14),
+
+              // ── Transactions ─────────────────────────────────
+              if (detail.transactions.isEmpty)
+                ClayCard(
+                  child: const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text(
+                        'No transactions yet.',
+                        style: TextStyle(color: kClaySub),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Running balance ${formatCurrency(item.runningBalance)}',
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                      if (item.paymentMode.isNotEmpty)
-                        Text(
-                          'Mode ${item.paymentMode.toUpperCase()}',
-                          style: const TextStyle(color: Color(0xFF55606E)),
-                        ),
-                      if (item.note.isNotEmpty)
-                        Text(
-                          item.note,
-                          style: const TextStyle(color: Color(0xFF55606E)),
-                        ),
-                    ],
+                    ),
                   ),
+                )
+              else
+                ...detail.transactions.map(
+                  (item) => _TransactionCard(item: item),
                 ),
-              ),
             ],
           );
         },
@@ -718,37 +1004,132 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
   }
 }
 
-class _CreditMetricCard extends StatelessWidget {
-  const _CreditMetricCard({required this.label, required this.value});
-
+// ─── Detail metric ────────────────────────────────────────────────────────────
+class _DetailMetric extends StatelessWidget {
+  const _DetailMetric({required this.label, required this.value});
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
+    return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
             style: const TextStyle(
-              fontSize: 12,
+              color: Colors.white70,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF55606E),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           Text(
             value,
             style: const TextStyle(
+              color: Colors.white,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF293340),
+              fontSize: 13,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 32,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
+      color: Colors.white.withValues(alpha: 0.20),
+    );
+  }
+}
+
+// ─── Transaction card ─────────────────────────────────────────────────────────
+class _TransactionCard extends StatelessWidget {
+  const _TransactionCard({required this.item});
+  final CreditTransactionModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCredit = item.type.toLowerCase() == 'credit' ||
+        item.type.toLowerCase() == 'issue';
+    return ClayCard(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isCredit
+                  ? const Color(0xFFCE5828).withValues(alpha: 0.10)
+                  : const Color(0xFF2AA878).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isCredit
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded,
+              color: isCredit
+                  ? const Color(0xFFCE5828)
+                  : const Color(0xFF2AA878),
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${item.type.toUpperCase()}  ·  ${formatDateLabel(item.date)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      formatCurrency(item.amount),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 14,
+                        color: isCredit
+                            ? const Color(0xFFCE5828)
+                            : const Color(0xFF2AA878),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Running balance ${formatCurrency(item.runningBalance)}',
+                  style: const TextStyle(color: kClaySub, fontSize: 12),
+                ),
+                if (item.paymentMode.isNotEmpty)
+                  Text(
+                    'Mode ${item.paymentMode.toUpperCase()}',
+                    style: const TextStyle(color: kClaySub, fontSize: 12),
+                  ),
+                if (item.note.isNotEmpty)
+                  Text(
+                    item.note,
+                    style: const TextStyle(color: kClaySub, fontSize: 12),
+                  ),
+              ],
             ),
           ),
         ],

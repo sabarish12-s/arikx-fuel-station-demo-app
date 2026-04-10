@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class OpeningStockSettingsScreen extends StatefulWidget {
   const OpeningStockSettingsScreen({
@@ -52,9 +53,7 @@ class _OpeningStockSettingsScreenState
   }
 
   void _seedControllers(StationConfigModel station) {
-    if (_seeded) {
-      return;
-    }
+    if (_seeded) return;
     for (final pump in station.pumps) {
       final readings =
           station.baseReadings[pump.id] ??
@@ -134,9 +133,7 @@ class _OpeningStockSettingsScreenState
     );
 
     await _inventoryService.saveStationConfig(updated);
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Pump opening readings saved.')),
     );
@@ -152,12 +149,18 @@ class _OpeningStockSettingsScreenState
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return const ColoredBox(
+            color: kClayBg,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              snapshot.error.toString().replaceFirst('Exception: ', ''),
+          return ColoredBox(
+            color: kClayBg,
+            child: Center(
+              child: Text(
+                snapshot.error.toString().replaceFirst('Exception: ', ''),
+              ),
             ),
           );
         }
@@ -167,182 +170,133 @@ class _OpeningStockSettingsScreenState
 
         return RefreshIndicator(
           onRefresh: _reload,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
-              if (widget.embedded)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: widget.onBack,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                      const Expanded(
-                        child: Text(
-                          'Pump Opening Readings',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF293340),
-                          ),
-                        ),
-                      ),
-                      if (widget.canEdit)
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              if (_isEditing) {
-                                _isEditing = false;
-                                _resetFromStation(station);
-                              } else {
-                                _isEditing = true;
-                              }
-                            });
-                          },
-                          child: Text(_isEditing ? 'Cancel' : 'Edit'),
-                        ),
-                    ],
+          child: ColoredBox(
+            color: kClayBg,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                if (widget.embedded)
+                  ClaySubHeader(
+                    title: 'Pump Opening Readings',
+                    onBack: widget.onBack,
+                    trailing: widget.canEdit
+                        ? _EditTogglePill(
+                            isEditing: _isEditing,
+                            onTap: () {
+                              setState(() {
+                                if (_isEditing) {
+                                  _isEditing = false;
+                                  _resetFromStation(station);
+                                } else {
+                                  _isEditing = true;
+                                }
+                              });
+                            },
+                          )
+                        : null,
                   ),
-                ),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Text(
-                            'Current Pump Opening Readings',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF293340),
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _isEditing
-                                ? const Color(0xFFE0E7FF)
-                                : const Color(0xFFE5F7EE),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            _isEditing ? 'Editing' : 'View only',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: _isEditing
-                                  ? const Color(0xFF1E40AF)
-                                  : const Color(0xFF047857),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Use this to set the opening meter reading for each pump. '
-                      'These values are used whenever a day has no previous entry to carry forward.',
-                      style: const TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Station: ${station.name}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF293340),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              ...station.pumps.map((pump) {
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
+
+                // ── Info card ──────────────────────────────────────
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        formatPumpLabel(pump.id, pump.label),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF293340),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
                       const Text(
-                        'Edit the opening reading that should be treated as the pump starting value.',
-                        style: TextStyle(color: Color(0xFF55606E)),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller:
-                            _controllers[_readingKey(pump.id, 'petrol')],
-                        enabled: widget.canEdit && _isEditing,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Petrol opening reading',
-                          prefixIcon: Icon(Icons.local_gas_station_rounded),
+                        'Opening Meter Readings',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller:
-                            _controllers[_readingKey(pump.id, 'diesel')],
-                        enabled: widget.canEdit && _isEditing,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        decoration: const InputDecoration(
-                          labelText: 'Diesel opening reading',
-                          prefixIcon: Icon(Icons.local_gas_station_rounded),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'These values are used whenever a day has no previous entry to carry forward.',
+                        style: TextStyle(color: kClaySub, height: 1.4),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Station: ${station.name}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: kClayPrimary,
                         ),
                       ),
-                      if (_supportsTwoT(pump.id)) ...[
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller:
-                              _controllers[_readingKey(pump.id, 'twoT')],
-                          enabled: widget.canEdit && _isEditing,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: '2T oil opening reading',
-                            prefixIcon: Icon(Icons.local_gas_station_rounded),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
-                );
-              }),
-              if (widget.canEdit && _isEditing)
-                FilledButton(
-                  onPressed: () => _save(station),
-                  child: const Text('Save Opening Readings'),
                 ),
-            ],
+
+                // ── Per-pump cards ─────────────────────────────────
+                ...station.pumps.map((pump) {
+                  return ClayCard(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A3A7A).withValues(
+                                  alpha: 0.10,
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.speed_rounded,
+                                color: Color(0xFF1A3A7A),
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              formatPumpLabel(pump.id, pump.label),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: kClayPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        _NumericField(
+                          controller:
+                              _controllers[_readingKey(pump.id, 'petrol')],
+                          label: 'Petrol opening reading',
+                          enabled: widget.canEdit && _isEditing,
+                        ),
+                        const SizedBox(height: 12),
+                        _NumericField(
+                          controller:
+                              _controllers[_readingKey(pump.id, 'diesel')],
+                          label: 'Diesel opening reading',
+                          enabled: widget.canEdit && _isEditing,
+                        ),
+                        if (_supportsTwoT(pump.id)) ...[
+                          const SizedBox(height: 12),
+                          _NumericField(
+                            controller:
+                                _controllers[_readingKey(pump.id, 'twoT')],
+                            label: '2T oil opening reading',
+                            enabled: widget.canEdit && _isEditing,
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+
+                if (widget.canEdit && _isEditing)
+                  FilledButton(
+                    onPressed: () => _save(station),
+                    child: const Text('Save Opening Readings'),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -352,13 +306,12 @@ class _OpeningStockSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final content = _buildContent();
-
-    if (widget.embedded) {
-      return content;
-    }
+    if (widget.embedded) return content;
 
     return Scaffold(
+      backgroundColor: kClayBg,
       appBar: AppBar(
+        backgroundColor: kClayBg,
         title: const Text('Pump Opening Readings'),
         actions: [
           if (widget.canEdit)
@@ -386,6 +339,79 @@ class _OpeningStockSettingsScreenState
         ],
       ),
       body: content,
+    );
+  }
+}
+
+// ─── Edit toggle pill ────────────────────────────────────────────────────────
+class _EditTogglePill extends StatelessWidget {
+  const _EditTogglePill({required this.isEditing, required this.onTap});
+  final bool isEditing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+              offset: const Offset(4, 4),
+              blurRadius: 10,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-3, -3),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Text(
+          isEditing ? 'Cancel' : 'Edit',
+          style: TextStyle(
+            color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
+            fontWeight: FontWeight.w700,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Numeric field ───────────────────────────────────────────────────────────
+class _NumericField extends StatelessWidget {
+  const _NumericField({
+    required this.label,
+    required this.controller,
+    required this.enabled,
+  });
+
+  final String label;
+  final TextEditingController? controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: const Icon(Icons.local_gas_station_rounded),
+        filled: true,
+        fillColor: enabled ? kClayBg : const Color(0xFFE8EBF4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
     );
   }
 }

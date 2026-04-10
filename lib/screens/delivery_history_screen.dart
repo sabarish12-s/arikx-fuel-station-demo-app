@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class DeliveryHistoryScreen extends StatefulWidget {
   const DeliveryHistoryScreen({super.key});
@@ -35,8 +36,18 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
-      appBar: AppBar(title: const Text('Delivery History')),
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        title: const Text(
+          'Delivery History',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            color: kClayPrimary,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: kClayPrimary),
+      ),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<List<DeliveryReceiptModel>>(
@@ -49,37 +60,53 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
-                  Text('Failed to load history\n${_errorText(snapshot.error)}'),
+                  Text(
+                      'Failed to load history\n${_errorText(snapshot.error)}'),
                 ],
               );
             }
-            final deliveries = snapshot.data ?? const <DeliveryReceiptModel>[];
+            final deliveries =
+                snapshot.data ?? const <DeliveryReceiptModel>[];
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    deliveries.isEmpty
-                        ? 'No delivery receipts recorded yet.'
-                        : '${deliveries.length} delivery event${deliveries.length == 1 ? '' : 's'} recorded.',
-                    style: const TextStyle(
-                      color: Color(0xFF55606E),
-                      height: 1.4,
-                    ),
+                // ── Summary pill ─────────────────────────────────
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.local_shipping_rounded,
+                          color: Color(0xFF1A3A7A),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        deliveries.isEmpty
+                            ? 'No delivery receipts recorded yet.'
+                            : '${deliveries.length} delivery event${deliveries.length == 1 ? '' : 's'} recorded.',
+                        style: const TextStyle(
+                          color: kClayPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (deliveries.isEmpty)
-                  const SizedBox.shrink()
-                else
+                if (deliveries.isNotEmpty)
                   ...deliveries.map(
-                    (delivery) =>
-                        DeliveryReceiptSummaryCard(delivery: delivery),
+                    (delivery) => DeliveryReceiptSummaryCard(
+                      delivery: delivery,
+                      margin: const EdgeInsets.only(bottom: 14),
+                    ),
                   ),
               ],
             );
@@ -104,56 +131,67 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
-    if ((petrol > 0 || diesel > 0) && twoT <= 0) {
-      return 'Petrol + Diesel Delivery';
-    }
-    if (twoT > 0 && petrol <= 0 && diesel <= 0) {
-      return '2T Oil Delivery';
-    }
+    if ((petrol > 0 || diesel > 0) && twoT <= 0) return 'Petrol + Diesel Delivery';
+    if (twoT > 0 && petrol <= 0 && diesel <= 0) return '2T Oil Delivery';
     return 'Mixed Delivery';
   }
 
-  List<String> _quantityLines() {
-    final lines = <String>[];
+  List<_DeliveryQtyItem> _qtyItems() {
+    final items = <_DeliveryQtyItem>[];
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
-    if (petrol > 0) {
-      lines.add('Petrol: ${formatLiters(petrol)}');
-    }
-    if (diesel > 0) {
-      lines.add('Diesel: ${formatLiters(diesel)}');
-    }
-    if (twoT > 0) {
-      lines.add('2T Oil: ${formatLiters(twoT)}');
-    }
-    return lines;
+    if (petrol > 0)
+      items.add(_DeliveryQtyItem(
+        label: 'Petrol',
+        liters: petrol,
+        color: const Color(0xFF1298B8),
+      ));
+    if (diesel > 0)
+      items.add(_DeliveryQtyItem(
+        label: 'Diesel',
+        liters: diesel,
+        color: const Color(0xFF2AA878),
+      ));
+    if (twoT > 0)
+      items.add(_DeliveryQtyItem(
+        label: '2T Oil',
+        liters: twoT,
+        color: const Color(0xFF7048A8),
+      ));
+    return items;
+  }
+
+  bool _isTwoTOnly() {
+    final petrol = delivery.quantities['petrol'] ?? 0;
+    final diesel = delivery.quantities['diesel'] ?? 0;
+    final twoT = delivery.quantities['two_t_oil'] ?? 0;
+    return twoT > 0 && petrol <= 0 && diesel <= 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    final quantityLines = _quantityLines();
-    return Container(
+    final qtyItems = _qtyItems();
+    return ClayCard(
       margin: margin,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FF),
-        borderRadius: BorderRadius.circular(20),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFE9EEF7),
-            child: Text(
-              (delivery.quantities['two_t_oil'] ?? 0) > 0 &&
-                      (delivery.quantities['petrol'] ?? 0) <= 0 &&
-                      (delivery.quantities['diesel'] ?? 0) <= 0
-                  ? '2T'
-                  : 'PD',
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1E5CBA),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: Text(
+                _isTwoTOnly() ? '2T' : 'PD',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                  color: Color(0xFF1A3A7A),
+                ),
               ),
             ),
           ),
@@ -166,24 +204,42 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
                   _deliveryTitle(),
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF293340),
+                    color: kClayPrimary,
+                    fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${formatDateLabel(delivery.date)}  |  Total ${formatLiters(delivery.quantity)}',
-                  style: const TextStyle(color: Color(0xFF55606E)),
+                  '${formatDateLabel(delivery.date)}  ·  Total ${formatLiters(delivery.quantity)}',
+                  style: const TextStyle(color: kClaySub, fontSize: 12),
                 ),
-                if (quantityLines.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ...quantityLines.map(
-                    (line) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Text(
-                        line,
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                    ),
+                if (qtyItems.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: qtyItems
+                        .map(
+                          (item) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: item.color.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              '${item.label}: ${formatLiters(item.liters)}',
+                              style: TextStyle(
+                                color: item.color,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
                 if (delivery.note.trim().isNotEmpty) ...[
@@ -191,8 +247,9 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
                   Text(
                     delivery.note,
                     style: const TextStyle(
-                      color: Color(0xFF55606E),
+                      color: kClaySub,
                       height: 1.35,
+                      fontSize: 12,
                     ),
                   ),
                 ],
@@ -203,4 +260,15 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DeliveryQtyItem {
+  const _DeliveryQtyItem({
+    required this.label,
+    required this.liters,
+    required this.color,
+  });
+  final String label;
+  final double liters;
+  final Color color;
 }

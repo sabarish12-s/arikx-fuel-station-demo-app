@@ -40,12 +40,20 @@ class ManagementService {
 
   Future<List<ShiftEntryModel>> fetchEntries({
     String? month,
+    String? fromDate,
+    String? toDate,
     bool approvedOnly = false,
     bool summary = true,
   }) async {
     final params = <String, String>{};
     if (month != null && month.isNotEmpty) {
       params['month'] = month;
+    }
+    if (fromDate != null && fromDate.isNotEmpty) {
+      params['from'] = fromDate;
+    }
+    if (toDate != null && toDate.isNotEmpty) {
+      params['to'] = toDate;
     }
     if (approvedOnly) {
       params['approvedOnly'] = 'true';

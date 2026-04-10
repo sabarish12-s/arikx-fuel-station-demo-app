@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class FuelTypeManagerScreen extends StatefulWidget {
   const FuelTypeManagerScreen({
@@ -123,89 +124,140 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
           );
         }
         final fuelTypes = snapshot.data ?? [];
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          itemCount: fuelTypes.length + (widget.embedded ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (widget.embedded && index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: widget.onBack,
-                      icon: const Icon(Icons.arrow_back_rounded),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Fuel Types',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF293340),
-                        ),
-                      ),
-                    ),
-                    if (widget.canEdit)
-                      FilledButton.icon(
-                        onPressed: () => _openEditor(),
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add'),
-                      ),
-                  ],
-                ),
-              );
-            }
+        return ColoredBox(
+          color: kClayBg,
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            itemCount: fuelTypes.length + (widget.embedded ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (widget.embedded && index == 0) {
+                return ClaySubHeader(
+                  title: 'Fuel Types',
+                  onBack: widget.onBack,
+                  trailing: widget.canEdit
+                      ? GestureDetector(
+                          onTap: () => _openEditor(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFB8C0DC)
+                                      .withValues(alpha: 0.65),
+                                  offset: const Offset(4, 4),
+                                  blurRadius: 10,
+                                ),
+                                const BoxShadow(
+                                  color: Colors.white,
+                                  offset: Offset(-3, -3),
+                                  blurRadius: 8,
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add_rounded,
+                                    size: 16, color: kClayPrimary),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Add',
+                                  style: TextStyle(
+                                    color: kClayPrimary,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : null,
+                );
+              }
 
-            final fuelType = fuelTypes[widget.embedded ? index - 1 : index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    fuelType.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(fuelType.description),
-                  if (fuelType.createdAt.trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      'Added on ${formatDateLabel(fuelType.createdAt)}',
-                      style: const TextStyle(color: Color(0xFF55606E)),
-                    ),
-                  ],
-                  const SizedBox(height: 10),
-                  if (widget.canEdit)
+              final fuelType = fuelTypes[widget.embedded ? index - 1 : index];
+              final color = colorFromHex(fuelType.color);
+              return ClayCard(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        OutlinedButton(
-                          onPressed: () => _openEditor(existing: fuelType),
-                          child: const Text('Edit'),
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.local_gas_station_rounded,
+                            color: color,
+                            size: 20,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        TextButton(
-                          onPressed: () async {
-                            await _inventoryService.deleteFuelType(fuelType.id);
-                            _reload();
-                          },
-                          child: const Text('Delete'),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            fuelType.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              color: kClayPrimary,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                ],
-              ),
-            );
-          },
+                    if (fuelType.description.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        fuelType.description,
+                        style: const TextStyle(color: kClaySub),
+                      ),
+                    ],
+                    if (fuelType.createdAt.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Added on ${formatDateLabel(fuelType.createdAt)}',
+                        style: const TextStyle(
+                          color: kClaySub,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                    if (widget.canEdit) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => _openEditor(existing: fuelType),
+                            child: const Text('Edit'),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () async {
+                              await _inventoryService
+                                  .deleteFuelType(fuelType.id);
+                              _reload();
+                            },
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -215,7 +267,11 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Fuel Types')),
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        title: const Text('Fuel Types'),
+      ),
       floatingActionButton: widget.canEdit
           ? FloatingActionButton.extended(
               onPressed: () => _openEditor(),
