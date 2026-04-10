@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../models/access_request.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
+import '../utils/formatters.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/clay_widgets.dart';
 import 'login_screen.dart';
 
 class SuperAdminRequestsScreen extends StatefulWidget {
@@ -42,7 +44,10 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: kClayBg,
       appBar: AppBar(
+        backgroundColor: kClayBg,
+        iconTheme: const IconThemeData(color: kClayPrimary),
         title: const Row(
           children: [
             AppLogo(size: 26),
@@ -92,84 +97,213 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
           future: _requestsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
+              return const ColoredBox(
+                color: kClayBg,
+                child: Center(child: CircularProgressIndicator()),
+              );
             }
             if (snapshot.hasError) {
               return ListView(
+                padding: const EdgeInsets.all(16),
                 children: [
-                  const SizedBox(height: 100),
-                  Center(
+                  ClayCard(
+                    margin: const EdgeInsets.only(top: 80),
                     child: Text(
                       'Failed to load requests:\n${_errorText(snapshot.error)}',
                       textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-              );
-            }
-            final requests = snapshot.data ?? [];
-            if (requests.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 120),
-                  Center(
-                    child: Text(
-                      'No pending requests right now.',
-                      style: TextStyle(
-                        fontSize: 18,
+                      style: const TextStyle(
+                        color: kClayPrimary,
                         fontWeight: FontWeight.w700,
+                        height: 1.4,
                       ),
                     ),
                   ),
                 ],
               );
             }
-            return ListView.separated(
+            final requests = snapshot.data ?? [];
+            return ListView(
               padding: const EdgeInsets.all(16),
-              itemBuilder: (context, index) {
-                final request = requests[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          request.name,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(request.email),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Requested role: ${request.roleRequested}',
-                          style: const TextStyle(
-                            color: Color(0xFF55606E),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        FilledButton(
-                          onPressed: () => _approve(request.id),
-                          child: const Text('Approve'),
-                        ),
-                      ],
+              children: [
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [kClayHeroStart, kClayHeroEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kClayHeroEnd.withValues(alpha: 0.45),
+                        offset: const Offset(0, 10),
+                        blurRadius: 24,
+                      ),
+                    ],
                   ),
-                );
-              },
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemCount: requests.length,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'PENDING REQUESTS',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${requests.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Review station staff access requests and approve verified accounts.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                if (requests.isEmpty)
+                  const ClayCard(
+                    child: Text(
+                      'No pending requests right now.',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: kClayPrimary,
+                      ),
+                    ),
+                  )
+                else
+                  ...requests.map((request) {
+                    return ClayCard(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      request.name.isEmpty
+                                          ? 'Unnamed Request'
+                                          : request.name,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        color: kClayPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      request.email,
+                                      style: const TextStyle(
+                                        color: kClaySub,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF2FF),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  request.roleRequested.toUpperCase(),
+                                  style: const TextStyle(
+                                    color: kClayHeroStart,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _RequestInfoRow(
+                            label: 'Requested On',
+                            value: formatDateLabel(
+                              request.createdAt.toIso8601String(),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _RequestInfoRow(
+                            label: 'Station',
+                            value: request.stationId,
+                          ),
+                          const SizedBox(height: 14),
+                          FilledButton(
+                            onPressed: () => _approve(request.id),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: kClayHeroStart,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size.fromHeight(48),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text('Approve'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
             );
           },
         ),
       ),
+    );
+  }
+}
+
+class _RequestInfoRow extends StatelessWidget {
+  const _RequestInfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: const TextStyle(color: kClaySub, fontWeight: FontWeight.w700),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

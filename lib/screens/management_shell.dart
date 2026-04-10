@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/clay_widgets.dart';
 import 'inventory_hub_screen.dart';
 import 'management_dashboard_screen.dart';
 import 'entry_management_screen.dart';
@@ -65,10 +66,12 @@ class _ManagementShellState extends State<ManagementShell> {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
+      backgroundColor: kClayBg,
       appBar: AppBar(
-        backgroundColor: Colors.white.withValues(alpha: 0.9),
+        backgroundColor: kClayBg,
+        scrolledUnderElevation: 0,
         elevation: 0,
+        iconTheme: const IconThemeData(color: kClayPrimary),
         title: Row(
           children: [
             const AppLogo(size: 28),
@@ -77,7 +80,7 @@ class _ManagementShellState extends State<ManagementShell> {
               _titleForIndex(_index),
               style: const TextStyle(
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF293340),
+                color: kClayPrimary,
               ),
             ),
           ],
@@ -91,37 +94,66 @@ class _ManagementShellState extends State<ManagementShell> {
         ],
       ),
       body: IndexedStack(index: _index, children: screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) {
-          if (value == 4 && _index == 4) {
-            SettingsHomeScreen.resetToHome(_settingsKey);
-          } else {
-            setState(() => _index = value);
-          }
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.grid_view_rounded),
-            label: 'Dashboard',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.3),
+              offset: const Offset(0, -6),
+              blurRadius: 18,
+            ),
+          ],
+        ),
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            backgroundColor: Colors.white,
+            indicatorColor: kClayHeroStart.withValues(alpha: 0.12),
+            iconTheme: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return IconThemeData(color: selected ? kClayHeroStart : kClaySub);
+            }),
+            labelTextStyle: WidgetStateProperty.resolveWith((states) {
+              final selected = states.contains(WidgetState.selected);
+              return TextStyle(
+                color: selected ? kClayHeroStart : kClaySub,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+              );
+            }),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.edit_note_rounded),
-            label: 'Entries',
+          child: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (value) {
+              if (value == 4 && _index == 4) {
+                SettingsHomeScreen.resetToHome(_settingsKey);
+              } else {
+                setState(() => _index = value);
+              }
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.grid_view_rounded),
+                label: 'Dashboard',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.edit_note_rounded),
+                label: 'Entries',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.bar_chart_rounded),
+                label: 'Reports',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.local_gas_station_outlined),
+                label: 'Inventory',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.manage_accounts_outlined),
+                label: 'Settings',
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_rounded),
-            label: 'Reports',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.local_gas_station_outlined),
-            label: 'Inventory',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.manage_accounts_outlined),
-            label: 'Settings',
-          ),
-        ],
+        ),
       ),
     );
   }

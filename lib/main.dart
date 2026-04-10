@@ -6,6 +6,7 @@ import 'models/auth_models.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'widgets/clay_widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +25,18 @@ class RkFuelsApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5D86EA)),
-        scaffoldBackgroundColor: const Color(0xFFE9EEF7),
+        scaffoldBackgroundColor: kClayBg,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: kClayBg,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          iconTheme: IconThemeData(color: kClayPrimary),
+          titleTextStyle: TextStyle(
+            color: kClayPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
         useMaterial3: true,
       ),
       home: const _StartupRouter(),
@@ -59,7 +71,11 @@ class _StartupRouterState extends State<_StartupRouter> {
         if (!snapshot.hasData) {
           if (snapshot.connectionState != ConnectionState.done) {
             return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              backgroundColor: kClayBg,
+              body: ColoredBox(
+                color: kClayBg,
+                child: Center(child: CircularProgressIndicator()),
+              ),
             );
           }
           return screenForUser(null);
