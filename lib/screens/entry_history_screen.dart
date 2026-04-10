@@ -46,13 +46,6 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     );
   }
 
-  void _reload() {
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _future = _loadEntries();
-    });
-  }
-
   Future<void> _pickDate({required bool isFrom}) async {
     final initialDate = isFrom ? _fromDate : _toDate;
     final selected = await showDatePicker(
