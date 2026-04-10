@@ -106,6 +106,50 @@ class SalesService {
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
   }
 
+  Future<ShiftEntryModel> updateEntry({
+    required String entryId,
+    required String date,
+    required Map<String, PumpReadings> closingReadings,
+    required Map<String, String> pumpAttendants,
+    required Map<String, PumpTestingModel> pumpTesting,
+    required Map<String, PumpPaymentBreakdownModel> pumpPayments,
+    required Map<String, double> pumpCollections,
+    required PaymentBreakdownModel paymentBreakdown,
+    required List<CreditEntryModel> creditEntries,
+    required List<CreditCollectionModel> creditCollections,
+    String mismatchReason = '',
+  }) async {
+    final response = await _apiClient.patch(
+      '/sales/entries/$entryId',
+      body: jsonEncode({
+        'date': date,
+        'closingReadings': closingReadings.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpAttendants': pumpAttendants,
+        'pumpTesting': pumpTesting.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpPayments': pumpPayments.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpCollections': pumpCollections,
+        'paymentBreakdown': paymentBreakdown.toJson(),
+        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+        'creditCollections':
+            creditCollections.map((entry) => entry.toJson()).toList(),
+        'mismatchReason': mismatchReason,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to update entry.'),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
+  }
+
   Future<ShiftEntryModel> previewEntry({
     required String date,
     required Map<String, PumpReadings> closingReadings,

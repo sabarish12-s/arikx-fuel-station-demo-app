@@ -152,7 +152,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                           ),
                           items: const [
                             DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                            DropdownMenuItem(value: 'check', child: Text('Check')),
+                            DropdownMenuItem(value: 'check', child: Text('HP Pay')),
                             DropdownMenuItem(value: 'upi', child: Text('UPI')),
                           ],
                           onChanged: (value) {
@@ -523,7 +523,7 @@ class _CreditCustomerDetailScreenState extends State<CreditCustomerDetailScreen>
                           ),
                           items: const [
                             DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                            DropdownMenuItem(value: 'check', child: Text('Check')),
+                            DropdownMenuItem(value: 'check', child: Text('HP Pay')),
                             DropdownMenuItem(value: 'upi', child: Text('UPI')),
                           ],
                           onChanged: (value) {

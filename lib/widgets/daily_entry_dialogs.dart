@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
+import 'busy_action_button.dart';
 
 const double _defaultTestingQuantity = 5;
 const double _readingComparisonTolerance = 0.005;
@@ -263,7 +264,7 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                                         decimal: true,
                                       ),
                                   decoration: const InputDecoration(
-                                    labelText: 'Check',
+                                    labelText: 'HP Pay',
                                     filled: true,
                                     fillColor: Colors.white,
                                   ),
@@ -709,7 +710,7 @@ Future<String?> showDailyEntryPreviewDialog({
                                               accent: const Color(0xFFB45309),
                                             ),
                                             _PreviewPill(
-                                              label: 'Check',
+                                              label: 'HP Pay',
                                               value: formatCurrency(
                                                 payments?.check ?? 0,
                                               ),
@@ -1736,9 +1737,15 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                   child: const Text('Cancel'),
                 ),
                 const Spacer(),
-                FilledButton(
+                BusyActionButton(
                   onPressed: _save,
-                  child: const Text('Save Credit Names'),
+                  builder:
+                      (context, busy, handlePressed) => FilledButton(
+                        onPressed: busy ? null : handlePressed,
+                        child: Text(
+                          busy ? 'Saving...' : 'Save Credit Names',
+                        ),
+                      ),
                 ),
               ],
             ),
@@ -1910,7 +1917,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     super.dispose();
   }
 
-  bool get _supportsTwoT => widget.pump.id == 'pump2';
+  bool get _supportsTwoT => true;
 
   void _refreshTotals() {
     if (mounted) {
@@ -2534,13 +2541,13 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                   ),
                               textInputAction: TextInputAction.next,
                               decoration: const InputDecoration(
-                                labelText: 'Check',
+                                labelText: 'HP Pay',
                                 filled: true,
                                 fillColor: Colors.white,
                               ),
                               validator:
                                   (value) =>
-                                      _validateAmount('Check', value ?? ''),
+                                      _validateAmount('HP Pay', value ?? ''),
                             ),
                             TextFormField(
                               controller: _upiController,
@@ -3066,9 +3073,15 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton(
+                  child: BusyActionButton(
                     onPressed: _savePump,
-                    child: const Text('Update Pump'),
+                    builder:
+                        (context, busy, handlePressed) => FilledButton(
+                          onPressed: busy ? null : handlePressed,
+                          child: Text(
+                            busy ? 'Updating...' : 'Update Pump',
+                          ),
+                        ),
                   ),
                 ),
               ],
@@ -3254,7 +3267,7 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                 decimal: true,
               ),
               decoration: const InputDecoration(
-                labelText: 'Check',
+                labelText: 'HP Pay',
                 filled: true,
                 fillColor: Colors.white,
               ),
@@ -3489,7 +3502,7 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                       ),
                       items: const [
                         DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                        DropdownMenuItem(value: 'check', child: Text('Check')),
+                        DropdownMenuItem(value: 'check', child: Text('HP Pay')),
                         DropdownMenuItem(value: 'upi', child: Text('UPI')),
                       ],
                       onChanged:
@@ -3519,7 +3532,7 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
               );
             }),
             const SizedBox(height: 20),
-            FilledButton(
+            BusyActionButton(
               onPressed: () {
                 Navigator.of(context).pop(
                   PaymentEntryDraft(
@@ -3575,7 +3588,13 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                   ),
                 );
               },
-              child: const Text('Update Payments & Credit'),
+              builder:
+                  (context, busy, handlePressed) => FilledButton(
+                    onPressed: busy ? null : handlePressed,
+                    child: Text(
+                      busy ? 'Updating...' : 'Update Payments & Credit',
+                    ),
+                  ),
             ),
           ],
         ),
@@ -3728,9 +3747,13 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: FilledButton(
+                    child: BusyActionButton(
                       onPressed: _save,
-                      child: const Text('Save Cash'),
+                      builder:
+                          (context, busy, handlePressed) => FilledButton(
+                            onPressed: busy ? null : handlePressed,
+                            child: Text(busy ? 'Saving...' : 'Save Cash'),
+                          ),
                     ),
                   ),
                 ],

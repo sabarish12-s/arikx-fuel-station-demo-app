@@ -145,7 +145,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     return _draft.mismatchReason.trim();
   }
 
-  bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
+  bool _supportsTwoT(String pumpId) => true;
 
   String _twoTSoldLabel(PumpReadings opening, PumpReadings? closing) {
     if (closing == null) {
@@ -224,11 +224,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
 
   double _salesSettlementTotal() {
     final modes = _settlementModes();
-    return modes.cash +
-        modes.check +
-        modes.upi +
-        _pumpCreditTotal() +
-        _issuedCreditTotal();
+    return modes.cash + modes.check + modes.upi + _pumpCreditTotal();
   }
 
   Future<void> _editPump(StationPumpModel pump) async {

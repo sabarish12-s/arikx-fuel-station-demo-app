@@ -92,7 +92,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                           'Cash ${formatCurrency(entry.paymentBreakdown.cash)}',
                         ),
                         Text(
-                          'Check ${formatCurrency(entry.paymentBreakdown.check)}',
+                          'HP Pay ${formatCurrency(entry.paymentBreakdown.check)}',
                         ),
                         Text(
                           'UPI ${formatCurrency(entry.paymentBreakdown.upi)}',

@@ -217,18 +217,17 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   double _salesSettlementTotal(DailyEntryDraft draft) {
     final modes = _settlementModes(draft);
-    return modes.cash +
-        modes.check +
-        modes.upi +
-        _pumpCreditTotal(draft) +
-        _issuedCreditTotal(draft);
+    return modes.cash + modes.check + modes.upi + _pumpCreditTotal(draft);
   }
 
   double _amountCollectedTotal(DailyEntryDraft draft) {
     return _salesSettlementTotal(draft) + _collectionRecoveryTotal(draft);
   }
 
-  bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
+  bool get _selectedEntryApproved =>
+      _dashboard?.selectedEntry?.status.trim().toLowerCase() == 'approved';
+
+  bool _supportsTwoT(String pumpId) => true;
 
   String _twoTSoldLabel(PumpReadings opening, PumpReadings? closing) {
     if (closing == null) {
@@ -285,11 +284,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return;
     }
 
-    if (dashboard.entryExists) {
+    if (_selectedEntryApproved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'This date already has a saved entry. Admin can edit it from Entries.',
+            'This entry is already approved. Admin can edit it from Entries.',
           ),
         ),
       );
@@ -343,11 +342,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return;
     }
 
-    if (dashboard.entryExists) {
+    if (_selectedEntryApproved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'This date already has a saved entry. Admin can edit it from Entries.',
+            'This entry is already approved. Admin can edit it from Entries.',
           ),
         ),
       );
@@ -390,11 +389,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return;
     }
 
-    if (dashboard.entryExists) {
+    if (_selectedEntryApproved) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'This date already has a saved entry. Admin can edit it from Entries.',
+            'This entry is already approved. Admin can edit it from Entries.',
           ),
         ),
       );
@@ -450,6 +449,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
   }
 
   Future<void> _previewAndSubmit(DailyEntryDraft draft) async {
+    final dashboard = _dashboard;
+    if (dashboard == null) {
+      return;
+    }
+
     setState(() {
       _submitting = true;
       _error = null;
@@ -474,18 +478,35 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         return;
       }
 
-      await _salesService.submitEntry(
-        date: draft.date,
-        closingReadings: draft.closingReadings,
-        pumpAttendants: draft.pumpAttendants,
-        pumpTesting: draft.pumpTesting,
-        pumpPayments: draft.pumpPayments,
-        pumpCollections: draft.pumpCollections,
-        paymentBreakdown: draft.paymentBreakdown,
-        creditEntries: draft.creditEntries,
-        creditCollections: draft.creditCollections,
-        mismatchReason: mismatchReason,
-      );
+      final existingEntry = dashboard.selectedEntry;
+      if (existingEntry == null) {
+        await _salesService.submitEntry(
+          date: draft.date,
+          closingReadings: draft.closingReadings,
+          pumpAttendants: draft.pumpAttendants,
+          pumpTesting: draft.pumpTesting,
+          pumpPayments: draft.pumpPayments,
+          pumpCollections: draft.pumpCollections,
+          paymentBreakdown: draft.paymentBreakdown,
+          creditEntries: draft.creditEntries,
+          creditCollections: draft.creditCollections,
+          mismatchReason: mismatchReason,
+        );
+      } else {
+        await _salesService.updateEntry(
+          entryId: existingEntry.id,
+          date: draft.date,
+          closingReadings: draft.closingReadings,
+          pumpAttendants: draft.pumpAttendants,
+          pumpTesting: draft.pumpTesting,
+          pumpPayments: draft.pumpPayments,
+          pumpCollections: draft.pumpCollections,
+          paymentBreakdown: draft.paymentBreakdown,
+          creditEntries: draft.creditEntries,
+          creditCollections: draft.creditCollections,
+          mismatchReason: mismatchReason,
+        );
+      }
       if (!mounted) {
         return;
       }
@@ -493,7 +514,9 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Entry submitted. Collected ${formatCurrency(preview.paymentTotal)}.',
+            existingEntry == null
+                ? 'Entry submitted. Collected ${formatCurrency(preview.paymentTotal)}.'
+                : 'Entry updated. Collected ${formatCurrency(preview.paymentTotal)}.',
           ),
         ),
       );
@@ -719,7 +742,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                               children: [
                                 OutlinedButton.icon(
                                   onPressed:
-                                      _submitting || dashboard.entryExists
+                                      _submitting || _selectedEntryApproved
                                           ? null
                                           : () => _editPumpCashCollection(pump),
                                   icon: const Icon(Icons.payments_outlined),
@@ -727,7 +750,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                 ),
                                 OutlinedButton.icon(
                                   onPressed:
-                                      _submitting || dashboard.entryExists
+                                      _submitting || _selectedEntryApproved
                                           ? null
                                           : () => _editPump(pump),
                                   icon: const Icon(Icons.edit_rounded),
@@ -797,7 +820,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                           ),
                         ),
                         _PaymentRow(
-                          label: 'Check total',
+                          label: 'HP Pay total',
                           value: formatCurrency(
                             draft == null ? 0 : _settlementModes(draft).check,
                           ),
@@ -934,9 +957,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                     label: Text(
                       _submitting
                           ? 'Submitting...'
-                          : dashboard.entryExists
-                          ? 'Entry Already Submitted'
-                          : 'Submit Entry',
+                          : _selectedEntryApproved
+                          ? 'Entry Approved'
+                          : dashboard.selectedEntry == null
+                          ? 'Submit Entry'
+                          : 'Update Entry',
                     ),
                   ),
                 ],
