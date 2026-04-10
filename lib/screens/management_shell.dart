@@ -23,6 +23,27 @@ class ManagementShell extends StatefulWidget {
 class _ManagementShellState extends State<ManagementShell> {
   int _index = 0;
   final _settingsKey = GlobalKey<SettingsHomeScreenState>();
+  final Set<int> _loadedScreens = {0};
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      ManagementDashboardScreen(user: widget.user),
+      const EntryManagementScreen(),
+      const MonthlyReportScreen(),
+      const InventoryHubScreen(canManagePlanning: true),
+      SettingsHomeScreen(key: _settingsKey, user: widget.user),
+    ];
+  }
+
+  void _selectIndex(int value) {
+    setState(() {
+      _index = value;
+      _loadedScreens.add(value);
+    });
+  }
 
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
@@ -57,14 +78,6 @@ class _ManagementShellState extends State<ManagementShell> {
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      ManagementDashboardScreen(user: widget.user),
-      const EntryManagementScreen(),
-      const MonthlyReportScreen(),
-      const InventoryHubScreen(canManagePlanning: true),
-      SettingsHomeScreen(key: _settingsKey, user: widget.user),
-    ];
-
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
@@ -93,7 +106,14 @@ class _ManagementShellState extends State<ManagementShell> {
           ),
         ],
       ),
-      body: IndexedStack(index: _index, children: screens),
+      body: IndexedStack(
+        index: _index,
+        children: List.generate(
+          _screens.length,
+          (index) =>
+              _loadedScreens.contains(index) ? _screens[index] : const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -127,7 +147,7 @@ class _ManagementShellState extends State<ManagementShell> {
               if (value == 4 && _index == 4) {
                 SettingsHomeScreen.resetToHome(_settingsKey);
               } else {
-                setState(() => _index = value);
+                _selectIndex(value);
               }
             },
             destinations: const [

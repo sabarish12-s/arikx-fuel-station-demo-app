@@ -18,9 +18,10 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   String _status = 'all';
   DateTime? _fromDate;
   DateTime? _toDate;
+  bool _loadingStandaloneCollectionCustomers = false;
   List<CreditCustomerSummaryModel> _latestCustomers = const [];
   late Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>
-      _future;
+  _future;
 
   String _errorText(Object? error) {
     return error.toString().replaceFirst('Exception: ', '');
@@ -59,6 +60,63 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
     });
   }
 
+  Future<void> _openStandaloneCollectionDialogFromLedger() async {
+    if (_loadingStandaloneCollectionCustomers) {
+      return;
+    }
+
+    setState(() {
+      _loadingStandaloneCollectionCustomers = true;
+    });
+
+    try {
+      var customers = _latestCustomers;
+      final shouldRefreshCustomerOptions =
+          customers.isEmpty ||
+          _searchController.text.trim().isNotEmpty ||
+          _status != 'all' ||
+          _fromDate != null ||
+          _toDate != null;
+
+      if (shouldRefreshCustomerOptions) {
+        final (_, fetchedCustomers) = await _creditService.fetchCustomers();
+        customers = fetchedCustomers;
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      if (customers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Color(0xFFB91C1C),
+            content: Text('No credit customers are available to collect from.'),
+          ),
+        );
+        return;
+      }
+
+      await _openStandaloneCollectionDialog(customers);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(_errorText(error)),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingStandaloneCollectionCustomers = false;
+        });
+      }
+    }
+  }
+
   Future<void> _pickDate(bool isFrom) async {
     final selected = await showDatePicker(
       context: context,
@@ -92,135 +150,150 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
 
     final created = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('Record Credit Collection'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownMenu<String>(
-                  width: double.infinity,
-                  enableFilter: true,
-                  enableSearch: true,
-                  requestFocusOnTap: true,
-                  label: const Text('Customer'),
-                  hintText: 'Search and select existing customer',
-                  onSelected: (value) {
-                    setState(() {
-                      selectedCustomerId = value;
-                    });
-                  },
-                  dropdownMenuEntries: customers
-                      .map(
-                        (item) => DropdownMenuEntry<String>(
-                          value: item.customer.id,
-                          label: item.customer.name,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: const Text('Record Credit Collection'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownMenu<String>(
+                          width: double.infinity,
+                          enableFilter: true,
+                          enableSearch: true,
+                          requestFocusOnTap: true,
+                          label: const Text('Customer'),
+                          hintText: 'Search and select existing customer',
+                          onSelected: (value) {
+                            setState(() {
+                              selectedCustomerId = value;
+                            });
+                          },
+                          dropdownMenuEntries:
+                              customers
+                                  .map(
+                                    (item) => DropdownMenuEntry<String>(
+                                      value: item.customer.id,
+                                      label: item.customer.name,
+                                    ),
+                                  )
+                                  .toList(),
                         ),
-                      )
-                      .toList(),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
-                    filled: true,
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Amount',
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: dateController,
+                          decoration: const InputDecoration(
+                            labelText: 'Date (YYYY-MM-DD)',
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          initialValue: paymentMode,
+                          decoration: const InputDecoration(
+                            labelText: 'Payment mode',
+                            filled: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'cash',
+                              child: Text('Cash'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'check',
+                              child: Text('HP Pay'),
+                            ),
+                            DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              paymentMode = value ?? 'cash';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: noteController,
+                          decoration: const InputDecoration(
+                            labelText: 'Note (optional)',
+                            filled: true,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: dateController,
-                  decoration: const InputDecoration(
-                    labelText: 'Date (YYYY-MM-DD)',
-                    filled: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: paymentMode,
-                  decoration: const InputDecoration(
-                    labelText: 'Payment mode',
-                    filled: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'check', child: Text('HP Pay')),
-                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        CreditCustomerSummaryModel? selectedCustomer;
+                        for (final item in customers) {
+                          if (item.customer.id == selectedCustomerId) {
+                            selectedCustomer = item;
+                            break;
+                          }
+                        }
+                        if (selectedCustomer == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: Color(0xFFB91C1C),
+                              content: Text(
+                                'Select an existing customer from the list.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        try {
+                          await _creditService.recordCollection(
+                            customerId: selectedCustomer.customer.id,
+                            name: selectedCustomer.customer.name,
+                            amount:
+                                double.tryParse(amountController.text.trim()) ??
+                                0,
+                            date: dateController.text.trim(),
+                            paymentMode: paymentMode,
+                            note: noteController.text.trim(),
+                          );
+                          if (!context.mounted) return;
+                          Navigator.of(context).pop(true);
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFFB91C1C),
+                              content: Text(
+                                error.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Save'),
+                    ),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      paymentMode = value ?? 'cash';
-                    });
-                  },
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                    filled: true,
-                  ),
-                ),
-              ],
-            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                CreditCustomerSummaryModel? selectedCustomer;
-                for (final item in customers) {
-                  if (item.customer.id == selectedCustomerId) {
-                    selectedCustomer = item;
-                    break;
-                  }
-                }
-                if (selectedCustomer == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      backgroundColor: Color(0xFFB91C1C),
-                      content: Text(
-                          'Select an existing customer from the list.'),
-                    ),
-                  );
-                  return;
-                }
-                try {
-                  await _creditService.recordCollection(
-                    customerId: selectedCustomer.customer.id,
-                    name: selectedCustomer.customer.name,
-                    amount:
-                        double.tryParse(amountController.text.trim()) ?? 0,
-                    date: dateController.text.trim(),
-                    paymentMode: paymentMode,
-                    note: noteController.text.trim(),
-                  );
-                  if (!context.mounted) return;
-                  Navigator.of(context).pop(true);
-                } catch (error) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: const Color(0xFFB91C1C),
-                      content: Text(
-                        error.toString().replaceFirst('Exception: ', ''),
-                      ),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
     );
 
     amountController.dispose();
@@ -243,18 +316,35 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
         iconTheme: const IconThemeData(color: kClayPrimary),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _latestCustomers.isEmpty
-            ? null
-            : () => _openStandaloneCollectionDialog(_latestCustomers),
+        onPressed:
+            _loadingStandaloneCollectionCustomers
+                ? null
+                : _openStandaloneCollectionDialogFromLedger,
         backgroundColor: const Color(0xFF1A3A7A),
-        icon: const Icon(Icons.payments_outlined, color: Colors.white),
-        label: const Text(
-          'Record Collection',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+        icon:
+            _loadingStandaloneCollectionCustomers
+                ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                : const Icon(Icons.payments_outlined, color: Colors.white),
+        label: Text(
+          _loadingStandaloneCollectionCustomers
+              ? 'Loading...'
+              : 'Record Collection',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       body: FutureBuilder<
-          (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>(
+        (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)
+      >(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -364,16 +454,18 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                           ),
                         _DatePill(
                           icon: Icons.date_range_rounded,
-                          label: _fromDate == null
-                              ? 'From'
-                              : formatDateLabel(_toApiDate(_fromDate!)),
+                          label:
+                              _fromDate == null
+                                  ? 'From'
+                                  : formatDateLabel(_toApiDate(_fromDate!)),
                           onTap: () => _pickDate(true),
                         ),
                         _DatePill(
                           icon: Icons.event_rounded,
-                          label: _toDate == null
-                              ? 'To'
-                              : formatDateLabel(_toApiDate(_toDate!)),
+                          label:
+                              _toDate == null
+                                  ? 'To'
+                                  : formatDateLabel(_toApiDate(_toDate!)),
                           onTap: () => _pickDate(false),
                         ),
                         if (_fromDate != null || _toDate != null)
@@ -423,9 +515,10 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                     onTap: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) => CreditCustomerDetailScreen(
-                            customerId: item.customer.id,
-                          ),
+                          builder:
+                              (_) => CreditCustomerDetailScreen(
+                                customerId: item.customer.id,
+                              ),
                         ),
                       );
                     },
@@ -518,20 +611,21 @@ class _StatusPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? kClayPrimary : Colors.white,
           borderRadius: BorderRadius.circular(999),
-          boxShadow: selected
-              ? null
-              : [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
-                    offset: const Offset(3, 3),
-                    blurRadius: 8,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-2, -2),
-                    blurRadius: 6,
-                  ),
-                ],
+          boxShadow:
+              selected
+                  ? null
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
+                      offset: const Offset(3, 3),
+                      blurRadius: 8,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-2, -2),
+                      blurRadius: 6,
+                    ),
+                  ],
         ),
         child: Text(
           label,
@@ -609,6 +703,7 @@ class _CustomerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isOpen = item.status == 'open';
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: ClayCard(
         margin: const EdgeInsets.only(bottom: 12),
@@ -618,16 +713,16 @@ class _CustomerCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: isOpen
-                    ? const Color(0xFFCE5828).withValues(alpha: 0.10)
-                    : const Color(0xFF2AA878).withValues(alpha: 0.10),
+                color:
+                    isOpen
+                        ? const Color(0xFFCE5828).withValues(alpha: 0.10)
+                        : const Color(0xFF2AA878).withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 isOpen ? Icons.pending_rounded : Icons.check_circle_rounded,
-                color: isOpen
-                    ? const Color(0xFFCE5828)
-                    : const Color(0xFF2AA878),
+                color:
+                    isOpen ? const Color(0xFFCE5828) : const Color(0xFF2AA878),
                 size: 20,
               ),
             ),
@@ -657,11 +752,7 @@ class _CustomerCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: kClaySub,
-              size: 20,
-            ),
+            const Icon(Icons.chevron_right_rounded, color: kClaySub, size: 20),
           ],
         ),
       ),
@@ -713,96 +804,109 @@ class _CreditCustomerDetailScreenState
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Collect from ${detail.customer.name}'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
-                    filled: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: dateController,
-                  decoration: const InputDecoration(
-                    labelText: 'Date (YYYY-MM-DD)',
-                    filled: true,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: paymentMode,
-                  decoration: const InputDecoration(
-                    labelText: 'Payment mode',
-                    filled: true,
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'check', child: Text('HP Pay')),
-                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      paymentMode = value ?? 'cash';
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                    filled: true,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  await _creditService.recordCollection(
-                    customerId: detail.customer.id,
-                    name: detail.customer.name,
-                    amount:
-                        double.tryParse(amountController.text.trim()) ?? 0,
-                    date: dateController.text.trim(),
-                    paymentMode: paymentMode,
-                    note: noteController.text.trim(),
-                  );
-                  if (!context.mounted) return;
-                  Navigator.of(context).pop(true);
-                } catch (error) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: const Color(0xFFB91C1C),
-                      content: Text(
-                        error.toString().replaceFirst('Exception: ', ''),
-                      ),
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: Text('Collect from ${detail.customer.name}'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: amountController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Amount',
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: dateController,
+                          decoration: const InputDecoration(
+                            labelText: 'Date (YYYY-MM-DD)',
+                            filled: true,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          initialValue: paymentMode,
+                          decoration: const InputDecoration(
+                            labelText: 'Payment mode',
+                            filled: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'cash',
+                              child: Text('Cash'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'check',
+                              child: Text('HP Pay'),
+                            ),
+                            DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              paymentMode = value ?? 'cash';
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: noteController,
+                          decoration: const InputDecoration(
+                            labelText: 'Note (optional)',
+                            filled: true,
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      onPressed: () async {
+                        try {
+                          await _creditService.recordCollection(
+                            customerId: detail.customer.id,
+                            name: detail.customer.name,
+                            amount:
+                                double.tryParse(amountController.text.trim()) ??
+                                0,
+                            date: dateController.text.trim(),
+                            paymentMode: paymentMode,
+                            note: noteController.text.trim(),
+                          );
+                          if (!context.mounted) return;
+                          Navigator.of(context).pop(true);
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFFB91C1C),
+                              content: Text(
+                                error.toString().replaceFirst(
+                                  'Exception: ',
+                                  '',
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+          ),
     );
 
     amountController.dispose();
@@ -884,9 +988,10 @@ class _CreditCustomerDetailScreenState
                           child: Text(
                             detail.status.toUpperCase(),
                             style: TextStyle(
-                              color: isOpen
-                                  ? const Color(0xFFFFB649)
-                                  : const Color(0xFF7EEFC0),
+                              color:
+                                  isOpen
+                                      ? const Color(0xFFFFB649)
+                                      : const Color(0xFF7EEFC0),
                               fontWeight: FontWeight.w800,
                               fontSize: 11,
                             ),
@@ -939,37 +1044,28 @@ class _CreditCustomerDetailScreenState
                       ),
                     ],
                     const SizedBox(height: 14),
-                    GestureDetector(
-                      onTap: () => _recordCollection(detail),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.icon(
+                        onPressed: () => _recordCollection(detail),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white.withValues(alpha: 0.18),
+                          foregroundColor: Colors.white,
+                          side: BorderSide(
                             color: Colors.white.withValues(alpha: 0.30),
                           ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.payments_outlined,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            SizedBox(width: 8),
-                            Text(
-                              'Record Collection',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                        icon: const Icon(Icons.payments_outlined, size: 16),
+                        label: const Text(
+                          'Record Collection',
+                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -1060,7 +1156,8 @@ class _TransactionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCredit = item.type.toLowerCase() == 'credit' ||
+    final isCredit =
+        item.type.toLowerCase() == 'credit' ||
         item.type.toLowerCase() == 'issue';
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1070,18 +1167,18 @@ class _TransactionCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: isCredit
-                  ? const Color(0xFFCE5828).withValues(alpha: 0.10)
-                  : const Color(0xFF2AA878).withValues(alpha: 0.10),
+              color:
+                  isCredit
+                      ? const Color(0xFFCE5828).withValues(alpha: 0.10)
+                      : const Color(0xFF2AA878).withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               isCredit
                   ? Icons.arrow_upward_rounded
                   : Icons.arrow_downward_rounded,
-              color: isCredit
-                  ? const Color(0xFFCE5828)
-                  : const Color(0xFF2AA878),
+              color:
+                  isCredit ? const Color(0xFFCE5828) : const Color(0xFF2AA878),
               size: 18,
             ),
           ),
@@ -1107,9 +1204,10 @@ class _TransactionCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 14,
-                        color: isCredit
-                            ? const Color(0xFFCE5828)
-                            : const Color(0xFF2AA878),
+                        color:
+                            isCredit
+                                ? const Color(0xFFCE5828)
+                                : const Color(0xFF2AA878),
                       ),
                     ),
                   ],

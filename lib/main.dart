@@ -54,6 +54,23 @@ class _StartupRouter extends StatefulWidget {
 class _StartupRouterState extends State<_StartupRouter> {
   final AuthService _authService = AuthService();
   late final Future<AuthUser?> _userFuture = _resolveUser();
+  AuthUser? _cachedUser;
+
+  @override
+  void initState() {
+    super.initState();
+    _primeCachedUser();
+  }
+
+  Future<void> _primeCachedUser() async {
+    final cachedUser = await _authService.readCurrentUser();
+    if (!mounted || cachedUser == null) {
+      return;
+    }
+    setState(() {
+      _cachedUser = cachedUser;
+    });
+  }
 
   Future<AuthUser?> _resolveUser() async {
     final hasToken = await _authService.hasJwtToken();
@@ -68,17 +85,17 @@ class _StartupRouterState extends State<_StartupRouter> {
     return FutureBuilder<AuthUser?>(
       future: _userFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Scaffold(
-              backgroundColor: kClayBg,
-              body: ColoredBox(
-                color: kClayBg,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            );
+        if (snapshot.connectionState != ConnectionState.done) {
+          if (_cachedUser != null) {
+            return screenForUser(_cachedUser);
           }
-          return screenForUser(null);
+          return const Scaffold(
+            backgroundColor: kClayBg,
+            body: ColoredBox(
+              color: kClayBg,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          );
         }
         return screenForUser(snapshot.data);
       },

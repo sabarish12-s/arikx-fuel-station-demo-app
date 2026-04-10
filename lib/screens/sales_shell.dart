@@ -21,17 +21,20 @@ class SalesShell extends StatefulWidget {
 
 class _SalesShellState extends State<SalesShell> {
   int _index = 0;
+  final Set<int> _loadedScreens = {0};
+  late final List<Widget> _screens;
 
   @override
-  Widget build(BuildContext context) {
-    final screens = [
+  void initState() {
+    super.initState();
+    _screens = [
       SalesDashboardScreen(
-        onOpenClosingStock: () => setState(() => _index = 1),
-        onOpenEntryHistory: () => setState(() => _index = 3),
-        onOpenDailySummary: () {
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(builder: (_) => const DailySummaryScreen()),
-          );
+        onOpenClosingStock: () async => _selectIndex(1),
+        onOpenEntryHistory: () async => _selectIndex(3),
+        onOpenDailySummary: () async {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute<void>(builder: (_) => const DailySummaryScreen()));
         },
       ),
       const ClosingStockEntryScreen(),
@@ -39,7 +42,20 @@ class _SalesShellState extends State<SalesShell> {
       const EntryHistoryScreen(),
       AccountScreen(user: widget.user),
     ];
+  }
 
+  Future<void> _selectIndex(int value) async {
+    if (_index == value) {
+      return;
+    }
+    setState(() {
+      _index = value;
+      _loadedScreens.add(value);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
@@ -61,7 +77,14 @@ class _SalesShellState extends State<SalesShell> {
           ],
         ),
       ),
-      body: IndexedStack(index: _index, children: screens),
+      body: IndexedStack(
+        index: _index,
+        children: List.generate(
+          _screens.length,
+          (index) =>
+              _loadedScreens.contains(index) ? _screens[index] : const SizedBox.shrink(),
+        ),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -91,7 +114,9 @@ class _SalesShellState extends State<SalesShell> {
           ),
           child: NavigationBar(
             selectedIndex: _index,
-            onDestinationSelected: (value) => setState(() => _index = value),
+            onDestinationSelected: (value) {
+              _selectIndex(value);
+            },
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.grid_view_rounded),

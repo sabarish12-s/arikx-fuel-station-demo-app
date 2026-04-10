@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
@@ -13,9 +15,9 @@ class SalesDashboardScreen extends StatefulWidget {
     this.onOpenDailySummary,
   });
 
-  final VoidCallback? onOpenClosingStock;
-  final VoidCallback? onOpenEntryHistory;
-  final VoidCallback? onOpenDailySummary;
+  final FutureOr<void> Function()? onOpenClosingStock;
+  final FutureOr<void> Function()? onOpenEntryHistory;
+  final FutureOr<void> Function()? onOpenDailySummary;
 
   @override
   State<SalesDashboardScreen> createState() => _SalesDashboardScreenState();
@@ -24,6 +26,7 @@ class SalesDashboardScreen extends StatefulWidget {
 class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   final SalesService _salesService = SalesService();
   late Future<SalesDashboardModel> _future;
+  String? _busyAction;
 
   String _errorText(Object? error) {
     return error.toString().replaceFirst('Exception: ', '');
@@ -39,6 +42,27 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
     setState(() {
       _future = _salesService.fetchDashboard();
     });
+  }
+
+  Future<void> _runAction(
+    String actionKey,
+    FutureOr<void> Function()? action,
+  ) async {
+    if (_busyAction != null || action == null) {
+      return;
+    }
+    setState(() {
+      _busyAction = actionKey;
+    });
+    try {
+      await Future<void>.sync(action);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busyAction = null;
+        });
+      }
+    }
   }
 
   @override
@@ -179,21 +203,24 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 title: 'Enter Daily Sales',
                 icon: Icons.propane_tank_outlined,
                 iconBg: const Color(0xFFD7F2FB),
-                onTap: widget.onOpenClosingStock,
+                loading: _busyAction == 'sales',
+                onTap: () => _runAction('sales', widget.onOpenClosingStock),
               ),
               const SizedBox(height: 12),
               _ActionCard(
                 title: 'Entry History',
                 icon: Icons.list_alt_rounded,
                 iconBg: const Color(0xFFE8ECF9),
-                onTap: widget.onOpenEntryHistory,
+                loading: _busyAction == 'history',
+                onTap: () => _runAction('history', widget.onOpenEntryHistory),
               ),
               const SizedBox(height: 12),
               _ActionCard(
                 title: 'Daily Summary',
                 icon: Icons.analytics_outlined,
                 iconBg: const Color(0xFFEDE4FF),
-                onTap: widget.onOpenDailySummary,
+                loading: _busyAction == 'summary',
+                onTap: () => _runAction('summary', widget.onOpenDailySummary),
               ),
               const SizedBox(height: 18),
               const Text(
@@ -332,12 +359,14 @@ class _ActionCard extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.iconBg,
+    required this.loading,
     this.onTap,
   });
 
   final String title;
   final IconData icon;
   final Color iconBg;
+  final bool loading;
   final VoidCallback? onTap;
 
   @override
@@ -348,7 +377,7 @@ class _ActionCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: onTap,
+          onTap: loading ? null : onTap,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -365,7 +394,7 @@ class _ActionCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    title,
+                    loading ? '$title  Loading...' : title,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 18,
@@ -373,7 +402,18 @@ class _ActionCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: kClaySub),
+                loading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            kClayHeroStart,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.chevron_right_rounded, color: kClaySub),
               ],
             ),
           ),
