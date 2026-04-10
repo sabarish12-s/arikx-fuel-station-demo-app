@@ -6,6 +6,7 @@ import '../services/inventory_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 import '../widgets/daily_entry_dialogs.dart';
 
 typedef EntrySubmitCallback =
@@ -49,26 +50,23 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     super.initState();
     _draft = widget.initialDraft;
     _resolvedPriceSnapshot = mergePriceSnapshots(primary: widget.priceSnapshot);
-    _resolvingPriceSnapshot =
-        !hasRequiredSellingPrices(_resolvedPriceSnapshot, const <String>[
-          'petrol',
-          'diesel',
-        ]);
+    _resolvingPriceSnapshot = !hasRequiredSellingPrices(
+      _resolvedPriceSnapshot,
+      const <String>['petrol', 'diesel'],
+    );
     _loadAuxiliaryData();
   }
 
   Future<void> _loadAuxiliaryData() async {
-    final needsPriceFallback =
-        !hasRequiredSellingPrices(_resolvedPriceSnapshot, const <String>[
-          'petrol',
-          'diesel',
-        ]);
+    final needsPriceFallback = !hasRequiredSellingPrices(
+      _resolvedPriceSnapshot,
+      const <String>['petrol', 'diesel'],
+    );
     try {
       final customersFuture = _creditService.fetchCustomers();
-      final pricesFuture =
-          needsPriceFallback
-              ? _inventoryService.fetchPrices(activeOnly: true)
-              : null;
+      final pricesFuture = needsPriceFallback
+          ? _inventoryService.fetchPrices(activeOnly: true)
+          : null;
 
       final customers = (await customersFuture).$2;
       List<FuelPriceModel> prices = const <FuelPriceModel>[];
@@ -102,8 +100,9 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   void _savePumpEdit(String pumpId, PumpEntryDraft pumpDraft) {
-    final remainingCredits =
-        _draft.creditEntries.where((item) => item.pumpId != pumpId).toList();
+    final remainingCredits = _draft.creditEntries
+        .where((item) => item.pumpId != pumpId)
+        .toList();
     setState(() {
       _draft = _draft.copyWith(
         closingReadings: {
@@ -128,17 +127,16 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   String _buildEntryMismatchReason() {
-    final reasons =
-        widget.station.pumps
-            .map((pump) {
-              final reason = _draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
-              if (reason.isEmpty) {
-                return null;
-              }
-              return '${formatPumpLabel(pump.id, pump.label)}: $reason';
-            })
-            .whereType<String>()
-            .toList();
+    final reasons = widget.station.pumps
+        .map((pump) {
+          final reason = _draft.pumpMismatchReasons[pump.id]?.trim() ?? '';
+          if (reason.isEmpty) {
+            return null;
+          }
+          return '${formatPumpLabel(pump.id, pump.label)}: $reason';
+        })
+        .whereType<String>()
+        .toList();
     if (reasons.isNotEmpty) {
       return reasons.join('\n');
     }
@@ -174,14 +172,12 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           const PumpTestingModel(petrol: 0, diesel: 0);
       final rawPetrol = closing.petrol - opening.petrol;
       final rawDiesel = closing.diesel - opening.diesel;
-      petrol +=
-          rawPetrol > 0
-              ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
-              : rawPetrol;
-      diesel +=
-          rawDiesel > 0
-              ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
-              : rawDiesel;
+      petrol += rawPetrol > 0
+          ? (rawPetrol - testing.petrol).clamp(0, rawPetrol)
+          : rawPetrol;
+      diesel += rawDiesel > 0
+          ? (rawDiesel - testing.diesel).clamp(0, rawDiesel)
+          : rawDiesel;
       if (_supportsTwoT(pump.id)) {
         twoT += closing.twoT - opening.twoT;
       }
@@ -264,10 +260,9 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
               upi: 0,
               credit: 0,
             ),
-        creditEntries:
-            _draft.creditEntries
-                .where((item) => item.pumpId == pump.id)
-                .toList(),
+        creditEntries: _draft.creditEntries
+            .where((item) => item.pumpId == pump.id)
+            .toList(),
         mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
       ),
       suggestedCustomers: _suggestedCustomers,
@@ -298,8 +293,9 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
               upi: 0,
               credit: 0,
             ),
-        creditEntries:
-            _draft.creditEntries.where((item) => item.pumpId == pump.id).toList(),
+        creditEntries: _draft.creditEntries
+            .where((item) => item.pumpId == pump.id)
+            .toList(),
         mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
       ),
     );
@@ -310,11 +306,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   }
 
   Future<void> _submitEntry() async {
-    final missingPumps =
-        widget.station.pumps
-            .where((pump) => !_draft.closingReadings.containsKey(pump.id))
-            .map((pump) => formatPumpLabel(pump.id, pump.label))
-            .toList();
+    final missingPumps = widget.station.pumps
+        .where((pump) => !_draft.closingReadings.containsKey(pump.id))
+        .map((pump) => formatPumpLabel(pump.id, pump.label))
+        .toList();
     if (missingPumps.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -326,11 +321,10 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       return;
     }
 
-    final missingCollections =
-        widget.station.pumps
-            .where((pump) => !_draft.pumpPayments.containsKey(pump.id))
-            .map((pump) => formatPumpLabel(pump.id, pump.label))
-            .toList();
+    final missingCollections = widget.station.pumps
+        .where((pump) => !_draft.pumpPayments.containsKey(pump.id))
+        .map((pump) => formatPumpLabel(pump.id, pump.label))
+        .toList();
     if (missingCollections.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -411,49 +405,99 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   Widget build(BuildContext context) {
     final summary = _soldTotals();
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FF),
-      appBar: AppBar(title: Text(widget.title)),
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        iconTheme: const IconThemeData(color: kClayPrimary),
+        title: Text(widget.title),
+      ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [kClayHeroStart, kClayHeroEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: kClayHeroEnd.withValues(alpha: 0.45),
+                  offset: const Offset(0, 10),
+                  blurRadius: 24,
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${widget.station.name} - ${formatDateLabel(_draft.date)}',
+                  formatDateLabel(_draft.date),
                   style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF293340),
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.station.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
                   'Enter pump readings first. Payments and credit are updated from the summary section below.',
-                  style: TextStyle(color: Color(0xFF55606E), height: 1.4),
+                  style: TextStyle(
+                    color: Colors.white70,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _WorkflowHeroChip(
+                      label: 'Petrol',
+                      value: formatLiters(summary.petrol),
+                    ),
+                    _WorkflowHeroChip(
+                      label: 'Diesel',
+                      value: formatLiters(summary.diesel),
+                    ),
+                    _WorkflowHeroChip(
+                      label: '2T',
+                      value: formatLiters(summary.twoT),
+                    ),
+                    _WorkflowHeroChip(
+                      label: 'Settlement',
+                      value: formatCurrency(_salesSettlementTotal()),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          const _WorkflowSectionLabel(label: 'PUMPS'),
+          const SizedBox(height: 10),
           ...widget.station.pumps.map((pump) {
             final opening =
                 widget.openingReadings[pump.id] ??
                 const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
             final attendant = _draft.pumpAttendants[pump.id] ?? '';
             final closing = _draft.closingReadings[pump.id];
-            return Container(
+            return ClayCard(
               margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -465,112 +509,108 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF293340),
+                            color: kClayPrimary,
                           ),
                         ),
                       ),
-                      if (attendant.isNotEmpty) Chip(label: Text(attendant)),
+                      if (attendant.isNotEmpty)
+                        _WorkflowPill(label: attendant, color: kClayHeroStart),
                     ],
                   ),
                   const SizedBox(height: 12),
                   _WorkflowRow(
                     label: 'Opening petrol meter',
                     value: formatLiters(opening.petrol),
-                    accent: const Color(0xFF1E5CBA),
+                    accent: const Color(0xFF1298B8),
                   ),
                   _WorkflowRow(
                     label: 'Opening diesel meter',
                     value: formatLiters(opening.diesel),
-                    accent: const Color(0xFF006C5C),
+                    accent: const Color(0xFF2AA878),
                   ),
                   _WorkflowRow(
                     label: 'Entered closing petrol meter',
-                    value:
-                        closing == null
-                            ? 'Not entered'
-                            : formatLiters(closing.petrol),
-                    accent: const Color(0xFF1E5CBA),
+                    value: closing == null
+                        ? 'Not entered'
+                        : formatLiters(closing.petrol),
+                    accent: const Color(0xFF1298B8),
                   ),
                   _WorkflowRow(
                     label: 'Entered closing diesel meter',
-                    value:
-                        closing == null
-                            ? 'Not entered'
-                            : formatLiters(closing.diesel),
-                    accent: const Color(0xFF006C5C),
+                    value: closing == null
+                        ? 'Not entered'
+                        : formatLiters(closing.diesel),
+                    accent: const Color(0xFF2AA878),
                   ),
                   if (_supportsTwoT(pump.id))
                     _WorkflowRow(
                       label: 'Entered 2T oil sold',
                       value: _twoTSoldLabel(opening, closing),
-                      accent: const Color(0xFFB45309),
+                      accent: const Color(0xFF7048A8),
                     ),
                   _WorkflowRow(
                     label: 'Cash collected from',
                     value: _cashCollectedFromLabel(pump.id),
-                    accent: const Color(0xFF92400E),
+                    accent: const Color(0xFFCE5828),
                   ),
                   _WorkflowRow(
                     label: 'Cash',
                     value: formatCurrency(
                       _draft.pumpPayments[pump.id]?.cash ?? 0,
                     ),
-                    accent: const Color(0xFFB45309),
+                    accent: const Color(0xFFCE5828),
                   ),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.end,
-                      children: [
-                        OutlinedButton.icon(
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
                           onPressed: () => _editPumpCashCollection(pump),
                           icon: const Icon(Icons.payments_outlined),
                           label: const Text('Cash Collection'),
+                          style: _workflowOutlinedButtonStyle(),
                         ),
-                        OutlinedButton.icon(
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
                           onPressed: () => _editPump(pump),
                           icon: const Icon(Icons.edit_rounded),
                           label: const Text('Update Pump'),
+                          style: _workflowOutlinedButtonStyle(),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             );
           }),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-            ),
+          const SizedBox(height: 8),
+          const _WorkflowSectionLabel(label: 'SUMMARY'),
+          const SizedBox(height: 10),
+          ClayCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Overall Summary',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF293340),
-                        ),
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Overall Summary',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: kClayPrimary,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 const Text(
                   'Cash, check, UPI, and pump credit are taken from the pump entries. Pump credit is calculated from the added credit rows for each pump. Old credit collection is handled from Credit Ledger.',
-                  style: TextStyle(color: Color(0xFF55606E), height: 1.4),
+                  style: TextStyle(
+                    color: kClaySub,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 _WorkflowTextRow(
                   label: 'Total petrol sold',
                   value: formatLiters(summary.petrol),
@@ -591,13 +631,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                   label: 'Old credit collected',
                   value: formatCurrency(_collectionRecoveryTotal()),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8F9FF),
-                    borderRadius: BorderRadius.circular(12),
+                    color: kClayBg,
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -606,7 +646,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                         'Credit customer details',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF293340),
+                          color: kClayPrimary,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -615,37 +655,48 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                             ? 'No pump credit added yet. Use Add Credit inside a pump to create customer-wise credit rows.'
                             : 'Pump credit is built from the customer-wise credit rows added inside each pump. Once approved, these names will be shown in Credit Ledger.',
                         style: const TextStyle(
-                          color: Color(0xFF55606E),
+                          color: kClaySub,
                           height: 1.4,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (_draft.creditEntries.isNotEmpty) ...[
                         const SizedBox(height: 10),
                         ..._draft.creditEntries.map(
                           (item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
                               children: [
-                                const Icon(
-                                  Icons.person_outline_rounded,
-                                  size: 18,
-                                  color: Color(0xFF1E5CBA),
+                                Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    color: kClayHeroStart.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.person_outline_rounded,
+                                    size: 18,
+                                    color: kClayHeroStart,
+                                  ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     item.name,
                                     style: const TextStyle(
-                                      color: Color(0xFF293340),
-                                      fontWeight: FontWeight.w600,
+                                      color: kClayPrimary,
+                                      fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ),
                                 Text(
                                   formatCurrency(item.amount),
                                   style: const TextStyle(
-                                    color: Color(0xFF293340),
-                                    fontWeight: FontWeight.w700,
+                                    color: kClayPrimary,
+                                    fontWeight: FontWeight.w800,
                                   ),
                                 ),
                               ],
@@ -653,10 +704,14 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       const Text(
                         'Use Update Pump on the relevant pump to add or change credit customer rows.',
-                        style: TextStyle(color: Color(0xFF55606E), height: 1.4),
+                        style: TextStyle(
+                          color: kClaySub,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -664,25 +719,118 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
               ],
             ),
           ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Text(
                 _error!,
-                style: const TextStyle(color: Color(0xFFB91C1C)),
+                style: const TextStyle(
+                  color: Color(0xFFB91C1C),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
+          ],
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _submitting ? null : _submitEntry,
             icon: const Icon(Icons.edit_note_rounded),
             style: FilledButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 18),
-              backgroundColor: const Color(0xFF1E5CBA),
+              backgroundColor: kClayHeroStart,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
             ),
             label: Text(_submitting ? 'Submitting...' : 'Submit Entry'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+ButtonStyle _workflowOutlinedButtonStyle() {
+  return OutlinedButton.styleFrom(
+    foregroundColor: kClayPrimary,
+    side: const BorderSide(color: Color(0xFFD8DCF0)),
+    padding: const EdgeInsets.symmetric(vertical: 14),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  );
+}
+
+class _WorkflowSectionLabel extends StatelessWidget {
+  const _WorkflowSectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        color: kClaySub,
+        letterSpacing: 1.1,
+      ),
+    );
+  }
+}
+
+class _WorkflowHeroChip extends StatelessWidget {
+  const _WorkflowHeroChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label  $value',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkflowPill extends StatelessWidget {
+  const _WorkflowPill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 11,
+        ),
       ),
     );
   }
@@ -714,14 +862,18 @@ class _WorkflowRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF55606E)),
+              style: const TextStyle(
+                color: kClaySub,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           Text(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
-              color: Color(0xFF293340),
+              color: kClayPrimary,
             ),
           ),
         ],
@@ -745,14 +897,18 @@ class _WorkflowTextRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF55606E)),
+              style: const TextStyle(
+                color: kClaySub,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           Text(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
-              color: Color(0xFF293340),
+              color: kClayPrimary,
             ),
           ),
         ],

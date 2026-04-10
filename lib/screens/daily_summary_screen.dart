@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
+import '../widgets/clay_widgets.dart';
 
 class DailySummaryScreen extends StatefulWidget {
   const DailySummaryScreen({super.key});
@@ -23,96 +24,401 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DailySummaryModel>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              snapshot.error.toString().replaceFirst('Exception: ', ''),
-            ),
-          );
-        }
-        final data = snapshot.data!;
-        final entry = data.entries.isEmpty ? null : data.entries.first;
+    return Scaffold(
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        iconTheme: const IconThemeData(color: kClayPrimary),
+        title: const Text('Daily Summary'),
+      ),
+      body: FutureBuilder<DailySummaryModel>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const ColoredBox(
+              color: kClayBg,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                snapshot.error.toString().replaceFirst('Exception: ', ''),
+                style: const TextStyle(
+                  color: kClayPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatDateLabel(data.date),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
+          final data = snapshot.data!;
+          final entry = data.entries.isEmpty ? null : data.entries.first;
+          final totalLiters = data.petrolSold + data.dieselSold + data.twoTSold;
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: const LinearGradient(
+                    colors: [kClayHeroStart, kClayHeroEnd],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 12),
-                  Text('Revenue ${formatCurrency(data.revenue)}'),
-                  Text('Collected ${formatCurrency(data.paymentTotal)}'),
-                  Text('Profit ${formatCurrency(data.profit)}'),
-                  Text('Petrol sold ${formatLiters(data.petrolSold)}'),
-                  Text('Diesel sold ${formatLiters(data.dieselSold)}'),
-                  Text('2T oil sold ${formatLiters(data.twoTSold)}'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: entry == null
-                  ? const Text('No daily entry saved for this date.')
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  boxShadow: [
+                    BoxShadow(
+                      color: kClayHeroEnd.withValues(alpha: 0.45),
+                      offset: const Offset(0, 10),
+                      blurRadius: 24,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatDateLabel(data.date),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      formatCurrency(data.revenue),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${formatLiters(totalLiters)} total liters',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        const Text(
-                          'Payment Breakdown',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        _HeroChip(
+                          label: 'Petrol',
+                          value: formatLiters(data.petrolSold),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Cash ${formatCurrency(entry.paymentBreakdown.cash)}',
+                        _HeroChip(
+                          label: 'Diesel',
+                          value: formatLiters(data.dieselSold),
                         ),
-                        Text(
-                          'HP Pay ${formatCurrency(entry.paymentBreakdown.check)}',
+                        _HeroChip(
+                          label: '2T',
+                          value: formatLiters(data.twoTSold),
                         ),
-                        Text(
-                          'UPI ${formatCurrency(entry.paymentBreakdown.upi)}',
-                        ),
-                        Text(
-                          'Credit ${formatCurrency(entry.creditEntries.fold<double>(0, (sum, item) => sum + item.amount))}',
-                        ),
-                        if (entry.varianceNote.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            entry.varianceNote,
-                            style: const TextStyle(color: Color(0xFFB91C1C)),
-                          ),
-                        ],
                       ],
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const _SectionLabel(label: 'FINANCIALS'),
+              const SizedBox(height: 10),
+              ClayCard(
+                child: Column(
+                  children: [
+                    _SummaryMetricRow(
+                      label: 'Revenue',
+                      value: formatCurrency(data.revenue),
+                    ),
+                    const Divider(color: kClayBg, height: 24),
+                    _SummaryMetricRow(
+                      label: 'Collected',
+                      value: formatCurrency(data.paymentTotal),
+                    ),
+                    const Divider(color: kClayBg, height: 24),
+                    _SummaryMetricRow(
+                      label: 'Profit',
+                      value: formatCurrency(data.profit),
+                    ),
+                    const Divider(color: kClayBg, height: 24),
+                    _SummaryMetricRow(
+                      label: 'Flagged Entries',
+                      value: '${data.flaggedCount}',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const _SectionLabel(label: 'SHIFT BREAKDOWN'),
+              const SizedBox(height: 10),
+              if (data.distribution.isEmpty)
+                const ClayCard(
+                  child: Text(
+                    'No shift-level summary is available for this date.',
+                    style: TextStyle(
+                      color: kClaySub,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                )
+              else
+                ...data.distribution.map(
+                  (item) => ClayCard(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.shift.toUpperCase(),
+                                style: const TextStyle(
+                                  color: kClayPrimary,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            _DailyStatusBadge(status: item.status),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _MetricColumn(
+                                label: 'Revenue',
+                                value: formatCurrency(item.revenue),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _MetricColumn(
+                                label: 'Petrol',
+                                value: formatLiters(item.petrolSold),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _MetricColumn(
+                                label: 'Diesel',
+                                value: formatLiters(item.dieselSold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              const _SectionLabel(label: 'PAYMENTS'),
+              const SizedBox(height: 10),
+              ClayCard(
+                child: entry == null
+                    ? const Text(
+                        'No daily entry saved for this date.',
+                        style: TextStyle(
+                          color: kClaySub,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _SummaryMetricRow(
+                            label: 'Cash',
+                            value: formatCurrency(entry.paymentBreakdown.cash),
+                          ),
+                          const Divider(color: kClayBg, height: 24),
+                          _SummaryMetricRow(
+                            label: 'HP Pay',
+                            value: formatCurrency(entry.paymentBreakdown.check),
+                          ),
+                          const Divider(color: kClayBg, height: 24),
+                          _SummaryMetricRow(
+                            label: 'UPI',
+                            value: formatCurrency(entry.paymentBreakdown.upi),
+                          ),
+                          const Divider(color: kClayBg, height: 24),
+                          _SummaryMetricRow(
+                            label: 'Credit',
+                            value: formatCurrency(
+                              entry.creditEntries.fold<double>(
+                                0,
+                                (sum, item) => sum + item.amount,
+                              ),
+                            ),
+                          ),
+                          if (entry.varianceNote.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                entry.varianceNote,
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        color: kClaySub,
+        letterSpacing: 1.1,
+      ),
+    );
+  }
+}
+
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label  $value',
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryMetricRow extends StatelessWidget {
+  const _SummaryMetricRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        );
-      },
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: kClayPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricColumn extends StatelessWidget {
+  const _MetricColumn({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: kClaySub,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: kClayPrimary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailyStatusBadge extends StatelessWidget {
+  const _DailyStatusBadge({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = status.trim().toLowerCase();
+    final isApproved = normalized == 'approved';
+    final bg = isApproved ? const Color(0xFFE8F8EF) : const Color(0xFFEEF2FF);
+    final fg = isApproved ? const Color(0xFF2AA878) : const Color(0xFF1A3A7A);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status.isEmpty ? 'Unknown' : status,
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w800),
+      ),
     );
   }
 }
