@@ -42,25 +42,102 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: ClayCard(
-              child: TextField(
-                controller: TextEditingController(text: _month),
-                decoration: InputDecoration(
-                  labelText: 'Month (YYYY-MM)',
-                  filled: true,
-                  fillColor: kClayBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [kClayHeroStart, kClayHeroEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kClayHeroEnd.withValues(alpha: 0.45),
+                        offset: const Offset(0, 10),
+                        blurRadius: 24,
+                      ),
+                    ],
                   ),
-                  suffixIcon: IconButton(
-                    onPressed: _reload,
-                    icon: const Icon(Icons.refresh_rounded),
-                    color: kClayPrimary,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ENTRY HISTORY',
+                        style: TextStyle(
+                          fontSize: 11,
+                          letterSpacing: 1.1,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white70,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Review Submitted Entries',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 22,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Check daily entries, approval status, revenue, and variance for the selected month.',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Text(
+                          'Month: $_month',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                onChanged: (value) => _month = value,
-              ),
+                const SizedBox(height: 12),
+                ClayCard(
+                  child: TextField(
+                    controller: TextEditingController(text: _month),
+                    decoration: InputDecoration(
+                      labelText: 'Month (YYYY-MM)',
+                      filled: true,
+                      fillColor: kClayBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      suffixIcon: IconButton(
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh_rounded),
+                        color: kClayPrimary,
+                      ),
+                    ),
+                    onChanged: (value) => _month = value,
+                  ),
+                ),
+              ],
             ),
           ),
           Expanded(

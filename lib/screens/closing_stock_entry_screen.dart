@@ -721,6 +721,34 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text(
+                          'DAILY SALES ENTRY',
+                          style: TextStyle(
+                            fontSize: 11,
+                            letterSpacing: 1.1,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          dashboard.station.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 22,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Choose the date and complete the day entry pump by pump.',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,

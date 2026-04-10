@@ -157,83 +157,95 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                   title: const Text('Record Credit Collection'),
                   content: SizedBox(
                     width: double.maxFinite,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DropdownMenu<String>(
-                          width: double.infinity,
-                          enableFilter: true,
-                          enableSearch: true,
-                          requestFocusOnTap: true,
-                          label: const Text('Customer'),
-                          hintText: 'Search and select existing customer',
-                          onSelected: (value) {
-                            setState(() {
-                              selectedCustomerId = value;
-                            });
-                          },
-                          dropdownMenuEntries:
-                              customers
-                                  .map(
-                                    (item) => DropdownMenuEntry<String>(
-                                      value: item.customer.id,
-                                      label: item.customer.name,
-                                    ),
-                                  )
-                                  .toList(),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: amountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: const InputDecoration(
-                            labelText: 'Amount',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: dateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Date (YYYY-MM-DD)',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: paymentMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Payment mode',
-                            filled: true,
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'cash',
-                              child: Text('Cash'),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final dropdownWidth =
+                            constraints.maxWidth.isFinite
+                                ? constraints.maxWidth
+                                : MediaQuery.sizeOf(context).width - 96;
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DropdownMenu<String>(
+                              width: dropdownWidth,
+                              enableFilter: true,
+                              enableSearch: true,
+                              requestFocusOnTap: true,
+                              label: const Text('Customer'),
+                              hintText: 'Search and select existing customer',
+                              onSelected: (value) {
+                                setState(() {
+                                  selectedCustomerId = value;
+                                });
+                              },
+                              dropdownMenuEntries:
+                                  customers
+                                      .map(
+                                        (item) => DropdownMenuEntry<String>(
+                                          value: item.customer.id,
+                                          label: item.customer.name,
+                                        ),
+                                      )
+                                      .toList(),
                             ),
-                            DropdownMenuItem(
-                              value: 'check',
-                              child: Text('HP Pay'),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: amountController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: const InputDecoration(
+                                labelText: 'Amount',
+                                filled: true,
+                              ),
                             ),
-                            DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: dateController,
+                              decoration: const InputDecoration(
+                                labelText: 'Date (YYYY-MM-DD)',
+                                filled: true,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            DropdownButtonFormField<String>(
+                              initialValue: paymentMode,
+                              decoration: const InputDecoration(
+                                labelText: 'Payment mode',
+                                filled: true,
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'cash',
+                                  child: Text('Cash'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'check',
+                                  child: Text('HP Pay'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'upi',
+                                  child: Text('UPI'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  paymentMode = value ?? 'cash';
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 10),
+                            TextField(
+                              controller: noteController,
+                              decoration: const InputDecoration(
+                                labelText: 'Note (optional)',
+                                filled: true,
+                              ),
+                            ),
                           ],
-                          onChanged: (value) {
-                            setState(() {
-                              paymentMode = value ?? 'cash';
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: noteController,
-                          decoration: const InputDecoration(
-                            labelText: 'Note (optional)',
-                            filled: true,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                   actions: [
