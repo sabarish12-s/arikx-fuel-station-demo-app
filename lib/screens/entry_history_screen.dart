@@ -14,18 +14,80 @@ class EntryHistoryScreen extends StatefulWidget {
 
 class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   final SalesService _salesService = SalesService();
+  final TextEditingController _monthController = TextEditingController(
+    text: currentMonthKey(),
+  );
   late Future<List<ShiftEntryModel>> _future;
   String _month = currentMonthKey();
+  DateTime? _fromDate;
+  DateTime? _toDate;
 
   @override
   void initState() {
     super.initState();
-    _future = _salesService.fetchEntries(month: _month, summary: true);
+    _future = _loadEntries();
+  }
+
+  @override
+  void dispose() {
+    _monthController.dispose();
+    super.dispose();
+  }
+
+  String _toApiDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  Future<List<ShiftEntryModel>> _loadEntries() {
+    return _salesService.fetchEntries(
+      month: _month.trim(),
+      fromDate: _fromDate == null ? null : _toApiDate(_fromDate!),
+      toDate: _toDate == null ? null : _toApiDate(_toDate!),
+      summary: true,
+    );
   }
 
   void _reload() {
+    FocusScope.of(context).unfocus();
     setState(() {
-      _future = _salesService.fetchEntries(month: _month, summary: true);
+      _month = _monthController.text.trim();
+      _future = _loadEntries();
+    });
+  }
+
+  Future<void> _pickDate({required bool isFrom}) async {
+    final initialDate =
+        isFrom
+            ? (_fromDate ?? _toDate ?? DateTime.now())
+            : (_toDate ?? _fromDate ?? DateTime.now());
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      helpText: isFrom ? 'Select from date' : 'Select to date',
+    );
+    if (selected == null) {
+      return;
+    }
+
+    setState(() {
+      if (isFrom) {
+        _fromDate = selected;
+      } else {
+        _toDate = selected;
+      }
+      _future = _loadEntries();
+    });
+  }
+
+  void _clearDateRange() {
+    setState(() {
+      _fromDate = null;
+      _toDate = null;
+      _future = _loadEntries();
     });
   }
 
@@ -42,102 +104,133 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      colors: [kClayHeroStart, kClayHeroEnd],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kClayHeroEnd.withValues(alpha: 0.45),
-                        offset: const Offset(0, 10),
-                        blurRadius: 24,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ENTRY HISTORY',
-                        style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white70,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Review Submitted Entries',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 22,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Check daily entries, approval status, revenue, and variance for the selected month.',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          height: 1.4,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.18),
-                          ),
-                        ),
-                        child: Text(
-                          'Month: $_month',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(
+                  colors: [kClayHeroStart, kClayHeroEnd],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                const SizedBox(height: 12),
-                ClayCard(
-                  child: TextField(
-                    controller: TextEditingController(text: _month),
+                boxShadow: [
+                  BoxShadow(
+                    color: kClayHeroEnd.withValues(alpha: 0.45),
+                    offset: const Offset(0, 10),
+                    blurRadius: 24,
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'ENTRY HISTORY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 1.1,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Review Submitted Entries',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 22,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Use the filters here to narrow entries by month and date range.',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      height: 1.4,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _monthController,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
                     decoration: InputDecoration(
                       labelText: 'Month (YYYY-MM)',
+                      labelStyle: const TextStyle(color: Colors.white70),
                       filled: true,
-                      fillColor: kClayBg,
+                      fillColor: Colors.white.withValues(alpha: 0.10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
                       ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.18),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: const BorderSide(color: Colors.white70),
+                      ),
                       suffixIcon: IconButton(
                         onPressed: _reload,
-                        icon: const Icon(Icons.refresh_rounded),
-                        color: kClayPrimary,
+                        icon: const Icon(
+                          Icons.refresh_rounded,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                    onChanged: (value) => _month = value,
+                    onSubmitted: (_) => _reload(),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _pickDate(isFrom: true),
+                        icon: const Icon(Icons.event_available_rounded),
+                        label: Text(
+                          _fromDate == null
+                              ? 'From date'
+                              : 'From: ${formatDateLabel(_toApiDate(_fromDate!))}',
+                        ),
+                        style: _historyFilterButtonStyle(),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _pickDate(isFrom: false),
+                        icon: const Icon(Icons.event_rounded),
+                        label: Text(
+                          _toDate == null
+                              ? 'To date'
+                              : 'To: ${formatDateLabel(_toApiDate(_toDate!))}',
+                        ),
+                        style: _historyFilterButtonStyle(),
+                      ),
+                      if (_fromDate != null || _toDate != null)
+                        TextButton(
+                          onPressed: _clearDateRange,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.08,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text('Clear dates'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -166,7 +259,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                 if (entries.isEmpty) {
                   return const Center(
                     child: Text(
-                      'No entries for this month.',
+                      'No entries for the selected filters.',
                       style: TextStyle(
                         color: kClaySub,
                         fontWeight: FontWeight.w700,
@@ -301,6 +394,15 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
       ),
     );
   }
+}
+
+ButtonStyle _historyFilterButtonStyle() {
+  return OutlinedButton.styleFrom(
+    foregroundColor: Colors.white,
+    side: BorderSide(color: Colors.white.withValues(alpha: 0.28)),
+    backgroundColor: Colors.white.withValues(alpha: 0.08),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  );
 }
 
 class _HistoryMetric extends StatelessWidget {

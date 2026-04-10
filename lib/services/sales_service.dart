@@ -29,10 +29,14 @@ class SalesService {
 
   Future<List<ShiftEntryModel>> fetchEntries({
     String? month,
+    String? fromDate,
+    String? toDate,
     bool summary = false,
   }) async {
     final params = <String, String>{
       if (month != null && month.isNotEmpty) 'month': month,
+      if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'to': toDate,
       if (summary) 'view': 'summary',
     };
     final String suffix =
