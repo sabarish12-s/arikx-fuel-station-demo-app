@@ -187,11 +187,11 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         );
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +203,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                   _prettyFuelLabel(price.fuelTypeId),
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 22,
+                    fontSize: 18,
                     color: Color(0xFF293340),
                   ),
                 ),
@@ -223,13 +223,13 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: const Color(0xFFF8F9FF),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +252,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                 ),
                 const SizedBox(height: 10),
                 Wrap(
-                  spacing: 14,
+                  spacing: 8,
                   runSpacing: 8,
                   children: [
                     Text(
@@ -292,13 +292,13 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: const Color(0xFFF8F9FF),
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: [
@@ -359,7 +359,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         return RefreshIndicator(
           onRefresh: _reload,
           child: ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               if (widget.embedded)
                 Padding(
@@ -374,7 +374,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                         child: Text(
                           'Fuel Prices',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF293340),
                           ),
@@ -400,11 +400,11 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                   ),
                 ),
               Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(18),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
                   children: [
@@ -415,7 +415,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                           Text(
                             'Fuel Price History',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -624,7 +624,7 @@ class _PriceHistoryTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Wrap(
-            spacing: 14,
+            spacing: 8,
             runSpacing: 8,
             children: [
               Text(
@@ -916,20 +916,20 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding: EdgeInsets.fromLTRB(
-                  18,
-                  18,
-                  18,
-                  18 + MediaQuery.viewInsetsOf(context).bottom,
+                  16,
+                  16,
+                  16,
+                  24 + MediaQuery.viewInsetsOf(context).bottom,
                 ),
                 child: Column(
                   children: [
                     Container(
                       width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      padding: const EdgeInsets.all(18),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -987,11 +987,11 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                               final index = entry.key;
                               final period = entry.value;
                               return Container(
-                                margin: const EdgeInsets.only(bottom: 14),
+                                margin: const EdgeInsets.only(bottom: 12),
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(18),
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1039,7 +1039,7 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 12),
+                                        const SizedBox(width: 10),
                                         Expanded(
                                           child: OutlinedButton.icon(
                                             onPressed:

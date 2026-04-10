@@ -146,7 +146,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: metrics[index]),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(child: metrics[index + 1]),
           ],
         ),
@@ -176,7 +176,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           }
           if (snapshot.hasError) {
             return ListView(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 Text('Failed to load inventory\n${_errorText(snapshot.error)}'),
               ],
@@ -187,7 +187,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           final planning = data.inventoryPlanning;
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(18, 20, 18, 120),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               Text(
                 data.station.name,
@@ -200,8 +200,8 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
               ),
               const SizedBox(height: 12),
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   FilledButton.icon(
                     onPressed: () => _openDeliveryReceipt(data.forecast),
@@ -227,8 +227,8 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
               ),
               const SizedBox(height: 16),
               Wrap(
-                spacing: 12,
-                runSpacing: 12,
+                spacing: 8,
+                runSpacing: 8,
                 children:
                     data.forecast
                         .map(
@@ -244,12 +244,12 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         )
                         .toList(),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,7 +257,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     const Text(
                       'Planning Snapshot',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
@@ -283,14 +283,14 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               ...data.forecast.map(
                 (item) => Container(
                   margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,7 +301,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                             child: Text(
                               item.label,
                               style: const TextStyle(
-                                fontSize: 20,
+                                fontSize: 18,
                                 fontWeight: FontWeight.w900,
                                 color: Color(0xFF293340),
                               ),
@@ -331,10 +331,10 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         const SizedBox(height: 12),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFFF7ED),
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
                             item.alertMessage,
@@ -350,10 +350,10 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -364,7 +364,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           child: Text(
                             'Recent Delivery',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF293340),
                             ),
@@ -382,7 +382,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                       'The latest delivery event is shown here. Open history to review every past delivery receipt.',
                       style: TextStyle(color: Color(0xFF55606E), height: 1.4),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     if (data.deliveries.isEmpty)
                       const Text(
                         'No delivery receipts recorded yet.',
@@ -420,11 +420,10 @@ class _InventoryStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 170,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,7 +436,7 @@ class _InventoryStatCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
@@ -477,10 +476,10 @@ class _ForecastMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FF),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

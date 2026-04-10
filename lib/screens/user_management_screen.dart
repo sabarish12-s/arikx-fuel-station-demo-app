@@ -319,7 +319,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             _selectedRequestIds.length == requests.length;
 
         return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             Row(
               children: [
@@ -349,8 +349,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             ),
             const SizedBox(height: 16),
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _SummaryCard(
                   title: 'Total Users',
@@ -367,13 +367,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 _SummaryCard(title: 'Admins', value: '${summary.adminCount}'),
               ],
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 12),
             Row(
               children: [
                 const Expanded(
                   child: Text(
                     'Pending Requests',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                 ),
                 if (requests.isNotEmpty)
@@ -400,7 +400,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ],
               ),
             ],
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             if (requests.isEmpty)
               const _EmptyCard(message: 'No pending access requests right now.')
             else
@@ -502,12 +502,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 );
               }),
-            const SizedBox(height: 22),
+            const SizedBox(height: 12),
             const Text(
               'Current Staff',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             ...users.map((user) {
               final selectedRole = _staffRoles[user.id] ?? user.role;
               final isEditing = _editingUserIds.contains(user.id);
@@ -668,11 +668,11 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 160,
+      constraints: const BoxConstraints(minWidth: 80),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,10 +698,10 @@ class _SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: child,
     );
@@ -716,10 +716,10 @@ class _EmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         message,

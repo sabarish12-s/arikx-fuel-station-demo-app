@@ -100,7 +100,7 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
         );
       case _SettingsPanel.home:
         return ListView(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             _SettingsTile(
               title: 'Station Profile & Pumps',
@@ -220,9 +220,9 @@ class _SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),

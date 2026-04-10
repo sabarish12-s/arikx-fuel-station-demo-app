@@ -47,7 +47,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             }
             if (snapshot.hasError) {
               return ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   Text('Failed to load history\n${_errorText(snapshot.error)}'),
                 ],
@@ -55,14 +55,14 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             }
             final deliveries = snapshot.data ?? const <DeliveryReceiptModel>[];
             return ListView(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(18),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
                     deliveries.isEmpty
@@ -138,7 +138,7 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF8F9FF),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

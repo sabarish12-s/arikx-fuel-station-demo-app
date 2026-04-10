@@ -186,7 +186,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
         return RefreshIndicator(
           onRefresh: _reload,
           child: ListView(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               if (widget.embedded)
                 Padding(
@@ -201,7 +201,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                         child: Text(
                           'Station Profile & Pumps',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 22,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF293340),
                           ),
@@ -225,10 +225,10 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                   ),
                 ),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,7 +239,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                           child: Text(
                             'Station Overview',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -292,7 +292,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                       enabled: widget.canEdit && _isEditing,
                       decoration: const InputDecoration(labelText: 'Code'),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: _shiftsController,
                       enabled: false,
@@ -311,12 +311,12 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,7 +324,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                     const Text(
                       'Pump Labels',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
@@ -354,12 +354,12 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,7 +367,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                     const Text(
                       'Daily Meter Limits',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF293340),
                       ),
@@ -381,7 +381,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                     ...station.pumps.map((pump) {
                       final supportsTwoT = pump.id == 'pump2';
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 14),
+                        margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8F9FF),

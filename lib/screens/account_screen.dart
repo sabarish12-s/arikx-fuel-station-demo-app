@@ -39,22 +39,22 @@ class AccountScreen extends StatelessWidget {
         user.role == 'admin' ||
         user.role == 'superadmin';
     return ListView(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         Container(
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             children: [
               const AppLogo(size: 58),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Text(
                 user.name,
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
                 ),
               ),
