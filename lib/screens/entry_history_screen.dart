@@ -98,7 +98,6 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
       appBar: AppBar(
         backgroundColor: kClayBg,
         iconTheme: const IconThemeData(color: kClayPrimary),
-        title: const Text('Entry History'),
       ),
       body: FutureBuilder<List<ShiftEntryModel>>(
         future: _future,
