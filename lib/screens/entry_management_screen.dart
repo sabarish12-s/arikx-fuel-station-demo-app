@@ -16,6 +16,8 @@ class EntryManagementScreen extends StatefulWidget {
   State<EntryManagementScreen> createState() => _EntryManagementScreenState();
 }
 
+enum _EntryAction { approve, delete }
+
 class _EntryManagementScreenState extends State<EntryManagementScreen> {
   final ManagementService _managementService = ManagementService();
   final SalesService _salesService = SalesService();
@@ -41,6 +43,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
   late Future<_EntryManagementData> _future;
   bool _submitting = false;
+  String? _activeEntryId;
+  _EntryAction? _activeAction;
   // null = All, 'approved', 'pending', 'flagged'
   String? _statusFilter;
 
@@ -563,9 +567,79 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     }
   }
 
+  void _setEntryActionBusy(ShiftEntryModel entry, _EntryAction action) {
+    setState(() {
+      _submitting = true;
+      _activeEntryId = entry.id;
+      _activeAction = action;
+    });
+  }
+
+  void _clearEntryActionBusy() {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _submitting = false;
+      _activeEntryId = null;
+      _activeAction = null;
+    });
+  }
+
+  Future<bool> _confirmApproveEntry(ShiftEntryModel entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Approve Entry'),
+            content: Text(
+              'Approve the entry for ${formatDateLabel(entry.date)}? Once approved, the date cannot be changed and sales staff cannot edit it.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Approve'),
+              ),
+            ],
+          ),
+    );
+    return confirmed == true;
+  }
+
   Future<void> _approveEntry(ShiftEntryModel entry) async {
-    await _managementService.approveEntry(entry.id);
-    await _reload();
+    final confirmed = await _confirmApproveEntry(entry);
+    if (!confirmed) return;
+    if (!mounted) return;
+
+    _setEntryActionBusy(entry, _EntryAction.approve);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Approving entry...')));
+
+    try {
+      await _managementService.approveEntry(entry.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Entry approved.')));
+      await _reload();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFB91C1C),
+            content: Text(userFacingErrorMessage(error)),
+          ),
+        );
+    } finally {
+      _clearEntryActionBusy();
+    }
   }
 
   Future<bool> _confirmDeleteEntry(ShiftEntryModel entry) async {
@@ -601,32 +675,40 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   Future<void> _deleteEntry(ShiftEntryModel entry) async {
     final confirmed = await _confirmDeleteEntry(entry);
     if (!confirmed) return;
+    if (!mounted) return;
 
-    setState(() => _submitting = true);
+    _setEntryActionBusy(entry, _EntryAction.delete);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Deleting entry...')));
 
     try {
       await _managementService.deleteEntry(entry.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            entry.status == 'approved'
-                ? 'Approved entry deleted and override applied.'
-                : 'Entry deleted.',
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              entry.status == 'approved'
+                  ? 'Approved entry deleted and override applied.'
+                  : 'Entry deleted.',
+            ),
           ),
-        ),
-      );
+        );
       await _reload();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB91C1C),
-          content: Text(userFacingErrorMessage(error)),
-        ),
-      );
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFB91C1C),
+            content: Text(userFacingErrorMessage(error)),
+          ),
+        );
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      _clearEntryActionBusy();
     }
   }
 
@@ -893,6 +975,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       station: data.dashboard.station,
                       submittedLabel: submittedLabel,
                       submitting: _submitting,
+                      activeAction:
+                          _activeEntryId == entry.id ? _activeAction : null,
                       onEdit: () => _editEntry(entry, data.dashboard.station),
                       onDelete: () => _deleteEntry(entry),
                       onApprove: () => _approveEntry(entry),
@@ -1057,6 +1141,7 @@ class _EntryCard extends StatelessWidget {
     required this.station,
     required this.submittedLabel,
     required this.submitting,
+    required this.activeAction,
     required this.onEdit,
     required this.onDelete,
     required this.onApprove,
@@ -1066,6 +1151,7 @@ class _EntryCard extends StatelessWidget {
   final StationConfigModel station;
   final String submittedLabel;
   final bool submitting;
+  final _EntryAction? activeAction;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onApprove;
@@ -1074,6 +1160,8 @@ class _EntryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isApproved = entry.status == 'approved';
     final isFlagged = entry.flagged;
+    final isDeleting = activeAction == _EntryAction.delete;
+    final isApproving = activeAction == _EntryAction.approve;
     final pumpLabels = {
       for (final pump in station.pumps)
         pump.id: formatPumpLabel(pump.id, pump.label),
@@ -1223,17 +1311,24 @@ class _EntryCard extends StatelessWidget {
               const SizedBox(width: 8),
               _ActionBtn(
                 icon: Icons.delete_outline_rounded,
-                label: isApproved ? 'Override' : 'Delete',
+                label:
+                    isDeleting
+                        ? 'Deleting...'
+                        : isApproved
+                        ? 'Override'
+                        : 'Delete',
                 onTap: submitting ? null : onDelete,
                 danger: true,
+                loading: isDeleting,
               ),
               if (!isApproved) ...[
                 const SizedBox(width: 8),
                 _ActionBtn(
                   icon: Icons.verified_rounded,
-                  label: 'Approve',
+                  label: isApproving ? 'Approving...' : 'Approve',
                   onTap: submitting ? null : onApprove,
                   filled: true,
+                  loading: isApproving,
                 ),
               ],
             ],
@@ -1463,12 +1558,14 @@ class _ActionBtn extends StatefulWidget {
     required this.onTap,
     this.danger = false,
     this.filled = false,
+    this.loading = false,
   });
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool danger;
   final bool filled;
+  final bool loading;
 
   @override
   State<_ActionBtn> createState() => _ActionBtnState();
@@ -1479,7 +1576,7 @@ class _ActionBtnState extends State<_ActionBtn> {
 
   @override
   Widget build(BuildContext context) {
-    final disabled = widget.onTap == null;
+    final disabled = widget.onTap == null || widget.loading;
 
     final Color bg;
     final Color fg;
@@ -1538,18 +1635,33 @@ class _ActionBtnState extends State<_ActionBtn> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                widget.icon,
-                size: 14,
-                color: disabled ? fg.withValues(alpha: 0.4) : fg,
-              ),
+              widget.loading
+                  ? SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        fg.withValues(alpha: 0.85),
+                      ),
+                    ),
+                  )
+                  : Icon(
+                    widget.icon,
+                    size: 14,
+                    color: disabled ? fg.withValues(alpha: 0.4) : fg,
+                  ),
               const SizedBox(width: 5),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: disabled ? fg.withValues(alpha: 0.4) : fg,
+              Flexible(
+                child: OneLineScaleText(
+                  widget.label,
+                  textAlign: TextAlign.center,
+                  alignment: Alignment.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: disabled ? fg.withValues(alpha: 0.4) : fg,
+                  ),
                 ),
               ),
             ],
