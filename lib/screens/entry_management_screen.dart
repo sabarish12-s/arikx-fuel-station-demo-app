@@ -459,6 +459,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                           creditCollections: const [],
                         )
                         : _draftFromEntry(dashboard.selectedEntry!),
+                isAdmin: true,
+                existingEntryId: dashboard.selectedEntry?.id,
                 onSubmit: (draft, mismatchReason) async {
                   if (dashboard.selectedEntry == null) {
                     await _salesService.submitEntry(
@@ -524,6 +526,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 openingReadings: detailedEntry.openingReadings,
                 priceSnapshot: detailedEntry.priceSnapshot,
                 initialDraft: _draftFromEntry(detailedEntry),
+                isAdmin: true,
+                existingEntryId: detailedEntry.id,
                 onSubmit: (draft, mismatchReason) async {
                   await _managementService.updateEntry(
                     entryId: detailedEntry.id,
@@ -1176,44 +1180,18 @@ class _EntryCard extends StatelessWidget {
           // ── Pump attendants ────────────────────────────────────────
           if (entry.pumpAttendants.values.any((n) => n.isNotEmpty)) ...[
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+            Column(
               children: [
-                for (final item in entry.pumpAttendants.entries)
-                  if (item.value.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFECEFF8),
-                        borderRadius: BorderRadius.circular(999),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFFB8C0DC,
-                            ).withValues(alpha: 0.5),
-                            offset: const Offset(2, 2),
-                            blurRadius: 5,
-                          ),
-                          const BoxShadow(
-                            color: Colors.white,
-                            offset: Offset(-2, -2),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: Text(
-                        '${formatPumpLabel(item.key)}: ${item.value}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF4A5598),
-                        ),
-                      ),
+                for (final item in entry.pumpAttendants.entries.where(
+                  (item) => item.value.trim().isNotEmpty,
+                ))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: _PumpAttendantRow(
+                      label:
+                          '${formatPumpLabel(item.key)}: ${item.value.trim()}',
                     ),
+                  ),
               ],
             ),
           ],
@@ -1278,6 +1256,44 @@ class _EntryCard extends StatelessWidget {
 }
 
 // ─── Metric cell ───────────────────────────────────────────────────────────────
+class _PumpAttendantRow extends StatelessWidget {
+  const _PumpAttendantRow({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+            offset: const Offset(2, 2),
+            blurRadius: 5,
+          ),
+          const BoxShadow(
+            color: Colors.white,
+            offset: Offset(-2, -2),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: OneLineScaleText(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF4A5598),
+        ),
+      ),
+    );
+  }
+}
+
 class _MetricCell extends StatelessWidget {
   const _MetricCell({required this.label, required this.value, this.accent});
   final String label;

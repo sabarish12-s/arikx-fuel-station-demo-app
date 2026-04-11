@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/credit_service.dart';
 import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
@@ -16,10 +17,21 @@ class MonthlyReportScreen extends StatefulWidget {
   State<MonthlyReportScreen> createState() => _MonthlyReportScreenState();
 }
 
+class _MonthlyReportViewData {
+  const _MonthlyReportViewData({
+    required this.report,
+    required this.creditOutstandingTotal,
+  });
+
+  final MonthlyReportModel report;
+  final double creditOutstandingTotal;
+}
+
 class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final ManagementService _managementService = ManagementService();
+  final CreditService _creditService = CreditService();
   final ReportExportService _reportExportService = ReportExportService();
-  late Future<MonthlyReportModel> _future;
+  late Future<_MonthlyReportViewData> _future;
   String _month = currentMonthKey();
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -35,12 +47,30 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     _future = _fetchReport();
   }
 
-  Future<MonthlyReportModel> _fetchReport() {
-    return _managementService.fetchMonthlyReport(
+  Future<_MonthlyReportViewData> _fetchReport() async {
+    final reportFuture = _managementService.fetchMonthlyReport(
       month: _fromDate == null && _toDate == null ? _month : null,
       fromDate: _fromDate == null ? null : _toApiDate(_fromDate!),
       toDate: _toDate == null ? null : _toApiDate(_toDate!),
     );
+    final creditSummaryFuture = _fetchCreditSummary();
+
+    final report = await reportFuture;
+    final creditSummary = await creditSummaryFuture;
+    return _MonthlyReportViewData(
+      report: report,
+      creditOutstandingTotal:
+          creditSummary?.openBalanceTotal ?? report.creditTotal,
+    );
+  }
+
+  Future<CreditLedgerSummaryModel?> _fetchCreditSummary() async {
+    try {
+      final (summary, _) = await _creditService.fetchCustomers();
+      return summary;
+    } catch (_) {
+      return null;
+    }
   }
 
   void _reload() => setState(() => _future = _fetchReport());
@@ -338,7 +368,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<MonthlyReportModel>(
+    return FutureBuilder<_MonthlyReportViewData>(
       future: _future,
       builder: (context, snapshot) {
         return ColoredBox(
@@ -472,7 +502,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     );
   }
 
-  List<Widget> _buildReport(MonthlyReportModel report) {
+  List<Widget> _buildReport(_MonthlyReportViewData data) {
+    final report = data.report;
     final petrol = report.fuelBreakdown['petrol'] ?? 0;
     final diesel = report.fuelBreakdown['diesel'] ?? 0;
     final twoT = report.fuelBreakdown['two_t_oil'] ?? 0;
@@ -571,7 +602,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 const _SummarySep(),
                 _SummaryCell(
                   label: 'Credits',
-                  value: formatCurrency(report.creditTotal),
+                  value: formatCurrency(data.creditOutstandingTotal),
                 ),
               ],
             ),

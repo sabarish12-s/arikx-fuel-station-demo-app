@@ -145,6 +145,20 @@ class ManagementService {
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
   }
 
+  Future<ShiftEntryModel> changeEntryDate(String entryId, String newDate) async {
+    final response = await _apiClient.patch(
+      '/management/entries/$entryId/date',
+      body: jsonEncode({'date': newDate}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to change entry date.'),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
+  }
+
   Future<void> deleteEntry(String entryId) async {
     final response = await _apiClient.delete('/management/entries/$entryId');
     if (response.statusCode < 200 || response.statusCode >= 300) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/credit_service.dart';
 import '../services/inventory_service.dart';
+import '../services/management_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
@@ -23,6 +24,9 @@ class EntryWorkflowScreen extends StatefulWidget {
     required this.priceSnapshot,
     required this.initialDraft,
     required this.onSubmit,
+    this.isAdmin = false,
+    this.existingEntryId,
+    this.takenDates = const [],
   });
 
   final String title;
@@ -31,6 +35,12 @@ class EntryWorkflowScreen extends StatefulWidget {
   final Map<String, Map<String, double>> priceSnapshot;
   final DailyEntryDraft initialDraft;
   final EntrySubmitCallback onSubmit;
+  /// Whether the current user is admin/superadmin (enables date editing).
+  final bool isAdmin;
+  /// The Firestore entry ID of the entry being edited (needed to call changeDate).
+  final String? existingEntryId;
+  /// Dates that already have entries — cannot pick these when changing date.
+  final List<String> takenDates;
 
   @override
   State<EntryWorkflowScreen> createState() => _EntryWorkflowScreenState();
@@ -40,11 +50,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
   final SalesService _salesService = SalesService();
   final CreditService _creditService = CreditService();
   final InventoryService _inventoryService = InventoryService();
+  final ManagementService _managementService = ManagementService();
   late DailyEntryDraft _draft;
   late Map<String, Map<String, double>> _resolvedPriceSnapshot;
   List<CreditCustomerSummaryModel> _suggestedCustomers = const [];
   bool _resolvingPriceSnapshot = false;
   bool _submitting = false;
+  bool _changingDate = false;
   String? _error;
 
   @override
@@ -314,6 +326,64 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     _savePumpEdit(result.key, result.value);
   }
 
+  Future<void> _changeDate() async {
+    final entryId = widget.existingEntryId;
+    if (entryId == null) return;
+
+    setState(() {
+      _changingDate = true;
+      _error = null;
+    });
+
+    // Fetch all station entries to know which dates are already taken.
+    List<String> takenDates = widget.takenDates;
+    try {
+      final allEntries = await _managementService.fetchEntries();
+      takenDates = allEntries.map((e) => e.date).toList();
+    } catch (_) {
+      // fall back to the list passed in by the parent
+    } finally {
+      if (mounted) setState(() => _changingDate = false);
+    }
+    if (!mounted) return;
+
+    final today = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.tryParse(_draft.date) ?? today,
+      firstDate: today.subtract(const Duration(days: 365)),
+      lastDate: today,
+      selectableDayPredicate: (day) {
+        final dayStr =
+            '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+        // Always allow the current date (moving away from it)
+        if (dayStr == _draft.date) return true;
+        // Block dates that already have an entry
+        return !takenDates.contains(dayStr);
+      },
+    );
+    if (picked == null || !mounted) return;
+
+    final newDate =
+        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+    if (newDate == _draft.date) return;
+
+    setState(() {
+      _changingDate = true;
+      _error = null;
+    });
+    try {
+      await _managementService.changeEntryDate(entryId, newDate);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = userFacingErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _changingDate = false);
+    }
+  }
+
   Future<void> _submitEntry() async {
     final missingPumps =
         widget.station.pumps
@@ -445,14 +515,53 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  formatDateLabel(_draft.date),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.1,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      formatDateLabel(_draft.date),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    if (widget.isAdmin && widget.existingEntryId != null) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: _changingDate ? null : _changeDate,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.edit_calendar_rounded,
+                                size: 11,
+                                color: Colors.white.withValues(alpha: 0.85),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                _changingDate ? 'Changing…' : 'Change date',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -472,28 +581,40 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _WorkflowHeroChip(
-                      label: 'Petrol',
-                      value: formatLiters(summary.petrol),
-                    ),
-                    _WorkflowHeroChip(
-                      label: 'Diesel',
-                      value: formatLiters(summary.diesel),
-                    ),
-                    _WorkflowHeroChip(
-                      label: '2T',
-                      value: formatLiters(summary.twoT),
-                    ),
-                    _WorkflowHeroChip(
-                      label: 'Settlement',
-                      value: formatCurrency(_salesSettlementTotal()),
-                    ),
-                  ],
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      _HeroStatCell(
+                        label: 'Petrol',
+                        value: formatLiters(summary.petrol),
+                      ),
+                      _HeroStatDivider(),
+                      _HeroStatCell(
+                        label: 'Diesel',
+                        value: formatLiters(summary.diesel),
+                      ),
+                      _HeroStatDivider(),
+                      _HeroStatCell(
+                        label: '2T Oil',
+                        value: formatLiters(summary.twoT),
+                      ),
+                      _HeroStatDivider(),
+                      _HeroStatCell(
+                        label: 'Settlement',
+                        value: formatCurrency(_salesSettlementTotal()),
+                        wide: true,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -797,29 +918,56 @@ class _WorkflowSectionLabel extends StatelessWidget {
   }
 }
 
-class _WorkflowHeroChip extends StatelessWidget {
-  const _WorkflowHeroChip({required this.label, required this.value});
+class _HeroStatCell extends StatelessWidget {
+  const _HeroStatCell({
+    required this.label,
+    required this.value,
+    this.wide = false,
+  });
 
   final String label;
   final String value;
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
+    return Expanded(
+      flex: wide ? 2 : 1,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 3),
+          OneLineScaleText(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroStatDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: OneLineScaleText(
-        '$label  $value',
-        alignment: Alignment.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
-      ),
+      width: 1,
+      height: 32,
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      color: Colors.white.withValues(alpha: 0.2),
     );
   }
 }

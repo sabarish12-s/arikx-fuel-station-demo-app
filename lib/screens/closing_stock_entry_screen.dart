@@ -6,6 +6,7 @@ import '../services/inventory_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
+import '../utils/sales_entry_dates.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/daily_entry_dialogs.dart';
@@ -37,7 +38,21 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadInitialDefaultDate();
+  }
+
+  Future<void> _loadInitialDefaultDate() async {
+    var defaultDate = salesEntryApiDate(DateTime.now());
+    try {
+      final entries = await _salesService.fetchEntries(summary: true);
+      defaultDate = resolveDefaultSalesEntryDate(
+        entries.map((entry) => entry.date),
+        today: DateTime.now(),
+      );
+    } catch (_) {
+      // Fall back to today's dashboard when entry history is unavailable.
+    }
+    await _load(date: defaultDate);
   }
 
   Future<void> _load({String? date}) async {
@@ -208,9 +223,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     if (selected == null) {
       return;
     }
-    final month = selected.month.toString().padLeft(2, '0');
-    final day = selected.day.toString().padLeft(2, '0');
-    await _load(date: '${selected.year}-$month-$day');
+    await _load(date: salesEntryApiDate(selected));
   }
 
   DailyEntryDraft _seedDraft(SalesDashboardModel dashboard) {
