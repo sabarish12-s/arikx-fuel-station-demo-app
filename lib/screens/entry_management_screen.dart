@@ -1099,70 +1099,78 @@ class _EntryCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           // ── Metrics grid ───────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECEFF8),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    _MetricCell(
-                      label: 'Petrol',
-                      value: formatLiters(entry.totals.sold.petrol),
-                    ),
-                    const _MetricDivider(),
-                    _MetricCell(
-                      label: 'Diesel',
-                      value: formatLiters(entry.totals.sold.diesel),
-                    ),
-                  ],
+          Builder(
+            builder: (context) {
+              final diff = entry.paymentTotal - entry.computedRevenue;
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECEFF8),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const _MetricRowDivider(),
-                Row(
-                  children: [
-                    _MetricCell(
-                      label: 'Sales',
-                      value: formatCurrency(entry.revenue),
-                      accent: const Color(0xFF1A3A7A),
-                    ),
-                    const _MetricDivider(),
-                    _MetricCell(
-                      label: 'Collected',
-                      value: formatCurrency(entry.paymentTotal),
-                      accent: const Color(0xFF1A7A5A),
-                    ),
-                  ],
-                ),
-                if (entry.totals.sold.twoT > 0) ...[
-                  const _MetricRowDivider(),
-                  Builder(
-                    builder: (context) {
-                      final diff =
-                          entry.paymentTotal - entry.computedRevenue;
-                      return Row(
-                        children: [
-                          _MetricCell(
-                            label: '2T Oil',
-                            value: formatLiters(entry.totals.sold.twoT),
-                          ),
-                          const _MetricDivider(),
-                          _MetricCell(
-                            label: 'Difference',
-                            value: formatCurrency(diff),
-                            accent: diff >= 0
-                                ? const Color(0xFF2AA878)
-                                : const Color(0xFFB91C1C),
-                          ),
-                        ],
-                      );
-                    },
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Left: fuel volumes
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _MetricCell(
+                              label: 'Petrol',
+                              value: formatLiters(entry.totals.sold.petrol),
+                            ),
+                            const _MetricRowDivider(),
+                            _MetricCell(
+                              label: 'Diesel',
+                              value: formatLiters(entry.totals.sold.diesel),
+                            ),
+                            if (entry.totals.sold.twoT > 0) ...[
+                              const _MetricRowDivider(),
+                              _MetricCell(
+                                label: '2T Oil',
+                                value: formatLiters(entry.totals.sold.twoT),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const _MetricDivider(),
+                      // Right: financials
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _MetricCell(
+                              label: 'Sales',
+                              value: formatCurrency(entry.revenue),
+                              accent: const Color(0xFF1A3A7A),
+                            ),
+                            const _MetricRowDivider(),
+                            _MetricCell(
+                              label: 'Collected',
+                              value: formatCurrency(entry.paymentTotal),
+                              accent: const Color(0xFF1A7A5A),
+                            ),
+                            if (entry.totals.sold.twoT > 0) ...[
+                              const _MetricRowDivider(),
+                              _MetricCell(
+                                label: 'Difference',
+                                value: formatCurrency(diff),
+                                accent: diff >= 0
+                                    ? const Color(0xFF2AA878)
+                                    : const Color(0xFFB91C1C),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ],
-            ),
+                ),
+              );
+            },
           ),
 
           // ── Pump attendants ────────────────────────────────────────
@@ -1312,7 +1320,6 @@ class _MetricDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 32,
       margin: const EdgeInsets.symmetric(horizontal: 12),
       color: const Color(0xFFD8DCF0),
     );
