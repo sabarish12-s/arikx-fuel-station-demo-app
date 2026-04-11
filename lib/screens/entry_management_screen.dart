@@ -1286,29 +1286,27 @@ class _MetricCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF8A93B8),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF8A93B8),
           ),
-          const SizedBox(height: 3),
-          OneLineScaleText(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: accent ?? const Color(0xFF1A2561),
-            ),
+        ),
+        const SizedBox(height: 3),
+        OneLineScaleText(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: accent ?? const Color(0xFF1A2561),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
