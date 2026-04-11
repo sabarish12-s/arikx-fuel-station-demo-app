@@ -871,6 +871,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             : entry.submittedBy.trim();
                     return _EntryCard(
                       entry: entry,
+                      station: data.dashboard.station,
                       submittedLabel: submittedLabel,
                       submitting: _submitting,
                       onEdit: () => _editEntry(entry, data.dashboard.station),
@@ -1032,6 +1033,7 @@ class _HeroStat extends StatelessWidget {
 class _EntryCard extends StatelessWidget {
   const _EntryCard({
     required this.entry,
+    required this.station,
     required this.submittedLabel,
     required this.submitting,
     required this.onEdit,
@@ -1040,6 +1042,7 @@ class _EntryCard extends StatelessWidget {
   });
 
   final ShiftEntryModel entry;
+  final StationConfigModel station;
   final String submittedLabel;
   final bool submitting;
   final VoidCallback onEdit;
@@ -1050,6 +1053,18 @@ class _EntryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isApproved = entry.status == 'approved';
     final isFlagged = entry.flagged;
+    final pumpLabels = {
+      for (final pump in station.pumps)
+        pump.id: formatPumpLabel(pump.id, pump.label),
+    };
+    final attendantLabels =
+        entry.pumpAttendants.entries
+            .where((item) => item.value.trim().isNotEmpty)
+            .map(
+              (item) =>
+                  '${pumpLabels[item.key] ?? formatPumpLabel(item.key)}: ${item.value.trim()}',
+            )
+            .toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1106,94 +1121,47 @@ class _EntryCard extends StatelessWidget {
           Builder(
             builder: (context) {
               final diff = entry.paymentTotal - entry.computedRevenue;
-              return Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECEFF8),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Left: fuel volumes
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _MetricCell(
-                              label: 'Petrol',
-                              value: formatLiters(entry.totals.sold.petrol),
-                            ),
-                            const _MetricRowDivider(),
-                            _MetricCell(
-                              label: 'Diesel',
-                              value: formatLiters(entry.totals.sold.diesel),
-                            ),
-                            if (entry.totals.sold.twoT > 0) ...[
-                              const _MetricRowDivider(),
-                              _MetricCell(
-                                label: '2T Oil',
-                                value: formatLiters(entry.totals.sold.twoT),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const _MetricDivider(),
-                      // Right: financials
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _MetricCell(
-                              label: 'Sales',
-                              value: formatCurrency(entry.revenue),
-                              accent: const Color(0xFF1A3A7A),
-                            ),
-                            const _MetricRowDivider(),
-                            _MetricCell(
-                              label: 'Collected',
-                              value: formatCurrency(entry.paymentTotal),
-                              accent: const Color(0xFF1A7A5A),
-                            ),
-                            if (entry.totals.sold.twoT > 0) ...[
-                              const _MetricRowDivider(),
-                              _MetricCell(
-                                label: 'Difference',
-                                value: formatCurrency(diff),
-                                accent: diff >= 0
-                                    ? const Color(0xFF2AA878)
-                                    : const Color(0xFFB91C1C),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
+              return _EntryMetricsGrid(
+                items: [
+                  _EntryMetricItem(
+                    label: 'Petrol',
+                    value: formatLiters(entry.totals.sold.petrol),
                   ),
-                ),
+                  _EntryMetricItem(
+                    label: 'Sales',
+                    value: formatCurrency(entry.revenue),
+                    accent: const Color(0xFF1A3A7A),
+                  ),
+                  _EntryMetricItem(
+                    label: 'Diesel',
+                    value: formatLiters(entry.totals.sold.diesel),
+                  ),
+                  _EntryMetricItem(
+                    label: 'Collected',
+                    value: formatCurrency(entry.paymentTotal),
+                    accent: const Color(0xFF1A7A5A),
+                  ),
+                  _EntryMetricItem(
+                    label: '2T Oil',
+                    value: formatLiters(entry.totals.sold.twoT),
+                  ),
+                  _EntryMetricItem(
+                    label: 'Difference',
+                    value: formatCurrency(diff),
+                    accent:
+                        diff >= 0
+                            ? const Color(0xFF2AA878)
+                            : const Color(0xFFB91C1C),
+                  ),
+                ],
               );
             },
           ),
 
           // ── Pump attendants ────────────────────────────────────────
-          if (entry.pumpAttendants.values.any((n) => n.isNotEmpty)) ...[
+          if (attendantLabels.isNotEmpty) ...[
             const SizedBox(height: 10),
-            Column(
-              children: [
-                for (final item in entry.pumpAttendants.entries.where(
-                  (item) => item.value.trim().isNotEmpty,
-                ))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _PumpAttendantRow(
-                      label:
-                          '${formatPumpLabel(item.key)}: ${item.value.trim()}',
-                    ),
-                  ),
-              ],
-            ),
+            _PumpAttendantGrid(labels: attendantLabels),
           ],
 
           // ── Variance note ──────────────────────────────────────────
@@ -1256,6 +1224,118 @@ class _EntryCard extends StatelessWidget {
 }
 
 // ─── Metric cell ───────────────────────────────────────────────────────────────
+class _EntryMetricItem {
+  const _EntryMetricItem({
+    required this.label,
+    required this.value,
+    this.accent,
+  });
+
+  final String label;
+  final String value;
+  final Color? accent;
+}
+
+class _EntryMetricsGrid extends StatelessWidget {
+  const _EntryMetricsGrid({required this.items});
+
+  final List<_EntryMetricItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < items.length; i += 2) ...[
+            Row(
+              children: [
+                Expanded(child: _EntryMetricTile(item: items[i])),
+                const SizedBox(width: 8),
+                Expanded(child: _EntryMetricTile(item: items[i + 1])),
+              ],
+            ),
+            if (i + 2 < items.length) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EntryMetricTile extends StatelessWidget {
+  const _EntryMetricTile({required this.item});
+
+  final _EntryMetricItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFF),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          OneLineScaleText(
+            item.label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF8A93B8),
+            ),
+          ),
+          const SizedBox(height: 5),
+          OneLineScaleText(
+            item.value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: item.accent ?? const Color(0xFF1A2561),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PumpAttendantGrid extends StatelessWidget {
+  const _PumpAttendantGrid({required this.labels});
+
+  final List<String> labels;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < labels.length; i += 2)
+          Padding(
+            padding: EdgeInsets.only(bottom: i + 2 < labels.length ? 6 : 0),
+            child: Row(
+              children: [
+                Expanded(child: _PumpAttendantRow(label: labels[i])),
+                const SizedBox(width: 8),
+                if (i + 1 < labels.length)
+                  Expanded(child: _PumpAttendantRow(label: labels[i + 1]))
+                else
+                  const Spacer(),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _PumpAttendantRow extends StatelessWidget {
   const _PumpAttendantRow({required this.label});
 
@@ -1290,65 +1370,6 @@ class _PumpAttendantRow extends StatelessWidget {
           color: Color(0xFF4A5598),
         ),
       ),
-    );
-  }
-}
-
-class _MetricCell extends StatelessWidget {
-  const _MetricCell({required this.label, required this.value, this.accent});
-  final String label;
-  final String value;
-  final Color? accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF8A93B8),
-          ),
-        ),
-        const SizedBox(height: 3),
-        OneLineScaleText(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
-            color: accent ?? const Color(0xFF1A2561),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MetricDivider extends StatelessWidget {
-  const _MetricDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      color: const Color(0xFFD8DCF0),
-    );
-  }
-}
-
-class _MetricRowDivider extends StatelessWidget {
-  const _MetricRowDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 1,
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      color: const Color(0xFFD8DCF0),
     );
   }
 }

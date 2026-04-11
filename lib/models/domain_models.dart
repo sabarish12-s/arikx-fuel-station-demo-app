@@ -1717,6 +1717,7 @@ class MonthlyReportModel {
     required this.creditTotal,
     required this.entriesCompleted,
     required this.shiftsCompleted,
+    required this.paymentBreakdown,
     required this.fuelBreakdown,
     required this.trend,
   });
@@ -1733,11 +1734,14 @@ class MonthlyReportModel {
   final double creditTotal;
   final int entriesCompleted;
   final int shiftsCompleted;
+  final Map<String, double> paymentBreakdown;
   final Map<String, double> fuelBreakdown;
   final List<TrendPointModel> trend;
 
   factory MonthlyReportModel.fromJson(Map<String, dynamic> json) {
     final totals = json['totals'] as Map<String, dynamic>? ?? const {};
+    final payments =
+        json['paymentBreakdown'] as Map<String, dynamic>? ?? const {};
     final breakdown =
         json['fuelBreakdown'] as Map<String, dynamic>? ?? const {};
     return MonthlyReportModel(
@@ -1756,6 +1760,9 @@ class MonthlyReportModel {
           (totals['shiftsCompleted'] as num?)?.toInt() ??
           0,
       shiftsCompleted: (totals['shiftsCompleted'] as num?)?.toInt() ?? 0,
+      paymentBreakdown: payments.map(
+        (key, value) => MapEntry(key, (value as num).toDouble()),
+      ),
       fuelBreakdown: breakdown.map(
         (key, value) => MapEntry(key, (value as num).toDouble()),
       ),

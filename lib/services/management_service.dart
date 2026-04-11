@@ -9,6 +9,10 @@ class ManagementService {
 
   final ApiClient _apiClient;
 
+  String _entryPath(String entryId, [String suffix = '']) {
+    return '/management/entries/${Uri.encodeComponent(entryId)}$suffix';
+  }
+
   Future<ManagementDashboardModel> fetchDashboard({
     String? preset,
     String? fromDate,
@@ -77,7 +81,7 @@ class ManagementService {
   }
 
   Future<ShiftEntryModel> fetchEntryDetail(String entryId) async {
-    final response = await _apiClient.get('/management/entries/$entryId');
+    final response = await _apiClient.get(_entryPath(entryId));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -103,7 +107,7 @@ class ManagementService {
     String mismatchReason = '',
   }) async {
     final response = await _apiClient.patch(
-      '/management/entries/$entryId',
+      _entryPath(entryId),
       body: jsonEncode({
         'closingReadings': closingReadings.map(
           (key, value) => MapEntry(key, value.toJson()),
@@ -134,7 +138,7 @@ class ManagementService {
 
   Future<ShiftEntryModel> approveEntry(String entryId) async {
     final response = await _apiClient.post(
-      '/management/entries/$entryId/approve',
+      _entryPath(entryId, '/approve'),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -147,7 +151,7 @@ class ManagementService {
 
   Future<ShiftEntryModel> changeEntryDate(String entryId, String newDate) async {
     final response = await _apiClient.patch(
-      '/management/entries/$entryId/date',
+      _entryPath(entryId, '/date'),
       body: jsonEncode({'date': newDate}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -160,7 +164,7 @@ class ManagementService {
   }
 
   Future<void> deleteEntry(String entryId) async {
-    final response = await _apiClient.delete('/management/entries/$entryId');
+    final response = await _apiClient.delete(_entryPath(entryId));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to delete entry.'),

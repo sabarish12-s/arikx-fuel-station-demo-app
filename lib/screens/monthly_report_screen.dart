@@ -508,6 +508,11 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final diesel = report.fuelBreakdown['diesel'] ?? 0;
     final twoT = report.fuelBreakdown['two_t_oil'] ?? 0;
     final totalFuel = petrol + diesel + twoT;
+    final cash = report.paymentBreakdown['cash'] ?? 0;
+    final hpPay = report.paymentBreakdown['check'] ?? 0;
+    final upi = report.paymentBreakdown['upi'] ?? 0;
+    final credit = report.paymentBreakdown['credit'] ?? 0;
+    final totalPayments = cash + hpPay + upi + credit;
     final maxRevenue = report.trend.fold<double>(
       0,
       (max, item) => item.revenue > max ? item.revenue : max,
@@ -911,6 +916,16 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       const SizedBox(height: 14),
 
       // ── Daily Breakdown ───────────────────────────────────────
+      _PaymentMixCard(
+        cash: cash,
+        hpPay: hpPay,
+        upi: upi,
+        credit: credit,
+        total: totalPayments,
+      ),
+
+      const SizedBox(height: 14),
+
       Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 10),
         child: Text(
@@ -937,6 +952,151 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 }
 
 // ─── Clay card ─────────────────────────────────────────────────────────────────
+PieChartSectionData _paymentPieSection(
+  double value,
+  double total,
+  Color color,
+) {
+  return PieChartSectionData(
+    value: value,
+    color: color,
+    title: value / total >= 0.05 ? '${((value / total) * 100).round()}%' : '',
+    radius: 80,
+    titleStyle: const TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.w800,
+      fontSize: 13,
+    ),
+  );
+}
+
+class _PaymentMixCard extends StatelessWidget {
+  const _PaymentMixCard({
+    required this.cash,
+    required this.hpPay,
+    required this.upi,
+    required this.credit,
+    required this.total,
+  });
+
+  final double cash;
+  final double hpPay;
+  final double upi;
+  final double credit;
+  final double total;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ClayCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Payment Mix',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A2561),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 200,
+            child:
+                total <= 0
+                    ? const Center(
+                      child: Text(
+                        'No payment data for this filter.',
+                        style: TextStyle(color: Color(0xFF8A93B8)),
+                      ),
+                    )
+                    : Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: PieChart(
+                            PieChartData(
+                              centerSpaceRadius: 0,
+                              sectionsSpace: 2,
+                              startDegreeOffset: -90,
+                              sections: [
+                                if (cash > 0)
+                                  _paymentPieSection(
+                                    cash,
+                                    total,
+                                    const Color(0xFF1A3A7A),
+                                  ),
+                                if (hpPay > 0)
+                                  _paymentPieSection(
+                                    hpPay,
+                                    total,
+                                    const Color(0xFF6B7280),
+                                  ),
+                                if (upi > 0)
+                                  _paymentPieSection(
+                                    upi,
+                                    total,
+                                    const Color(0xFF7C3AED),
+                                  ),
+                                if (credit > 0)
+                                  _paymentPieSection(
+                                    credit,
+                                    total,
+                                    const Color(0xFFCE5828),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (cash > 0)
+                                _FuelLegend(
+                                  label: 'Cash',
+                                  value: formatCurrency(cash),
+                                  color: const Color(0xFF1A3A7A),
+                                ),
+                              if (hpPay > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'HP Pay',
+                                  value: formatCurrency(hpPay),
+                                  color: const Color(0xFF6B7280),
+                                ),
+                              ],
+                              if (upi > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'UPI',
+                                  value: formatCurrency(upi),
+                                  color: const Color(0xFF7C3AED),
+                                ),
+                              ],
+                              if (credit > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'Credit',
+                                  value: formatCurrency(credit),
+                                  color: const Color(0xFFCE5828),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ClayCard extends StatelessWidget {
   const _ClayCard({required this.child});
   final Widget child;
