@@ -26,6 +26,7 @@ class EntryWorkflowScreen extends StatefulWidget {
     required this.onSubmit,
     this.isAdmin = false,
     this.existingEntryId,
+    this.canChangeDate = false,
     this.takenDates = const [],
   });
 
@@ -35,10 +36,16 @@ class EntryWorkflowScreen extends StatefulWidget {
   final Map<String, Map<String, double>> priceSnapshot;
   final DailyEntryDraft initialDraft;
   final EntrySubmitCallback onSubmit;
+
   /// Whether the current user is admin/superadmin (enables date editing).
   final bool isAdmin;
+
   /// The Firestore entry ID of the entry being edited (needed to call changeDate).
   final String? existingEntryId;
+
+  /// Whether this entry is allowed to move to another date.
+  final bool canChangeDate;
+
   /// Dates that already have entries — cannot pick these when changing date.
   final List<String> takenDates;
 
@@ -351,7 +358,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
     final picked = await showDatePicker(
       context: context,
       initialDate: DateTime.tryParse(_draft.date) ?? today,
-      firstDate: today.subtract(const Duration(days: 365)),
+      firstDate: DateTime(2024),
       lastDate: today,
       selectableDayPredicate: (day) {
         final dayStr =
@@ -526,7 +533,9 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
                         letterSpacing: 1.1,
                       ),
                     ),
-                    if (widget.isAdmin && widget.existingEntryId != null) ...[
+                    if (widget.isAdmin &&
+                        widget.existingEntryId != null &&
+                        widget.canChangeDate) ...[
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: _changingDate ? null : _changeDate,

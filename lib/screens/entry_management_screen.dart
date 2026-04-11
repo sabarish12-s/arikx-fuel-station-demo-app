@@ -461,6 +461,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         : _draftFromEntry(dashboard.selectedEntry!),
                 isAdmin: true,
                 existingEntryId: dashboard.selectedEntry?.id,
+                canChangeDate: dashboard.selectedEntry?.status != 'approved',
                 onSubmit: (draft, mismatchReason) async {
                   if (dashboard.selectedEntry == null) {
                     await _salesService.submitEntry(
@@ -528,6 +529,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 initialDraft: _draftFromEntry(detailedEntry),
                 isAdmin: true,
                 existingEntryId: detailedEntry.id,
+                canChangeDate: detailedEntry.status != 'approved',
                 onSubmit: (draft, mismatchReason) async {
                   await _managementService.updateEntry(
                     entryId: detailedEntry.id,
@@ -659,17 +661,16 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     .length;
             final pendingCount = allEntries.length - approvedCount;
 
-            final entries = _statusFilter == null
-                ? allEntries
-                : _statusFilter == 'approved'
+            final entries =
+                _statusFilter == null
+                    ? allEntries
+                    : _statusFilter == 'approved'
                     ? allEntries.where((e) => e.status == 'approved').toList()
                     : _statusFilter == 'flagged'
-                        ? allEntries
-                            .where((e) => e.flagged && e.status != 'approved')
-                            .toList()
-                        : allEntries
-                            .where((e) => e.status != 'approved')
-                            .toList();
+                    ? allEntries
+                        .where((e) => e.flagged && e.status != 'approved')
+                        .toList()
+                    : allEntries.where((e) => e.status != 'approved').toList();
             final periodLabel = _periodLabel;
             final periodShort = _periodShort;
 
@@ -783,24 +784,42 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             label: 'Approved',
                             value: '$approvedCount',
                             active: _statusFilter == 'approved',
-                            onTap: () => setState(() => _statusFilter =
-                                _statusFilter == 'approved' ? null : 'approved'),
+                            onTap:
+                                () => setState(
+                                  () =>
+                                      _statusFilter =
+                                          _statusFilter == 'approved'
+                                              ? null
+                                              : 'approved',
+                                ),
                           ),
                           const SizedBox(width: 8),
                           _HeroStat(
                             label: 'Pending',
                             value: '$pendingCount',
                             active: _statusFilter == 'pending',
-                            onTap: () => setState(() => _statusFilter =
-                                _statusFilter == 'pending' ? null : 'pending'),
+                            onTap:
+                                () => setState(
+                                  () =>
+                                      _statusFilter =
+                                          _statusFilter == 'pending'
+                                              ? null
+                                              : 'pending',
+                                ),
                           ),
                           const SizedBox(width: 8),
                           _HeroStat(
                             label: 'Flagged',
                             value: '$flaggedCount',
                             active: _statusFilter == 'flagged',
-                            onTap: () => setState(() => _statusFilter =
-                                _statusFilter == 'flagged' ? null : 'flagged'),
+                            onTap:
+                                () => setState(
+                                  () =>
+                                      _statusFilter =
+                                          _statusFilter == 'flagged'
+                                              ? null
+                                              : 'flagged',
+                                ),
                           ),
                         ],
                       ),
@@ -986,13 +1005,15 @@ class _HeroStat extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
-            color: active
-                ? Colors.white.withValues(alpha: 0.22)
-                : Colors.white.withValues(alpha: 0.10),
+            color:
+                active
+                    ? Colors.white.withValues(alpha: 0.22)
+                    : Colors.white.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14),
-            border: active
-                ? Border.all(color: Colors.white.withValues(alpha: 0.45))
-                : Border.all(color: Colors.transparent),
+            border:
+                active
+                    ? Border.all(color: Colors.white.withValues(alpha: 0.45))
+                    : Border.all(color: Colors.transparent),
           ),
           child: Column(
             children: [

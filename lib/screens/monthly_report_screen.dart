@@ -21,10 +21,12 @@ class _MonthlyReportViewData {
   const _MonthlyReportViewData({
     required this.report,
     required this.creditOutstandingTotal,
+    required this.paymentBreakdown,
   });
 
   final MonthlyReportModel report;
   final double creditOutstandingTotal;
+  final Map<String, double> paymentBreakdown;
 }
 
 class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
@@ -48,20 +50,109 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   }
 
   Future<_MonthlyReportViewData> _fetchReport() async {
+    final monthParam = _fromDate == null && _toDate == null ? _month : null;
+    final fromDateParam = _fromDate == null ? null : _toApiDate(_fromDate!);
+    final toDateParam = _toDate == null ? null : _toApiDate(_toDate!);
     final reportFuture = _managementService.fetchMonthlyReport(
-      month: _fromDate == null && _toDate == null ? _month : null,
-      fromDate: _fromDate == null ? null : _toApiDate(_fromDate!),
-      toDate: _toDate == null ? null : _toApiDate(_toDate!),
+      month: monthParam,
+      fromDate: fromDateParam,
+      toDate: toDateParam,
     );
     final creditSummaryFuture = _fetchCreditSummary();
+    final entryPaymentBreakdownFuture = _fetchEntryPaymentBreakdown(
+      month: monthParam,
+      fromDate: fromDateParam,
+      toDate: toDateParam,
+    );
 
     final report = await reportFuture;
     final creditSummary = await creditSummaryFuture;
+    final entryPaymentBreakdown = await entryPaymentBreakdownFuture;
     return _MonthlyReportViewData(
       report: report,
       creditOutstandingTotal:
           creditSummary?.openBalanceTotal ?? report.creditTotal,
+      paymentBreakdown:
+          _paymentBreakdownTotal(entryPaymentBreakdown) > 0
+              ? entryPaymentBreakdown
+              : report.paymentBreakdown,
     );
+  }
+
+  Future<Map<String, double>> _fetchEntryPaymentBreakdown({
+    String? month,
+    String? fromDate,
+    String? toDate,
+  }) async {
+    try {
+      final entries = await _managementService.fetchEntries(
+        month: month,
+        fromDate: fromDate,
+        toDate: toDate,
+        summary: false,
+      );
+      return _paymentBreakdownFromEntries(entries);
+    } catch (_) {
+      return const <String, double>{};
+    }
+  }
+
+  Map<String, double> _paymentBreakdownFromEntries(
+    List<ShiftEntryModel> entries,
+  ) {
+    final totals = <String, double>{
+      'cash': 0,
+      'check': 0,
+      'upi': 0,
+      'credit': 0,
+    };
+
+    void addAmount(String mode, double amount) {
+      if (amount <= 0) {
+        return;
+      }
+      final normalized = mode
+          .trim()
+          .toLowerCase()
+          .replaceAll(' ', '_')
+          .replaceAll('-', '_');
+      final key = switch (normalized) {
+        'cash' => 'cash',
+        'check' || 'hp_pay' || 'hpay' => 'check',
+        'upi' => 'upi',
+        'credit' => 'credit',
+        _ => 'cash',
+      };
+      totals[key] = (totals[key] ?? 0) + amount;
+    }
+
+    for (final entry in entries) {
+      for (final payment in entry.pumpPayments.values) {
+        addAmount('cash', payment.cash);
+        addAmount('check', payment.check);
+        addAmount('upi', payment.upi);
+        addAmount('credit', payment.credit);
+      }
+
+      addAmount('cash', entry.paymentBreakdown.cash);
+      addAmount('check', entry.paymentBreakdown.check);
+      addAmount('upi', entry.paymentBreakdown.upi);
+
+      for (final collection in entry.creditCollections) {
+        addAmount(collection.paymentMode, collection.amount);
+      }
+    }
+
+    return totals.map(
+      (key, value) => MapEntry(key, double.parse(value.toStringAsFixed(2))),
+    );
+  }
+
+  double _paymentBreakdownTotal(Map<String, double> breakdown) {
+    return (breakdown['cash'] ?? 0) +
+        (breakdown['check'] ?? 0) +
+        (breakdown['upi'] ?? 0) +
+        (breakdown['credit'] ?? 0);
   }
 
   Future<CreditLedgerSummaryModel?> _fetchCreditSummary() async {
@@ -508,10 +599,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final diesel = report.fuelBreakdown['diesel'] ?? 0;
     final twoT = report.fuelBreakdown['two_t_oil'] ?? 0;
     final totalFuel = petrol + diesel + twoT;
-    final cash = report.paymentBreakdown['cash'] ?? 0;
-    final hpPay = report.paymentBreakdown['check'] ?? 0;
-    final upi = report.paymentBreakdown['upi'] ?? 0;
-    final credit = report.paymentBreakdown['credit'] ?? 0;
+    final cash = data.paymentBreakdown['cash'] ?? 0;
+    final hpPay = data.paymentBreakdown['check'] ?? 0;
+    final upi = data.paymentBreakdown['upi'] ?? 0;
+    final credit = data.paymentBreakdown['credit'] ?? 0;
     final totalPayments = cash + hpPay + upi + credit;
     final maxRevenue = report.trend.fold<double>(
       0,
