@@ -5,6 +5,7 @@ import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class OpeningStockSettingsScreen extends StatefulWidget {
   const OpeningStockSettingsScreen({
@@ -120,12 +121,14 @@ class _OpeningStockSettingsScreenState
                   _controllers[_readingKey(pump.id, 'diesel')]?.text ?? '',
                 ) ??
                 0,
-            twoT: _supportsTwoT(pump.id)
-                ? double.tryParse(
-                        _controllers[_readingKey(pump.id, 'twoT')]?.text ?? '',
-                      ) ??
-                      0
-                : 0,
+            twoT:
+                _supportsTwoT(pump.id)
+                    ? double.tryParse(
+                          _controllers[_readingKey(pump.id, 'twoT')]?.text ??
+                              '',
+                        ) ??
+                        0
+                    : 0,
           ),
       },
       meterLimits: station.meterLimits,
@@ -158,11 +161,7 @@ class _OpeningStockSettingsScreenState
         if (snapshot.hasError) {
           return ColoredBox(
             color: kClayBg,
-            child: Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-              ),
-            ),
+            child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
           );
         }
 
@@ -180,21 +179,22 @@ class _OpeningStockSettingsScreenState
                   ClaySubHeader(
                     title: 'Pump Opening Readings',
                     onBack: widget.onBack,
-                    trailing: widget.canEdit
-                        ? _EditTogglePill(
-                            isEditing: _isEditing,
-                            onTap: () {
-                              setState(() {
-                                if (_isEditing) {
-                                  _isEditing = false;
-                                  _resetFromStation(station);
-                                } else {
-                                  _isEditing = true;
-                                }
-                              });
-                            },
-                          )
-                        : null,
+                    trailing:
+                        widget.canEdit
+                            ? _EditTogglePill(
+                              isEditing: _isEditing,
+                              onTap: () {
+                                setState(() {
+                                  if (_isEditing) {
+                                    _isEditing = false;
+                                    _resetFromStation(station);
+                                  } else {
+                                    _isEditing = true;
+                                  }
+                                });
+                              },
+                            )
+                            : null,
                   ),
 
                 // ── Info card ──────────────────────────────────────
@@ -241,9 +241,9 @@ class _OpeningStockSettingsScreenState
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1A3A7A).withValues(
-                                  alpha: 0.10,
-                                ),
+                                color: const Color(
+                                  0xFF1A3A7A,
+                                ).withValues(alpha: 0.10),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Icon(
@@ -321,18 +321,19 @@ class _OpeningStockSettingsScreenState
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed: station == null
-                      ? null
-                      : () {
-                          setState(() {
-                            if (_isEditing) {
-                              _isEditing = false;
-                              _resetFromStation(station);
-                            } else {
-                              _isEditing = true;
-                            }
-                          });
-                        },
+                  onPressed:
+                      station == null
+                          ? null
+                          : () {
+                            setState(() {
+                              if (_isEditing) {
+                                _isEditing = false;
+                                _resetFromStation(station);
+                              } else {
+                                _isEditing = true;
+                              }
+                            });
+                          },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -372,8 +373,9 @@ class _EditTogglePill extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
+        child: OneLineScaleText(
           isEditing ? 'Cancel' : 'Edit',
+          alignment: Alignment.center,
           style: TextStyle(
             color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
             fontWeight: FontWeight.w700,

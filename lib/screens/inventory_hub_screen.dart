@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 import 'credit_ledger_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_receipt_screen.dart';
@@ -47,8 +48,10 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   Future<void> _openPlanningSettings() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) =>
-            InventoryPlanningSettingsScreen(canEdit: widget.canManagePlanning),
+        builder:
+            (_) => InventoryPlanningSettingsScreen(
+              canEdit: widget.canManagePlanning,
+            ),
       ),
     );
     if (mounted) await _refresh();
@@ -102,11 +105,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             if (snapshot.hasError) {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [
-                  Text(
-                    userFacingErrorMessage(snapshot.error),
-                  ),
-                ],
+                children: [Text(userFacingErrorMessage(snapshot.error))],
               );
             }
 
@@ -207,51 +206,55 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                       ),
                       const SizedBox(height: 16),
                       Row(
-                        children: data.forecast.map((item) {
-                          final isLast = item == data.forecast.last;
-                          return Expanded(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        item.label,
-                                        style: const TextStyle(
-                                          color: Colors.white54,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                        children:
+                            data.forecast.map((item) {
+                              final isLast = item == data.forecast.last;
+                              return Expanded(
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.label,
+                                            style: const TextStyle(
+                                              color: Colors.white54,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            formatLiters(item.currentStock),
+                                            style: TextStyle(
+                                              color:
+                                                  item.shouldAlert
+                                                      ? const Color(0xFFFF9999)
+                                                      : Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        formatLiters(item.currentStock),
-                                        style: TextStyle(
-                                          color: item.shouldAlert
-                                              ? const Color(0xFFFF9999)
-                                              : Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (!isLast)
-                                  Container(
-                                    width: 1,
-                                    height: 32,
-                                    margin: const EdgeInsets.symmetric(
-                                      horizontal: 10,
                                     ),
-                                    color: Colors.white.withValues(alpha: 0.15),
-                                  ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
+                                    if (!isLast)
+                                      Container(
+                                        width: 1,
+                                        height: 32,
+                                        margin: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                        ),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.15,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
                       ),
                     ],
                   ),
@@ -355,11 +358,12 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           const SizedBox(width: 8),
                           _SnapshotPill(
                             label: 'Updated',
-                            value: planning.updatedAt.trim().isEmpty
-                                ? '—'
-                                : formatDateLabel(
-                                    planning.updatedAt.split('T').first,
-                                  ),
+                            value:
+                                planning.updatedAt.trim().isEmpty
+                                    ? '—'
+                                    : formatDateLabel(
+                                      planning.updatedAt.split('T').first,
+                                    ),
                           ),
                         ],
                       ),
@@ -536,9 +540,10 @@ class _FuelForecastCard extends StatelessWidget {
                   vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: item.shouldAlert
-                      ? const Color(0xFFFEF2F2)
-                      : const Color(0xFFE8F8EF),
+                  color:
+                      item.shouldAlert
+                          ? const Color(0xFFFEF2F2)
+                          : const Color(0xFFE8F8EF),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Row(
@@ -549,9 +554,10 @@ class _FuelForecastCard extends StatelessWidget {
                           ? Icons.warning_amber_rounded
                           : Icons.check_circle_outline_rounded,
                       size: 12,
-                      color: item.shouldAlert
-                          ? const Color(0xFFB91C1C)
-                          : const Color(0xFF0A7A4A),
+                      color:
+                          item.shouldAlert
+                              ? const Color(0xFFB91C1C)
+                              : const Color(0xFF0A7A4A),
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -559,9 +565,10 @@ class _FuelForecastCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: item.shouldAlert
-                            ? const Color(0xFFB91C1C)
-                            : const Color(0xFF0A7A4A),
+                        color:
+                            item.shouldAlert
+                                ? const Color(0xFFB91C1C)
+                                : const Color(0xFF0A7A4A),
                       ),
                     ),
                   ],
@@ -659,7 +666,7 @@ class _MetricCell extends StatelessWidget {
     final child = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        OneLineScaleText(
           label,
           style: const TextStyle(
             fontSize: 11,
@@ -668,7 +675,7 @@ class _MetricCell extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 3),
-        Text(
+        OneLineScaleText(
           value,
           style: const TextStyle(
             fontSize: 14,
@@ -767,7 +774,7 @@ class _SnapshotPill extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            OneLineScaleText(
               label,
               style: const TextStyle(
                 fontSize: 9,
@@ -776,7 +783,7 @@ class _SnapshotPill extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 2),
-            Text(
+            OneLineScaleText(
               value,
               style: const TextStyle(
                 fontSize: 12,
@@ -826,28 +833,29 @@ class _InvActionBtnState extends State<_InvActionBtn> {
         decoration: BoxDecoration(
           color: widget.filled ? const Color(0xFF1A3A7A) : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: _pressed
-              ? []
-              : widget.filled
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF0D2460).withValues(alpha: 0.4),
-                    offset: const Offset(0, 6),
-                    blurRadius: 14,
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.7),
-                    offset: const Offset(4, 4),
-                    blurRadius: 10,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-3, -3),
-                    blurRadius: 8,
-                  ),
-                ],
+          boxShadow:
+              _pressed
+                  ? []
+                  : widget.filled
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.4),
+                      offset: const Offset(0, 6),
+                      blurRadius: 14,
+                    ),
+                  ]
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.7),
+                      offset: const Offset(4, 4),
+                      blurRadius: 10,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-3, -3),
+                      blurRadius: 8,
+                    ),
+                  ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -901,20 +909,21 @@ class _InvIconBtnState extends State<_InvIconBtn> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          boxShadow: _pressed
-              ? []
-              : [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.7),
-                    offset: const Offset(4, 4),
-                    blurRadius: 10,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-3, -3),
-                    blurRadius: 8,
-                  ),
-                ],
+          boxShadow:
+              _pressed
+                  ? []
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.7),
+                      offset: const Offset(4, 4),
+                      blurRadius: 10,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-3, -3),
+                      blurRadius: 8,
+                    ),
+                  ],
         ),
         child: const Icon(
           Icons.refresh_rounded,

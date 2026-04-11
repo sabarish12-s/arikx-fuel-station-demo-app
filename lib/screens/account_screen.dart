@@ -4,6 +4,7 @@ import '../models/auth_models.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 import 'fuel_price_settings_screen.dart';
 import 'login_screen.dart';
 
@@ -15,20 +16,21 @@ class AccountScreen extends StatelessWidget {
   Future<bool> _confirmLogout(BuildContext context) async {
     final shouldLogout = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Logout'),
+            content: const Text('Are you sure you want to logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Logout'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
     );
     return shouldLogout == true;
   }
@@ -39,9 +41,8 @@ class AccountScreen extends StatelessWidget {
         user.role == 'sales' ||
         user.role == 'admin' ||
         user.role == 'superadmin';
-    final displayName = user.name.trim().isEmpty
-        ? user.email
-        : user.name.trim();
+    final displayName =
+        user.name.trim().isEmpty ? user.email : user.name.trim();
     final roleLabel = '${user.role[0].toUpperCase()}${user.role.substring(1)}';
 
     return Scaffold(
@@ -152,22 +153,26 @@ class AccountScreen extends StatelessWidget {
           ClayCard(
             child: _AccountActionTile(
               title: 'Fuel Prices',
-              subtitle: canEditFuelPrices
-                  ? 'Review and update current selling prices'
-                  : 'Fuel pricing access is limited for this role',
+              subtitle:
+                  canEditFuelPrices
+                      ? 'Review and update current selling prices'
+                      : 'Fuel pricing access is limited for this role',
               icon: Icons.local_gas_station_rounded,
               iconColor: const Color(0xFF1298B8),
               enabled: canEditFuelPrices,
-              onTap: canEditFuelPrices
-                  ? () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(
-                          builder: (_) =>
-                              const FuelPriceSettingsScreen(canEdit: true),
-                        ),
-                      );
-                    }
-                  : null,
+              onTap:
+                  canEditFuelPrices
+                      ? () {
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder:
+                                (_) => const FuelPriceSettingsScreen(
+                                  canEdit: true,
+                                ),
+                          ),
+                        );
+                      }
+                      : null,
             ),
           ),
           const SizedBox(height: 20),
@@ -244,9 +249,10 @@ class _AccountInfoRow extends StatelessWidget {
         const SizedBox(width: 16),
         Expanded(
           flex: 2,
-          child: Text(
+          child: OneLineScaleText(
             value,
             textAlign: TextAlign.right,
+            alignment: Alignment.centerRight,
             style: const TextStyle(
               color: kClayPrimary,
               fontWeight: FontWeight.w800,
@@ -297,7 +303,7 @@ class _AccountActionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                OneLineScaleText(
                   title,
                   style: TextStyle(
                     color: enabled ? kClayPrimary : kClaySub,

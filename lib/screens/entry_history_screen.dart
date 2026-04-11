@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 import '../widgets/clay_widgets.dart';
 
 class EntryHistoryScreen extends StatefulWidget {
@@ -83,11 +84,8 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kClayBg,
-      appBar: AppBar(
-        backgroundColor: kClayBg,
-        iconTheme: const IconThemeData(color: kClayPrimary),
-      ),
-      body: FutureBuilder<List<ShiftEntryModel>>(
+      body: SafeArea(
+        child: FutureBuilder<List<ShiftEntryModel>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -133,6 +131,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             ],
           );
         },
+      ),
       ),
     );
   }
@@ -187,22 +186,6 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-            ),
-            child: Text(
-              'Default range: Last 30 days',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -284,7 +267,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             children: [
               Expanded(
                 child: _HistoryMetric(
-                  label: 'Revenue',
+                  label: 'Sales',
                   value: formatCurrency(entry.revenue),
                 ),
               ),
@@ -363,7 +346,7 @@ class _HistoryMetric extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        OneLineScaleText(
           label,
           style: const TextStyle(
             color: kClaySub,
@@ -372,7 +355,7 @@ class _HistoryMetric extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        OneLineScaleText(
           value,
           style: const TextStyle(
             color: kClayPrimary,
@@ -416,8 +399,9 @@ class _EntryStatusBadge extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
+      child: OneLineScaleText(
         label,
+        alignment: Alignment.center,
         style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 11),
       ),
     );

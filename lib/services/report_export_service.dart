@@ -43,7 +43,7 @@ class ReportExportService {
 
   static const List<String> _colHeaders = [
     'Date',
-    'Revenue (Rs)',
+    'Sales (Rs)',
     'Collected (Rs)',
     'Profit (Rs)',
     'Petrol Sold (L)',

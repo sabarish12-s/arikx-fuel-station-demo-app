@@ -6,6 +6,7 @@ import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 import 'entry_workflow_screen.dart';
 
 class EntryManagementScreen extends StatefulWidget {
@@ -34,12 +35,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   ];
   // Filter state — either month mode or date-range mode
   String _filterMonth = currentMonthKey(); // 'YYYY-MM'
-  String? _filterFromDate;                 // 'YYYY-MM-DD'
-  String? _filterToDate;                   // 'YYYY-MM-DD'
+  String? _filterFromDate; // 'YYYY-MM-DD'
+  String? _filterToDate; // 'YYYY-MM-DD'
   bool _filterByDateRange = false;
 
   late Future<_EntryManagementData> _future;
   bool _submitting = false;
+  // null = All, 'approved', 'pending', 'flagged'
+  String? _statusFilter;
 
   @override
   void initState() {
@@ -51,9 +54,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final results = await Future.wait([
       _filterByDateRange
           ? _managementService.fetchEntries(
-              fromDate: _filterFromDate,
-              toDate: _filterToDate,
-            )
+            fromDate: _filterFromDate,
+            toDate: _filterToDate,
+          )
           : _managementService.fetchEntries(month: _filterMonth),
       _salesService.fetchDashboard(),
     ]);
@@ -62,16 +65,27 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
     // Client-side safety filter for date range mode
     if (_filterByDateRange) {
-      final from = _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
-      final to = _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
-      entries = entries.where((e) {
-        final d = DateTime.tryParse(e.date);
-        if (d == null) return true;
-        final day = DateTime(d.year, d.month, d.day);
-        if (from != null && day.isBefore(DateTime(from.year, from.month, from.day))) return false;
-        if (to != null && day.isAfter(DateTime(to.year, to.month, to.day))) return false;
-        return true;
-      }).toList();
+      final from =
+          _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
+      final to =
+          _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
+      entries =
+          entries.where((e) {
+            final d = DateTime.tryParse(e.date);
+            if (d == null) {
+              return true;
+            }
+            final day = DateTime(d.year, d.month, d.day);
+            if (from != null &&
+                day.isBefore(DateTime(from.year, from.month, from.day))) {
+              return false;
+            }
+            if (to != null &&
+                day.isAfter(DateTime(to.year, to.month, to.day))) {
+              return false;
+            }
+            return true;
+          }).toList();
     }
 
     return _EntryManagementData(
@@ -103,13 +117,27 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
   String get _periodShort {
     if (_filterByDateRange) {
-      const short = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const short = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
       String _s(String? d) {
         if (d == null) return '—';
         final dt = DateTime.tryParse(d);
         if (dt == null) return d;
         return '${short[dt.month - 1]} ${dt.day}';
       }
+
       return '${_s(_filterFromDate)} – ${_s(_filterToDate)}';
     }
     final parts = _filterMonth.split('-');
@@ -117,7 +145,20 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final y = int.tryParse(parts[0]);
     final m = int.tryParse(parts[1]);
     if (y == null || m == null || m < 1 || m > 12) return _filterMonth;
-    const short = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const short = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${short[m - 1]} $y';
   }
 
@@ -129,8 +170,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final parts = _filterMonth.split('-');
     int selYear = int.tryParse(parts.firstOrNull ?? '') ?? now.year;
     int selMonth = int.tryParse(parts.length > 1 ? parts[1] : '') ?? now.month;
-    DateTime? fromDt = _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
-    DateTime? toDt = _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
+    DateTime? fromDt =
+        _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
+    DateTime? toDt =
+        _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
 
     Future<void> pickFrom(StateSetter set) async {
       final picked = await showDatePicker(
@@ -156,7 +199,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
     String _fmtDt(DateTime? dt) {
       if (dt == null) return 'Tap to choose';
-      return formatDateLabel('${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}');
+      return formatDateLabel(
+        '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
+      );
     }
 
     final applied = await showDialog<bool>(
@@ -171,7 +216,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             );
 
             return AlertDialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
               title: const Text('Filter Entries'),
               content: SizedBox(
                 width: double.maxFinite,
@@ -230,12 +278,15 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                           labelText: 'Year',
                           filled: true,
                         ),
-                        items: years
-                            .map((y) => DropdownMenuItem<int>(
-                                  value: y,
-                                  child: Text('$y'),
-                                ))
-                            .toList(),
+                        items:
+                            years
+                                .map(
+                                  (y) => DropdownMenuItem<int>(
+                                    value: y,
+                                    child: Text('$y'),
+                                  ),
+                                )
+                                .toList(),
                         onChanged: (v) {
                           if (v == null) return;
                           setDialogState(() => selYear = v);
@@ -303,14 +354,16 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     setState(() {
       _filterByDateRange = byRange;
       if (byRange) {
-        _filterFromDate = fromDt != null
-            ? '${fromDt!.year}-${fromDt!.month.toString().padLeft(2,'0')}-${fromDt!.day.toString().padLeft(2,'0')}'
-            : null;
-        _filterToDate = toDt != null
-            ? '${toDt!.year}-${toDt!.month.toString().padLeft(2,'0')}-${toDt!.day.toString().padLeft(2,'0')}'
-            : null;
+        _filterFromDate =
+            fromDt != null
+                ? '${fromDt!.year}-${fromDt!.month.toString().padLeft(2, '0')}-${fromDt!.day.toString().padLeft(2, '0')}'
+                : null;
+        _filterToDate =
+            toDt != null
+                ? '${toDt!.year}-${toDt!.month.toString().padLeft(2, '0')}-${toDt!.day.toString().padLeft(2, '0')}'
+                : null;
       } else {
-        _filterMonth = '$selYear-${selMonth.toString().padLeft(2,'0')}';
+        _filterMonth = '$selYear-${selMonth.toString().padLeft(2, '0')}';
         _filterFromDate = null;
         _filterToDate = null;
       }
@@ -363,72 +416,79 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
       final created = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
-          builder: (_) => EntryWorkflowScreen(
-            title: dashboard.selectedEntry == null
-                ? 'Daily Admin Entry'
-                : 'Edit Daily Entry',
-            station: dashboard.station,
-            openingReadings:
-                dashboard.selectedEntry?.openingReadings ??
-                dashboard.openingReadings,
-            priceSnapshot: mergePriceSnapshots(
-              primary:
-                  dashboard.selectedEntry?.priceSnapshot ??
-                  const <String, Map<String, double>>{},
-              fallback: dashboard.priceSnapshot,
-            ),
-            initialDraft: dashboard.selectedEntry == null
-                ? DailyEntryDraft(
-                    date: date,
-                    closingReadings: const {},
-                    pumpAttendants: {
-                      for (final pump in dashboard.station.pumps) pump.id: '',
-                    },
-                    pumpTesting: {
-                      for (final pump in dashboard.station.pumps)
-                        pump.id: const PumpTestingModel(petrol: 0, diesel: 0),
-                    },
-                    pumpPayments: const {},
-                    pumpCollections: const {},
-                    paymentBreakdown: const PaymentBreakdownModel(
-                      cash: 0,
-                      check: 0,
-                      upi: 0,
-                    ),
-                    creditEntries: const [],
-                    creditCollections: const [],
-                  )
-                : _draftFromEntry(dashboard.selectedEntry!),
-            onSubmit: (draft, mismatchReason) async {
-              if (dashboard.selectedEntry == null) {
-                await _salesService.submitEntry(
-                  date: draft.date,
-                  closingReadings: draft.closingReadings,
-                  pumpAttendants: draft.pumpAttendants,
-                  pumpTesting: draft.pumpTesting,
-                  pumpPayments: draft.pumpPayments,
-                  pumpCollections: draft.pumpCollections,
-                  paymentBreakdown: draft.paymentBreakdown,
-                  creditEntries: draft.creditEntries,
-                  creditCollections: draft.creditCollections,
-                  mismatchReason: mismatchReason,
-                );
-              } else {
-                await _managementService.updateEntry(
-                  entryId: dashboard.selectedEntry!.id,
-                  closingReadings: draft.closingReadings,
-                  pumpAttendants: draft.pumpAttendants,
-                  pumpTesting: draft.pumpTesting,
-                  pumpPayments: draft.pumpPayments,
-                  pumpCollections: draft.pumpCollections,
-                  paymentBreakdown: draft.paymentBreakdown,
-                  creditEntries: draft.creditEntries,
-                  creditCollections: draft.creditCollections,
-                  mismatchReason: mismatchReason,
-                );
-              }
-            },
-          ),
+          builder:
+              (_) => EntryWorkflowScreen(
+                title:
+                    dashboard.selectedEntry == null
+                        ? 'Daily Admin Entry'
+                        : 'Edit Daily Entry',
+                station: dashboard.station,
+                openingReadings:
+                    dashboard.selectedEntry?.openingReadings ??
+                    dashboard.openingReadings,
+                priceSnapshot: mergePriceSnapshots(
+                  primary:
+                      dashboard.selectedEntry?.priceSnapshot ??
+                      const <String, Map<String, double>>{},
+                  fallback: dashboard.priceSnapshot,
+                ),
+                initialDraft:
+                    dashboard.selectedEntry == null
+                        ? DailyEntryDraft(
+                          date: date,
+                          closingReadings: const {},
+                          pumpAttendants: {
+                            for (final pump in dashboard.station.pumps)
+                              pump.id: '',
+                          },
+                          pumpTesting: {
+                            for (final pump in dashboard.station.pumps)
+                              pump.id: const PumpTestingModel(
+                                petrol: 0,
+                                diesel: 0,
+                              ),
+                          },
+                          pumpPayments: const {},
+                          pumpCollections: const {},
+                          paymentBreakdown: const PaymentBreakdownModel(
+                            cash: 0,
+                            check: 0,
+                            upi: 0,
+                          ),
+                          creditEntries: const [],
+                          creditCollections: const [],
+                        )
+                        : _draftFromEntry(dashboard.selectedEntry!),
+                onSubmit: (draft, mismatchReason) async {
+                  if (dashboard.selectedEntry == null) {
+                    await _salesService.submitEntry(
+                      date: draft.date,
+                      closingReadings: draft.closingReadings,
+                      pumpAttendants: draft.pumpAttendants,
+                      pumpTesting: draft.pumpTesting,
+                      pumpPayments: draft.pumpPayments,
+                      pumpCollections: draft.pumpCollections,
+                      paymentBreakdown: draft.paymentBreakdown,
+                      creditEntries: draft.creditEntries,
+                      creditCollections: draft.creditCollections,
+                      mismatchReason: mismatchReason,
+                    );
+                  } else {
+                    await _managementService.updateEntry(
+                      entryId: dashboard.selectedEntry!.id,
+                      closingReadings: draft.closingReadings,
+                      pumpAttendants: draft.pumpAttendants,
+                      pumpTesting: draft.pumpTesting,
+                      pumpPayments: draft.pumpPayments,
+                      pumpCollections: draft.pumpCollections,
+                      paymentBreakdown: draft.paymentBreakdown,
+                      creditEntries: draft.creditEntries,
+                      creditCollections: draft.creditCollections,
+                      mismatchReason: mismatchReason,
+                    );
+                  }
+                },
+              ),
         ),
       );
       if (created != true) return;
@@ -457,27 +517,28 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
       final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
-          builder: (_) => EntryWorkflowScreen(
-            title: 'Edit Daily Entry',
-            station: station,
-            openingReadings: detailedEntry.openingReadings,
-            priceSnapshot: detailedEntry.priceSnapshot,
-            initialDraft: _draftFromEntry(detailedEntry),
-            onSubmit: (draft, mismatchReason) async {
-              await _managementService.updateEntry(
-                entryId: detailedEntry.id,
-                closingReadings: draft.closingReadings,
-                pumpAttendants: draft.pumpAttendants,
-                pumpTesting: draft.pumpTesting,
-                pumpPayments: draft.pumpPayments,
-                pumpCollections: draft.pumpCollections,
-                paymentBreakdown: draft.paymentBreakdown,
-                creditEntries: draft.creditEntries,
-                creditCollections: draft.creditCollections,
-                mismatchReason: mismatchReason,
-              );
-            },
-          ),
+          builder:
+              (_) => EntryWorkflowScreen(
+                title: 'Edit Daily Entry',
+                station: station,
+                openingReadings: detailedEntry.openingReadings,
+                priceSnapshot: detailedEntry.priceSnapshot,
+                initialDraft: _draftFromEntry(detailedEntry),
+                onSubmit: (draft, mismatchReason) async {
+                  await _managementService.updateEntry(
+                    entryId: detailedEntry.id,
+                    closingReadings: draft.closingReadings,
+                    pumpAttendants: draft.pumpAttendants,
+                    pumpTesting: draft.pumpTesting,
+                    pumpPayments: draft.pumpPayments,
+                    pumpCollections: draft.pumpCollections,
+                    paymentBreakdown: draft.paymentBreakdown,
+                    creditEntries: draft.creditEntries,
+                    creditCollections: draft.creditCollections,
+                    mismatchReason: mismatchReason,
+                  );
+                },
+              ),
         ),
       );
 
@@ -505,27 +566,28 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final isApproved = entry.status == 'approved';
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
-        content: Text(
-          isApproved
-              ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
-              : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFB91C1C),
+      builder:
+          (context) => AlertDialog(
+            title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
+            content: Text(
+              isApproved
+                  ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
+                  : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(isApproved ? 'Override Delete' : 'Delete'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFB91C1C),
+                ),
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(isApproved ? 'Override Delete' : 'Delete'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
     return confirmed == true;
   }
@@ -578,23 +640,32 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
-                  Center(
-                    child: Text(
-                      userFacingErrorMessage(snapshot.error),
-                    ),
-                  ),
+                  Center(child: Text(userFacingErrorMessage(snapshot.error))),
                 ],
               );
             }
 
             final data = snapshot.data!;
-            final entries = data.entries;
+            final allEntries = data.entries;
             final approvedCount =
-                entries.where((e) => e.status == 'approved').length;
-            final flaggedCount = entries
-                .where((e) => e.flagged && e.status != 'approved')
-                .length;
-            final pendingCount = entries.length - approvedCount;
+                allEntries.where((e) => e.status == 'approved').length;
+            final flaggedCount =
+                allEntries
+                    .where((e) => e.flagged && e.status != 'approved')
+                    .length;
+            final pendingCount = allEntries.length - approvedCount;
+
+            final entries = _statusFilter == null
+                ? allEntries
+                : _statusFilter == 'approved'
+                    ? allEntries.where((e) => e.status == 'approved').toList()
+                    : _statusFilter == 'flagged'
+                        ? allEntries
+                            .where((e) => e.flagged && e.status != 'approved')
+                            .toList()
+                        : allEntries
+                            .where((e) => e.status != 'approved')
+                            .toList();
             final periodLabel = _periodLabel;
             final periodShort = _periodShort;
 
@@ -697,17 +768,36 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       const SizedBox(height: 18),
                       Row(
                         children: [
-                          _HeroStat(label: 'Total', value: '${entries.length}'),
+                          _HeroStat(
+                            label: 'Total',
+                            value: '${allEntries.length}',
+                            active: _statusFilter == null,
+                            onTap: () => setState(() => _statusFilter = null),
+                          ),
                           const SizedBox(width: 8),
                           _HeroStat(
                             label: 'Approved',
                             value: '$approvedCount',
-                            highlight: true,
+                            active: _statusFilter == 'approved',
+                            onTap: () => setState(() => _statusFilter =
+                                _statusFilter == 'approved' ? null : 'approved'),
                           ),
                           const SizedBox(width: 8),
-                          _HeroStat(label: 'Pending', value: '$pendingCount'),
+                          _HeroStat(
+                            label: 'Pending',
+                            value: '$pendingCount',
+                            active: _statusFilter == 'pending',
+                            onTap: () => setState(() => _statusFilter =
+                                _statusFilter == 'pending' ? null : 'pending'),
+                          ),
                           const SizedBox(width: 8),
-                          _HeroStat(label: 'Flagged', value: '$flaggedCount'),
+                          _HeroStat(
+                            label: 'Flagged',
+                            value: '$flaggedCount',
+                            active: _statusFilter == 'flagged',
+                            onTap: () => setState(() => _statusFilter =
+                                _statusFilter == 'flagged' ? null : 'flagged'),
+                          ),
                         ],
                       ),
                     ],
@@ -762,7 +852,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     child: const Center(
                       child: Text(
                         'No entries found for this period.',
-                        style: TextStyle(color: Color(0xFF8A93B8), fontSize: 14),
+                        style: TextStyle(
+                          color: Color(0xFF8A93B8),
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   )
@@ -813,12 +906,13 @@ class _ClayButtonState extends State<_ClayButton> {
     final disabled = widget.onTap == null;
     return GestureDetector(
       onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
-      onTapUp: disabled
-          ? null
-          : (_) {
-              setState(() => _pressed = false);
-              widget.onTap!();
-            },
+      onTapUp:
+          disabled
+              ? null
+              : (_) {
+                setState(() => _pressed = false);
+                widget.onTap!();
+              },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
@@ -827,21 +921,22 @@ class _ClayButtonState extends State<_ClayButton> {
         decoration: BoxDecoration(
           color: const Color(0xFF1A3A7A),
           borderRadius: BorderRadius.circular(18),
-          boxShadow: _pressed || disabled
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF0D2460).withValues(alpha: 0.3),
-                    offset: const Offset(2, 2),
-                    blurRadius: 6,
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: const Color(0xFF0D2460).withValues(alpha: 0.5),
-                    offset: const Offset(0, 8),
-                    blurRadius: 20,
-                  ),
-                ],
+          boxShadow:
+              _pressed || disabled
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.3),
+                      offset: const Offset(2, 2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.5),
+                      offset: const Offset(0, 8),
+                      blurRadius: 20,
+                    ),
+                  ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -869,46 +964,60 @@ class _HeroStat extends StatelessWidget {
   const _HeroStat({
     required this.label,
     required this.value,
-    this.highlight = false,
+    required this.active,
+    required this.onTap,
   });
   final String label;
   final String value;
-  final bool highlight;
+  final bool active;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-        decoration: BoxDecoration(
-          color: highlight
-              ? Colors.white.withValues(alpha: 0.18)
-              : Colors.white.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: highlight
-              ? Border.all(color: Colors.white.withValues(alpha: 0.25))
-              : null,
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                color: highlight ? Colors.white : Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: active
+                ? Colors.white.withValues(alpha: 0.22)
+                : Colors.white.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(14),
+            border: active
+                ? Border.all(color: Colors.white.withValues(alpha: 0.45))
+                : Border.all(color: Colors.transparent),
+          ),
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: 22,
+                child: OneLineScaleText(
+                  value,
+                  alignment: Alignment.center,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                color: highlight ? Colors.white70 : Colors.white54,
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+              const SizedBox(height: 2),
+              OneLineScaleText(
+                label,
+                alignment: Alignment.center,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: active ? Colors.white : Colors.white54,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1011,24 +1120,11 @@ class _EntryCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (entry.totals.sold.twoT > 0) ...[
-                  const _MetricRowDivider(),
-                  Row(
-                    children: [
-                      _MetricCell(
-                        label: '2T Oil',
-                        value: formatLiters(entry.totals.sold.twoT),
-                      ),
-                      const _MetricDivider(),
-                      const Expanded(child: SizedBox()),
-                    ],
-                  ),
-                ],
                 const _MetricRowDivider(),
                 Row(
                   children: [
                     _MetricCell(
-                      label: 'Revenue',
+                      label: 'Sales',
                       value: formatCurrency(entry.revenue),
                       accent: const Color(0xFF1A3A7A),
                     ),
@@ -1040,6 +1136,31 @@ class _EntryCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                if (entry.totals.sold.twoT > 0) ...[
+                  const _MetricRowDivider(),
+                  Builder(
+                    builder: (context) {
+                      final diff =
+                          entry.paymentTotal - entry.computedRevenue;
+                      return Row(
+                        children: [
+                          _MetricCell(
+                            label: '2T Oil',
+                            value: formatLiters(entry.totals.sold.twoT),
+                          ),
+                          const _MetricDivider(),
+                          _MetricCell(
+                            label: 'Difference',
+                            value: formatCurrency(diff),
+                            accent: diff >= 0
+                                ? const Color(0xFF2AA878)
+                                : const Color(0xFFB91C1C),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -1063,8 +1184,9 @@ class _EntryCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(999),
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                            color: const Color(
+                              0xFFB8C0DC,
+                            ).withValues(alpha: 0.5),
                             offset: const Offset(2, 2),
                             blurRadius: 5,
                           ),
@@ -1149,11 +1271,7 @@ class _EntryCard extends StatelessWidget {
 
 // ─── Metric cell ───────────────────────────────────────────────────────────────
 class _MetricCell extends StatelessWidget {
-  const _MetricCell({
-    required this.label,
-    required this.value,
-    this.accent,
-  });
+  const _MetricCell({required this.label, required this.value, this.accent});
   final String label;
   final String value;
   final Color? accent;
@@ -1173,7 +1291,7 @@ class _MetricCell extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
+          OneLineScaleText(
             value,
             style: TextStyle(
               fontSize: 14,
@@ -1255,12 +1373,14 @@ class _StatusBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 12, color: fg),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: fg,
+          Flexible(
+            child: OneLineScaleText(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: fg,
+              ),
             ),
           ),
         ],
@@ -1314,12 +1434,13 @@ class _ActionBtnState extends State<_ActionBtn> {
     return Expanded(
       child: GestureDetector(
         onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
-        onTapUp: disabled
-            ? null
-            : (_) {
-                setState(() => _pressed = false);
-                widget.onTap!();
-              },
+        onTapUp:
+            disabled
+                ? null
+                : (_) {
+                  setState(() => _pressed = false);
+                  widget.onTap!();
+                },
         onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 80),
@@ -1327,34 +1448,38 @@ class _ActionBtnState extends State<_ActionBtn> {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: widget.filled && !_pressed && !disabled
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                      offset: const Offset(0, 4),
-                      blurRadius: 10,
-                    ),
-                  ]
-                : !widget.filled && !widget.danger && !_pressed && !disabled
+            boxShadow:
+                widget.filled && !_pressed && !disabled
                     ? [
-                        BoxShadow(
-                          color:
-                              const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-                          offset: const Offset(3, 3),
-                          blurRadius: 8,
-                        ),
-                        const BoxShadow(
-                          color: Colors.white,
-                          offset: Offset(-2, -2),
-                          blurRadius: 6,
-                        ),
-                      ]
+                      BoxShadow(
+                        color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                        offset: const Offset(0, 4),
+                        blurRadius: 10,
+                      ),
+                    ]
+                    : !widget.filled && !widget.danger && !_pressed && !disabled
+                    ? [
+                      BoxShadow(
+                        color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+                        offset: const Offset(3, 3),
+                        blurRadius: 8,
+                      ),
+                      const BoxShadow(
+                        color: Colors.white,
+                        offset: Offset(-2, -2),
+                        blurRadius: 6,
+                      ),
+                    ]
                     : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(widget.icon, size: 14, color: disabled ? fg.withValues(alpha: 0.4) : fg),
+              Icon(
+                widget.icon,
+                size: 14,
+                color: disabled ? fg.withValues(alpha: 0.4) : fg,
+              ),
               const SizedBox(width: 5),
               Text(
                 widget.label,
@@ -1401,15 +1526,16 @@ class _ToggleTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
-                      offset: const Offset(2, 2),
-                      blurRadius: 6,
-                    ),
-                  ]
-                : [],
+            boxShadow:
+                selected
+                    ? [
+                      BoxShadow(
+                        color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                        offset: const Offset(2, 2),
+                        blurRadius: 6,
+                      ),
+                    ]
+                    : [],
           ),
           child: Text(
             label,
@@ -1417,7 +1543,8 @@ class _ToggleTab extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: selected ? const Color(0xFF1A2561) : const Color(0xFF8A93B8),
+              color:
+                  selected ? const Color(0xFF1A2561) : const Color(0xFF8A93B8),
             ),
           ),
         ),
@@ -1465,7 +1592,8 @@ class _DatePickerRow extends StatelessWidget {
             Icon(
               Icons.calendar_today_rounded,
               size: 16,
-              color: hasValue ? const Color(0xFF1A3A7A) : const Color(0xFF8A93B8),
+              color:
+                  hasValue ? const Color(0xFF1A3A7A) : const Color(0xFF8A93B8),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1486,9 +1614,10 @@ class _DatePickerRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: hasValue
-                          ? const Color(0xFF1A2561)
-                          : const Color(0xFFAAB3D0),
+                      color:
+                          hasValue
+                              ? const Color(0xFF1A2561)
+                              : const Color(0xFFAAB3D0),
                     ),
                   ),
                 ],

@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import 'busy_action_button.dart';
+import 'responsive_text.dart';
 
 const double _defaultTestingQuantity = 5;
 const double _readingComparisonTolerance = 0.005;
@@ -763,7 +764,7 @@ Future<String?> showDailyEntryPreviewDialog({
                                   runSpacing: 10,
                                   children: [
                                     _PreviewMetricCard(
-                                      label: 'Computed revenue',
+                                      label: 'Computed sales',
                                       value: formatCurrency(
                                         preview.computedRevenue,
                                       ),
@@ -1019,12 +1020,12 @@ class _PreviewMetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          Text(
+          OneLineScaleText(
             label,
             style: const TextStyle(fontSize: 12, color: Color(0xFF55606E)),
           ),
           const SizedBox(height: 6),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
@@ -1059,7 +1060,7 @@ class _PreviewPill extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          OneLineScaleText(
             label,
             style: TextStyle(
               fontSize: 11,
@@ -1068,7 +1069,7 @@ class _PreviewPill extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w700,
@@ -1101,19 +1102,13 @@ class _PreviewRateChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.25)),
       ),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Color(0xFF293340)),
-          children: [
-            TextSpan(
-              text: '$label ',
-              style: TextStyle(fontWeight: FontWeight.w700, color: accent),
-            ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
+      child: OneLineScaleText(
+        '$label $value',
+        alignment: Alignment.center,
+        style: TextStyle(
+          color: const Color(0xFF293340),
+          fontWeight: FontWeight.w700,
+          fontSize: 14,
         ),
       ),
     );
@@ -1156,9 +1151,10 @@ class _PumpPreviewMetricCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
+          OneLineScaleText(
             value,
             textAlign: TextAlign.right,
+            alignment: Alignment.centerRight,
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -1213,9 +1209,10 @@ class _PumpPreviewDifferenceCard extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Flexible(
-            child: Text(
+            child: OneLineScaleText(
               value,
               textAlign: TextAlign.right,
+              alignment: Alignment.centerRight,
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -1295,23 +1292,14 @@ class _PumpSummaryChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(
-            color: Color(0xFF293340),
-            fontSize: 12,
-            height: 1.2,
-          ),
-          children: [
-            TextSpan(
-              text: '$label ',
-              style: TextStyle(fontWeight: FontWeight.w700, color: accent),
-            ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ],
+      child: OneLineScaleText(
+        '$label $value',
+        alignment: Alignment.center,
+        style: TextStyle(
+          color: const Color(0xFF293340),
+          fontSize: 12,
+          height: 1.2,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -1742,9 +1730,7 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                   builder:
                       (context, busy, handlePressed) => FilledButton(
                         onPressed: busy ? null : handlePressed,
-                        child: Text(
-                          busy ? 'Saving...' : 'Save Credit Names',
-                        ),
+                        child: Text(busy ? 'Saving...' : 'Save Credit Names'),
                       ),
                 ),
               ],
@@ -3078,9 +3064,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                     builder:
                         (context, busy, handlePressed) => FilledButton(
                           onPressed: busy ? null : handlePressed,
-                          child: Text(
-                            busy ? 'Updating...' : 'Update Pump',
-                          ),
+                          child: Text(busy ? 'Updating...' : 'Update Pump'),
                         ),
                   ),
                 ),
@@ -3698,9 +3682,9 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
             children: [
               Text(
                 'Cash Collection',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
               Text(

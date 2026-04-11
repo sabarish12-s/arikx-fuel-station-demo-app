@@ -1714,6 +1714,7 @@ class MonthlyReportModel {
     required this.petrolSold,
     required this.dieselSold,
     required this.twoTSold,
+    required this.creditTotal,
     required this.entriesCompleted,
     required this.shiftsCompleted,
     required this.fuelBreakdown,
@@ -1729,6 +1730,7 @@ class MonthlyReportModel {
   final double petrolSold;
   final double dieselSold;
   final double twoTSold;
+  final double creditTotal;
   final int entriesCompleted;
   final int shiftsCompleted;
   final Map<String, double> fuelBreakdown;
@@ -1748,6 +1750,7 @@ class MonthlyReportModel {
       petrolSold: (totals['petrolSold'] as num?)?.toDouble() ?? 0,
       dieselSold: (totals['dieselSold'] as num?)?.toDouble() ?? 0,
       twoTSold: (totals['twoTSold'] as num?)?.toDouble() ?? 0,
+      creditTotal: (totals['creditTotal'] as num?)?.toDouble() ?? 0,
       entriesCompleted:
           (totals['entriesCompleted'] as num?)?.toInt() ??
           (totals['shiftsCompleted'] as num?)?.toInt() ??

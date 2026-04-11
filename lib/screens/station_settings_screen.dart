@@ -5,6 +5,7 @@ import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class StationSettingsScreen extends StatefulWidget {
   const StationSettingsScreen({
@@ -114,18 +115,21 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       name: _nameController.text.trim(),
       code: _codeController.text.trim(),
       city: _cityController.text.trim(),
-      shifts: _shiftsController.text.contains('daily')
-          ? const ['daily']
-          : const ['daily'],
-      pumps: station.pumps
-          .map(
-            (pump) => StationPumpModel(
-              id: pump.id,
-              label:
-                  _controllers['${pump.id}_label']?.text.trim() ?? pump.label,
-            ),
-          )
-          .toList(),
+      shifts:
+          _shiftsController.text.contains('daily')
+              ? const ['daily']
+              : const ['daily'],
+      pumps:
+          station.pumps
+              .map(
+                (pump) => StationPumpModel(
+                  id: pump.id,
+                  label:
+                      _controllers['${pump.id}_label']?.text.trim() ??
+                      pump.label,
+                ),
+              )
+              .toList(),
       baseReadings: station.baseReadings,
       meterLimits: {
         for (final pump in station.pumps)
@@ -153,9 +157,9 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
 
     await _inventoryService.saveStationConfig(updated);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Station profile saved.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Station profile saved.')));
     setState(() {
       _isEditing = false;
       _seeded = false;
@@ -177,11 +181,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
         if (snapshot.hasError) {
           return ColoredBox(
             color: kClayBg,
-            child: Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-              ),
-            ),
+            child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
           );
         }
         final station = snapshot.data!;
@@ -198,21 +198,22 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                   ClaySubHeader(
                     title: 'Station Profile & Pumps',
                     onBack: widget.onBack,
-                    trailing: widget.canEdit
-                        ? _EditTogglePill(
-                            isEditing: _isEditing,
-                            onTap: () {
-                              setState(() {
-                                if (_isEditing) {
-                                  _isEditing = false;
-                                  _resetFromStation(station);
-                                } else {
-                                  _isEditing = true;
-                                }
-                              });
-                            },
-                          )
-                        : null,
+                    trailing:
+                        widget.canEdit
+                            ? _EditTogglePill(
+                              isEditing: _isEditing,
+                              onTap: () {
+                                setState(() {
+                                  if (_isEditing) {
+                                    _isEditing = false;
+                                    _resetFromStation(station);
+                                  } else {
+                                    _isEditing = true;
+                                  }
+                                });
+                              },
+                            )
+                            : null,
                   ),
 
                 // ── Station overview ───────────────────────────────
@@ -296,7 +297,8 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _ClayField(
                             controller: _controllers['${pump.id}_label'],
-                            label: '${formatPumpLabel(pump.id, pump.label)} label',
+                            label:
+                                '${formatPumpLabel(pump.id, pump.label)} label',
                             enabled: widget.canEdit && _isEditing,
                             prefixIcon: Icons.local_gas_station_rounded,
                           ),
@@ -409,18 +411,19 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed: station == null
-                      ? null
-                      : () {
-                          setState(() {
-                            if (_isEditing) {
-                              _isEditing = false;
-                              _resetFromStation(station);
-                            } else {
-                              _isEditing = true;
-                            }
-                          });
-                        },
+                  onPressed:
+                      station == null
+                          ? null
+                          : () {
+                            setState(() {
+                              if (_isEditing) {
+                                _isEditing = false;
+                                _resetFromStation(station);
+                              } else {
+                                _isEditing = true;
+                              }
+                            });
+                          },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -460,8 +463,9 @@ class _EditTogglePill extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
+        child: OneLineScaleText(
           isEditing ? 'Cancel' : 'Edit',
+          alignment: Alignment.center,
           style: TextStyle(
             color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
             fontWeight: FontWeight.w700,
@@ -494,9 +498,8 @@ class _ClayField extends StatelessWidget {
     return TextField(
       controller: controller,
       enabled: enabled,
-      keyboardType: numeric
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : null,
+      keyboardType:
+          numeric ? const TextInputType.numberWithOptions(decimal: true) : null,
       decoration: InputDecoration(
         labelText: label,
         filled: true,

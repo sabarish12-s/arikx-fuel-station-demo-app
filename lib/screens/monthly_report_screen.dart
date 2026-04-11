@@ -6,6 +6,7 @@ import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 import 'credit_ledger_screen.dart';
 
 class MonthlyReportScreen extends StatefulWidget {
@@ -81,8 +82,18 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   }
 
   static const List<String> _shortMonths = [
-    'Jan','Feb','Mar','Apr','May','Jun',
-    'Jul','Aug','Sep','Oct','Nov','Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   String _fmtDt(DateTime d) =>
@@ -170,7 +181,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             Future<void> pickTo() async {
               final picked = await showDatePicker(
                 context: dialogContext,
-                initialDate: exportTo.isBefore(exportFrom) ? exportFrom : exportTo,
+                initialDate:
+                    exportTo.isBefore(exportFrom) ? exportFrom : exportTo,
                 firstDate: DateTime(2024),
                 lastDate: DateTime(2100),
                 helpText: 'To date',
@@ -178,8 +190,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
               if (picked != null) setDialogState(() => exportTo = picked);
             }
 
-            void applyPreset(DateTime from, DateTime to) =>
-                setDialogState(() { exportFrom = from; exportTo = to; });
+            void applyPreset(DateTime from, DateTime to) => setDialogState(() {
+              exportFrom = from;
+              exportTo = to;
+            });
 
             final tMF = DateTime(now.year, now.month, 1);
             final tMT = DateTime(now.year, now.month + 1, 0);
@@ -187,7 +201,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             final lMT = DateTime(now.year, now.month, 0);
 
             return AlertDialog(
-              insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
               title: Text(shareMode ? 'Share Report' : 'Export Report'),
               content: SizedBox(
                 width: double.maxFinite,
@@ -204,15 +221,33 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        ActionChip(label: const Text('This Month'), onPressed: () => applyPreset(tMF, tMT)),
-                        ActionChip(label: const Text('Last Month'), onPressed: () => applyPreset(lMF, lMT)),
-                        ActionChip(label: const Text('YTD'), onPressed: () => applyPreset(DateTime(now.year, 1, 1), now)),
+                        ActionChip(
+                          label: const Text('This Month'),
+                          onPressed: () => applyPreset(tMF, tMT),
+                        ),
+                        ActionChip(
+                          label: const Text('Last Month'),
+                          onPressed: () => applyPreset(lMF, lMT),
+                        ),
+                        ActionChip(
+                          label: const Text('YTD'),
+                          onPressed:
+                              () => applyPreset(DateTime(now.year, 1, 1), now),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _ExportDateTile(label: 'FROM', value: _fmtDt(exportFrom), onTap: pickFrom),
+                    _ExportDateTile(
+                      label: 'FROM',
+                      value: _fmtDt(exportFrom),
+                      onTap: pickFrom,
+                    ),
                     const SizedBox(height: 8),
-                    _ExportDateTile(label: 'TO', value: _fmtDt(exportTo), onTap: pickTo),
+                    _ExportDateTile(
+                      label: 'TO',
+                      value: _fmtDt(exportTo),
+                      onTap: pickTo,
+                    ),
                   ],
                 ),
               ),
@@ -224,16 +259,26 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 FilledButton.icon(
                   onPressed: () async {
                     if (exportTo.isBefore(exportFrom)) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        backgroundColor: Color(0xFFB91C1C),
-                        content: Text('"To" date must be on or after "From" date.'),
-                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          backgroundColor: Color(0xFFB91C1C),
+                          content: Text(
+                            '"To" date must be on or after "From" date.',
+                          ),
+                        ),
+                      );
                       return;
                     }
                     Navigator.of(dialogContext).pop();
-                    await _runExport(from: exportFrom, to: exportTo, shareMode: shareMode);
+                    await _runExport(
+                      from: exportFrom,
+                      to: exportTo,
+                      shareMode: shareMode,
+                    );
                   },
-                  icon: Icon(shareMode ? Icons.share_rounded : Icons.download_rounded),
+                  icon: Icon(
+                    shareMode ? Icons.share_rounded : Icons.download_rounded,
+                  ),
                   label: Text(shareMode ? 'Share CSV' : 'Export CSV'),
                 ),
               ],
@@ -269,16 +314,23 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       );
       if (!mounted) return;
       if (shareMode) {
-        await _reportExportService.shareFile(file, text: 'RK Fuels report ${_fmtDt(from)} to ${_fmtDt(to)}');
+        await _reportExportService.shareFile(
+          file,
+          text: 'RK Fuels report ${_fmtDt(from)} to ${_fmtDt(to)}',
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Report saved to ${file.path}')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Report saved to ${file.path}')));
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        backgroundColor: const Color(0xFFB91C1C),
-        content: Text(userFacingErrorMessage(error)),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -301,7 +353,11 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.tune_rounded, color: Color(0xFF1A3A7A), size: 18),
+                        const Icon(
+                          Icons.tune_rounded,
+                          color: Color(0xFF1A3A7A),
+                          size: 18,
+                        ),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
@@ -322,7 +378,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
+                                  color: const Color(
+                                    0xFFB8C0DC,
+                                  ).withValues(alpha: 0.6),
                                   offset: const Offset(2, 2),
                                   blurRadius: 5,
                                 ),
@@ -333,7 +391,11 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.refresh_rounded, size: 16, color: Color(0xFF4A5598)),
+                            child: const Icon(
+                              Icons.refresh_rounded,
+                              size: 16,
+                              color: Color(0xFF4A5598),
+                            ),
                           ),
                         ),
                       ],
@@ -342,11 +404,23 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                     // Preset pills
                     Row(
                       children: [
-                        _PresetPill(label: 'Last 30 days', selected: _isLast30Days, onTap: _applyLast30Days),
+                        _PresetPill(
+                          label: 'Last 30 days',
+                          selected: _isLast30Days,
+                          onTap: _applyLast30Days,
+                        ),
                         const SizedBox(width: 8),
-                        _PresetPill(label: 'This Month', selected: _isThisMonth, onTap: _applyThisMonth),
+                        _PresetPill(
+                          label: 'This Month',
+                          selected: _isThisMonth,
+                          onTap: _applyThisMonth,
+                        ),
                         const SizedBox(width: 8),
-                        _PresetPill(label: 'Last Month', selected: _isLastMonth, onTap: _applyLastMonth),
+                        _PresetPill(
+                          label: 'Last Month',
+                          selected: _isLastMonth,
+                          onTap: _applyLastMonth,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -404,12 +478,14 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final twoT = report.fuelBreakdown['two_t_oil'] ?? 0;
     final totalFuel = petrol + diesel + twoT;
     final maxRevenue = report.trend.fold<double>(
-      0, (max, item) => item.revenue > max ? item.revenue : max,
+      0,
+      (max, item) => item.revenue > max ? item.revenue : max,
     );
 
-    final rangeLabel = (_fromDate != null && _toDate != null)
-        ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
-        : 'Month ${report.month}';
+    final rangeLabel =
+        (_fromDate != null && _toDate != null)
+            ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
+            : 'Month ${report.month}';
 
     return [
       // ── Summary hero card ─────────────────────────────────────
@@ -455,26 +531,48 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                _SummaryCell(label: 'Revenue', value: formatCurrency(report.revenue)),
+                _SummaryCell(
+                  label: 'Sales',
+                  value: formatCurrency(report.revenue),
+                ),
                 const _SummarySep(),
-                _SummaryCell(label: 'Profit', value: formatCurrency(report.profit)),
+                _SummaryCell(
+                  label: 'Profit',
+                  value: formatCurrency(report.profit),
+                ),
               ],
             ),
             const SizedBox(height: 1),
-            Container(height: 1, color: Colors.white.withValues(alpha: 0.1), margin: const EdgeInsets.symmetric(vertical: 10)),
+            Container(
+              height: 1,
+              color: Colors.white.withValues(alpha: 0.1),
+              margin: const EdgeInsets.symmetric(vertical: 10),
+            ),
             Row(
               children: [
-                _SummaryCell(label: 'Petrol', value: formatLiters(report.petrolSold)),
+                _SummaryCell(
+                  label: 'Petrol',
+                  value: formatLiters(report.petrolSold),
+                ),
                 const _SummarySep(),
-                _SummaryCell(label: 'Diesel', value: formatLiters(report.dieselSold)),
+                _SummaryCell(
+                  label: 'Diesel',
+                  value: formatLiters(report.dieselSold),
+                ),
               ],
             ),
             const SizedBox(height: 10),
             Row(
               children: [
-                _SummaryCell(label: '2T Oil', value: formatLiters(report.twoTSold)),
+                _SummaryCell(
+                  label: '2T Oil',
+                  value: formatLiters(report.twoTSold),
+                ),
                 const _SummarySep(),
-                _SummaryCell(label: 'Shifts', value: '${report.shiftsCompleted}'),
+                _SummaryCell(
+                  label: 'Credits',
+                  value: formatCurrency(report.creditTotal),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -485,7 +583,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.download_rounded,
                     label: _exporting ? 'Preparing...' : 'Download',
-                    onTap: _exporting ? null : () => _openExportDialog(shareMode: false),
+                    onTap:
+                        _exporting
+                            ? null
+                            : () => _openExportDialog(shareMode: false),
                     filled: true,
                   ),
                 ),
@@ -494,7 +595,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.share_rounded,
                     label: 'Share',
-                    onTap: _exporting ? null : () => _openExportDialog(shareMode: true),
+                    onTap:
+                        _exporting
+                            ? null
+                            : () => _openExportDialog(shareMode: true),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -502,9 +606,12 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'Credits',
-                    onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-                      builder: (_) => const CreditLedgerScreen(),
-                    )),
+                    onTap:
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const CreditLedgerScreen(),
+                          ),
+                        ),
                   ),
                 ),
               ],
@@ -521,7 +628,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Revenue Trend',
+              'Sales Trend',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
@@ -531,95 +638,125 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 220,
-              child: report.trend.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No trend data for this filter.',
-                        style: TextStyle(color: Color(0xFF8A93B8)),
-                      ),
-                    )
-                  : LineChart(
-                      LineChartData(
-                        minY: 0,
-                        maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          horizontalInterval: maxRevenue <= 0 ? 5 : (maxRevenue * 1.2) / 4,
-                          getDrawingHorizontalLine: (_) => FlLine(
-                            color: const Color(0xFFD8DCF0),
-                            strokeWidth: 1,
-                            dashArray: [4, 4],
-                          ),
+              child:
+                  report.trend.isEmpty
+                      ? const Center(
+                        child: Text(
+                          'No trend data for this filter.',
+                          style: TextStyle(color: Color(0xFF8A93B8)),
                         ),
-                        titlesData: FlTitlesData(
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 52,
-                              interval: maxRevenue <= 0 ? 5 : (maxRevenue * 1.2) / 4,
-                              getTitlesWidget: (value, meta) => Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Text(
-                                  _compactK(value),
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF8A93B8)),
+                      )
+                      : LineChart(
+                        LineChartData(
+                          minY: 0,
+                          maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval:
+                                maxRevenue <= 0 ? 5 : (maxRevenue * 1.2) / 4,
+                            getDrawingHorizontalLine:
+                                (_) => FlLine(
+                                  color: const Color(0xFFD8DCF0),
+                                  strokeWidth: 1,
+                                  dashArray: [4, 4],
                                 ),
+                          ),
+                          titlesData: FlTitlesData(
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 52,
+                                interval:
+                                    maxRevenue <= 0
+                                        ? 5
+                                        : (maxRevenue * 1.2) / 4,
+                                getTitlesWidget:
+                                    (value, meta) => Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: Text(
+                                        _compactK(value),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF8A93B8),
+                                        ),
+                                      ),
+                                    ),
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 26,
+                                interval: 1,
+                                getTitlesWidget: (value, meta) {
+                                  final idx = value.toInt();
+                                  if (idx < 0 || idx >= report.trend.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  if (report.trend.length > 6 &&
+                                      idx.isOdd &&
+                                      idx != report.trend.length - 1) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final dt = DateTime.tryParse(
+                                    report.trend[idx].date,
+                                  );
+                                  final lbl =
+                                      dt == null
+                                          ? report.trend[idx].date
+                                          : '${dt.day}/${dt.month}';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      lbl,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF8A93B8),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 26,
-                              interval: 1,
-                              getTitlesWidget: (value, meta) {
-                                final idx = value.toInt();
-                                if (idx < 0 || idx >= report.trend.length) return const SizedBox.shrink();
-                                if (report.trend.length > 6 && idx.isOdd && idx != report.trend.length - 1) {
-                                  return const SizedBox.shrink();
-                                }
-                                final dt = DateTime.tryParse(report.trend[idx].date);
-                                final lbl = dt == null
-                                    ? report.trend[idx].date
-                                    : '${dt.day}/${dt.month}';
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(lbl, style: const TextStyle(fontSize: 10, color: Color(0xFF8A93B8))),
-                                );
-                              },
+                          borderData: FlBorderData(show: false),
+                          lineTouchData: LineTouchData(enabled: true),
+                          lineBarsData: [
+                            LineChartBarData(
+                              isCurved: true,
+                              color: const Color(0xFF1A3A7A),
+                              barWidth: 2.5,
+                              dotData: FlDotData(
+                                show: report.trend.length <= 8,
+                                getDotPainter:
+                                    (_, __, ___, ____) => FlDotCirclePainter(
+                                      radius: 4,
+                                      color: const Color(0xFF1A3A7A),
+                                      strokeWidth: 2,
+                                      strokeColor: Colors.white,
+                                    ),
+                              ),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: const Color(
+                                  0xFF1A3A7A,
+                                ).withValues(alpha: 0.10),
+                              ),
+                              spots: [
+                                for (var i = 0; i < report.trend.length; i++)
+                                  FlSpot(i.toDouble(), report.trend[i].revenue),
+                              ],
                             ),
-                          ),
+                          ],
                         ),
-                        borderData: FlBorderData(show: false),
-                        lineTouchData: LineTouchData(enabled: true),
-                        lineBarsData: [
-                          LineChartBarData(
-                            isCurved: true,
-                            color: const Color(0xFF1A3A7A),
-                            barWidth: 2.5,
-                            dotData: FlDotData(
-                              show: report.trend.length <= 8,
-                              getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
-                                radius: 4,
-                                color: const Color(0xFF1A3A7A),
-                                strokeWidth: 2,
-                                strokeColor: Colors.white,
-                              ),
-                            ),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
-                            ),
-                            spots: [
-                              for (var i = 0; i < report.trend.length; i++)
-                                FlSpot(i.toDouble(), report.trend[i].revenue),
-                            ],
-                          ),
-                        ],
                       ),
-                    ),
             ),
           ],
         ),
@@ -643,52 +780,29 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
-              child: totalFuel <= 0
-                  ? const Center(
-                      child: Text(
-                        'No fuel data for this filter.',
-                        style: TextStyle(color: Color(0xFF8A93B8)),
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: PieChart(
-                            PieChartData(
-                              centerSpaceRadius: 0,
-                              sectionsSpace: 2,
-                              startDegreeOffset: -90,
-                              sections: [
-                                PieChartSectionData(
-                                  value: petrol,
-                                  color: const Color(0xFF1A3A7A),
-                                  title: '${((petrol / totalFuel) * 100).round()}%',
-                                  radius: 80,
-                                  titleStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                PieChartSectionData(
-                                  value: diesel,
-                                  color: const Color(0xFF2AA878),
-                                  title: '${((diesel / totalFuel) * 100).round()}%',
-                                  radius: 80,
-                                  titleStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                if (twoT > 0)
+              child:
+                  totalFuel <= 0
+                      ? const Center(
+                        child: Text(
+                          'No fuel data for this filter.',
+                          style: TextStyle(color: Color(0xFF8A93B8)),
+                        ),
+                      )
+                      : Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: PieChart(
+                              PieChartData(
+                                centerSpaceRadius: 0,
+                                sectionsSpace: 2,
+                                startDegreeOffset: -90,
+                                sections: [
                                   PieChartSectionData(
-                                    value: twoT,
-                                    color: const Color(0xFFCE5828),
-                                    title: twoT / totalFuel >= 0.05
-                                        ? '${((twoT / totalFuel) * 100).round()}%'
-                                        : '',
+                                    value: petrol,
+                                    color: const Color(0xFF1A3A7A),
+                                    title:
+                                        '${((petrol / totalFuel) * 100).round()}%',
                                     radius: 80,
                                     titleStyle: const TextStyle(
                                       color: Colors.white,
@@ -696,41 +810,68 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                                       fontSize: 13,
                                     ),
                                   ),
+                                  PieChartSectionData(
+                                    value: diesel,
+                                    color: const Color(0xFF2AA878),
+                                    title:
+                                        '${((diesel / totalFuel) * 100).round()}%',
+                                    radius: 80,
+                                    titleStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (twoT > 0)
+                                    PieChartSectionData(
+                                      value: twoT,
+                                      color: const Color(0xFFCE5828),
+                                      title:
+                                          twoT / totalFuel >= 0.05
+                                              ? '${((twoT / totalFuel) * 100).round()}%'
+                                              : '',
+                                      radius: 80,
+                                      titleStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _FuelLegend(
+                                  label: 'Petrol',
+                                  value: formatLiters(petrol),
+                                  color: const Color(0xFF1A3A7A),
+                                ),
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'Diesel',
+                                  value: formatLiters(diesel),
+                                  color: const Color(0xFF2AA878),
+                                ),
+                                if (twoT > 0) ...[
+                                  const SizedBox(height: 14),
+                                  _FuelLegend(
+                                    label: '2T Oil',
+                                    value: formatLiters(twoT),
+                                    color: const Color(0xFFCE5828),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _FuelLegend(
-                                label: 'Petrol',
-                                value: formatLiters(petrol),
-                                color: const Color(0xFF1A3A7A),
-                              ),
-                              const SizedBox(height: 14),
-                              _FuelLegend(
-                                label: 'Diesel',
-                                value: formatLiters(diesel),
-                                color: const Color(0xFF2AA878),
-                              ),
-                              if (twoT > 0) ...[
-                                const SizedBox(height: 14),
-                                _FuelLegend(
-                                  label: '2T Oil',
-                                  value: formatLiters(twoT),
-                                  color: const Color(0xFFCE5828),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
             ),
           ],
         ),
@@ -816,26 +957,27 @@ class _PresetPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF1A3A7A) : const Color(0xFFECEFF8),
           borderRadius: BorderRadius.circular(999),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                    offset: const Offset(0, 4),
-                    blurRadius: 10,
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
-                    offset: const Offset(3, 3),
-                    blurRadius: 7,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-2, -2),
-                    blurRadius: 5,
-                  ),
-                ],
+          boxShadow:
+              selected
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                      offset: const Offset(0, 4),
+                      blurRadius: 10,
+                    ),
+                  ]
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
+                      offset: const Offset(3, 3),
+                      blurRadius: 7,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-2, -2),
+                      blurRadius: 5,
+                    ),
+                  ],
         ),
         child: Text(
           label,
@@ -935,7 +1077,7 @@ class _SummaryCell extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          OneLineScaleText(
             label,
             style: const TextStyle(
               color: Colors.white54,
@@ -944,7 +1086,7 @@ class _SummaryCell extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               color: Colors.white,
@@ -993,9 +1135,7 @@ class _HeroActionBtn extends StatelessWidget {
       child: Container(
         height: 40,
         decoration: BoxDecoration(
-          color: filled
-              ? Colors.white
-              : Colors.white.withValues(alpha: 0.15),
+          color: filled ? Colors.white : Colors.white.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -1004,9 +1144,12 @@ class _HeroActionBtn extends StatelessWidget {
             Icon(
               icon,
               size: 14,
-              color: filled
-                  ? (disabled ? const Color(0xFF8A93B8) : const Color(0xFF1A3A7A))
-                  : (disabled ? Colors.white30 : Colors.white),
+              color:
+                  filled
+                      ? (disabled
+                          ? const Color(0xFF8A93B8)
+                          : const Color(0xFF1A3A7A))
+                      : (disabled ? Colors.white30 : Colors.white),
             ),
             const SizedBox(width: 5),
             Text(
@@ -1014,9 +1157,12 @@ class _HeroActionBtn extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: filled
-                    ? (disabled ? const Color(0xFF8A93B8) : const Color(0xFF1A3A7A))
-                    : (disabled ? Colors.white30 : Colors.white),
+                color:
+                    filled
+                        ? (disabled
+                            ? const Color(0xFF8A93B8)
+                            : const Color(0xFF1A3A7A))
+                        : (disabled ? Colors.white30 : Colors.white),
               ),
             ),
           ],
@@ -1051,7 +1197,7 @@ class _FuelLegend extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              OneLineScaleText(
                 label,
                 style: const TextStyle(
                   fontSize: 10,
@@ -1059,7 +1205,7 @@ class _FuelLegend extends StatelessWidget {
                   color: Color(0xFF8A93B8),
                 ),
               ),
-              Text(
+              OneLineScaleText(
                 value,
                 style: const TextStyle(
                   fontSize: 13,
@@ -1131,7 +1277,7 @@ class _DailyRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
+          OneLineScaleText(
             formatCurrency(point.revenue),
             style: const TextStyle(
               fontWeight: FontWeight.w900,
@@ -1171,7 +1317,11 @@ class _ExportDateTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF1A3A7A)),
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: Color(0xFF1A3A7A),
+            ),
             const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1187,7 +1337,10 @@ class _ExportDateTile extends StatelessWidget {
                 ),
                 Text(
                   value,
-                  style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF293340)),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF293340),
+                  ),
                 ),
               ],
             ),

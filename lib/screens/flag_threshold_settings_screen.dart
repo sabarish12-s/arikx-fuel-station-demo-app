@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 import '../widgets/clay_widgets.dart';
 
 class FlagThresholdSettingsScreen extends StatefulWidget {
@@ -119,9 +120,7 @@ class _FlagThresholdSettingsScreenState
             color: kClayBg,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                Text('Failed to load: ${_errorText(snapshot.error)}'),
-              ],
+              children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
             ),
           );
         }
@@ -138,11 +137,12 @@ class _FlagThresholdSettingsScreenState
                 ClaySubHeader(
                   title: 'Variance Rules',
                   onBack: widget.onBack,
-                  trailing: widget.canEdit && !_isEditing
-                      ? _ClayEditButton(
-                          onTap: () => setState(() => _isEditing = true),
-                        )
-                      : null,
+                  trailing:
+                      widget.canEdit && !_isEditing
+                          ? _ClayEditButton(
+                            onTap: () => setState(() => _isEditing = true),
+                          )
+                          : null,
                 ),
 
               // ── Hero card ──────────────────────────────────────────
@@ -242,18 +242,19 @@ class _FlagThresholdSettingsScreenState
                       Row(
                         children: [
                           TextButton(
-                            onPressed: _saving
-                                ? null
-                                : () {
-                                    setState(() {
-                                      _isEditing = false;
-                                      _seeded = false;
-                                      _thresholdController.text = station
-                                          .flagThreshold
-                                          .toStringAsFixed(2);
-                                      _seeded = true;
-                                    });
-                                  },
+                            onPressed:
+                                _saving
+                                    ? null
+                                    : () {
+                                      setState(() {
+                                        _isEditing = false;
+                                        _seeded = false;
+                                        _thresholdController.text = station
+                                            .flagThreshold
+                                            .toStringAsFixed(2);
+                                        _seeded = true;
+                                      });
+                                    },
                             child: const Text('Cancel'),
                           ),
                           const SizedBox(width: 10),
@@ -272,9 +273,10 @@ class _FlagThresholdSettingsScreenState
                       const SizedBox(height: 8),
                       _InfoRow(
                         label: 'Effect',
-                        value: station.flagThreshold == 0
-                            ? 'Every mismatch is flagged'
-                            : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
+                        value:
+                            station.flagThreshold == 0
+                                ? 'Every mismatch is flagged'
+                                : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
                       ),
                     ],
                   ],
@@ -360,7 +362,7 @@ class _ClayEditButton extends StatelessWidget {
           children: [
             Icon(Icons.edit_rounded, size: 15, color: kClayPrimary),
             SizedBox(width: 5),
-            Text(
+            OneLineScaleText(
               'Edit',
               style: TextStyle(
                 color: kClayPrimary,
@@ -391,7 +393,10 @@ class _InfoRow extends StatelessWidget {
           width: 140,
           child: Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w700, color: kClaySub),
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              color: kClaySub,
+            ),
           ),
         ),
         Expanded(
@@ -428,7 +433,10 @@ class _BulletRow extends StatelessWidget {
         Icon(icon, color: color, size: 20),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(text, style: const TextStyle(color: kClaySub, height: 1.4)),
+          child: Text(
+            text,
+            style: const TextStyle(color: kClaySub, height: 1.4),
+          ),
         ),
       ],
     );

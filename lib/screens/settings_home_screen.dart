@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_models.dart';
+import '../widgets/responsive_text.dart';
 import 'flag_threshold_settings_screen.dart';
 import 'fuel_price_settings_screen.dart';
 import 'fuel_type_manager_screen.dart';
@@ -172,7 +173,9 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
                       const SizedBox(height: 5),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(999),
@@ -204,8 +207,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Station details, code, city, and pump names',
             icon: Icons.location_city_rounded,
             iconColor: const Color(0xFF1A3A7A),
-            onTap: () =>
-                setState(() => _panel = _SettingsPanel.stationSettings),
+            onTap:
+                () => setState(() => _panel = _SettingsPanel.stationSettings),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -213,8 +216,10 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Starting meter readings for each pump',
             icon: Icons.speed_rounded,
             iconColor: const Color(0xFF2AA878),
-            onTap: () =>
-                setState(() => _panel = _SettingsPanel.openingStockSettings),
+            onTap:
+                () => setState(
+                  () => _panel = _SettingsPanel.openingStockSettings,
+                ),
           ),
 
           const SizedBox(height: 20),
@@ -227,8 +232,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Selling and cost prices for each fuel',
             icon: Icons.payments_rounded,
             iconColor: const Color(0xFF7048A8),
-            onTap: () =>
-                setState(() => _panel = _SettingsPanel.fuelPriceSettings),
+            onTap:
+                () => setState(() => _panel = _SettingsPanel.fuelPriceSettings),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -236,8 +241,7 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Difference limit that flags an entry',
             icon: Icons.flag_rounded,
             iconColor: const Color(0xFFCE5828),
-            onTap: () =>
-                setState(() => _panel = _SettingsPanel.flagThreshold),
+            onTap: () => setState(() => _panel = _SettingsPanel.flagThreshold),
           ),
 
           const SizedBox(height: 20),
@@ -250,8 +254,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Tank stock baseline and reorder rules',
             icon: Icons.inventory_2_rounded,
             iconColor: const Color(0xFF1298B8),
-            onTap: () =>
-                setState(() => _panel = _SettingsPanel.inventoryPlanning),
+            onTap:
+                () => setState(() => _panel = _SettingsPanel.inventoryPlanning),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -259,8 +263,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Fuel categories and labels used in the app',
             icon: Icons.local_gas_station_rounded,
             iconColor: const Color(0xFF2AA878),
-            onTap: () =>
-                setState(() => _panel = _SettingsPanel.fuelTypeManager),
+            onTap:
+                () => setState(() => _panel = _SettingsPanel.fuelTypeManager),
           ),
 
           if (_isSuperAdmin) ...[
@@ -274,8 +278,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
               subtitle: 'Manage admin and station access',
               icon: Icons.manage_accounts_rounded,
               iconColor: const Color(0xFF4858C8),
-              onTap: () =>
-                  setState(() => _panel = _SettingsPanel.userManagement),
+              onTap:
+                  () => setState(() => _panel = _SettingsPanel.userManagement),
             ),
           ],
         ],
@@ -344,26 +348,27 @@ class _SettingsTileState extends State<_SettingsTile> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: _pressed
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.3),
-                    offset: const Offset(2, 2),
-                    blurRadius: 5,
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.75),
-                    offset: const Offset(6, 6),
-                    blurRadius: 16,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-5, -5),
-                    blurRadius: 12,
-                  ),
-                ],
+          boxShadow:
+              _pressed
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.3),
+                      offset: const Offset(2, 2),
+                      blurRadius: 5,
+                    ),
+                  ]
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.75),
+                      offset: const Offset(6, 6),
+                      blurRadius: 16,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-5, -5),
+                      blurRadius: 12,
+                    ),
+                  ],
         ),
         child: Row(
           children: [
@@ -381,7 +386,7 @@ class _SettingsTileState extends State<_SettingsTile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  OneLineScaleText(
                     widget.title,
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,

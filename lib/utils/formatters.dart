@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+const String _nbsp = '\u00A0';
+
 String _indianCommas(String digits) {
   if (digits.length <= 3) return digits;
   final last3 = digits.substring(digits.length - 3);
@@ -19,10 +21,10 @@ String formatCurrency(double value) {
   final abs = value.abs();
   final intPart = abs.truncate();
   final dec = (abs - intPart).toStringAsFixed(2).substring(1); // '.XX'
-  return '${isNeg ? '-' : ''}Rs ${_indianCommas(intPart.toString())}$dec';
+  return '${isNeg ? '-' : ''}Rs$_nbsp${_indianCommas(intPart.toString())}$dec';
 }
 
-String formatLiters(double value) => '${value.toStringAsFixed(2)} L';
+String formatLiters(double value) => '${value.toStringAsFixed(2)}${_nbsp}L';
 
 String formatCompactNumber(double value) => value.toStringAsFixed(0);
 

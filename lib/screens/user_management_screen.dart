@@ -7,6 +7,7 @@ import '../services/user_management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({
@@ -302,11 +303,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         if (snapshot.hasError) {
           return ColoredBox(
             color: kClayBg,
-            child: Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-              ),
-            ),
+            child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
           );
         }
 
@@ -322,356 +319,393 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         return ColoredBox(
           color: kClayBg,
           child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-          children: [
-            if (widget.embedded)
-              ClaySubHeader(
-                title: 'Users & Roles',
-                onBack: widget.onBack,
-                trailing: GestureDetector(
-                  onTap: () => _openAddStaffDialog(canManageSuperAdmins),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-                          offset: const Offset(4, 4),
-                          blurRadius: 10,
-                        ),
-                        const BoxShadow(
-                          color: Colors.white,
-                          offset: Offset(-3, -3),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.person_add_alt_1_rounded,
-                            size: 15, color: kClayPrimary),
-                        SizedBox(width: 5),
-                        Text(
-                          'Add User',
-                          style: TextStyle(
-                            color: kClayPrimary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              if (widget.embedded)
+                ClaySubHeader(
+                  title: 'Users & Roles',
+                  onBack: widget.onBack,
+                  trailing: GestureDetector(
+                    onTap: () => _openAddStaffDialog(canManageSuperAdmins),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFFB8C0DC,
+                            ).withValues(alpha: 0.65),
+                            offset: const Offset(4, 4),
+                            blurRadius: 10,
                           ),
-                        ),
-                      ],
+                          const BoxShadow(
+                            color: Colors.white,
+                            offset: Offset(-3, -3),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.person_add_alt_1_rounded,
+                            size: 15,
+                            color: kClayPrimary,
+                          ),
+                          SizedBox(width: 5),
+                          Text(
+                            'Add User',
+                            style: TextStyle(
+                              color: kClayPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  'Manage staff, roles, and pending approvals.',
-                  style: const TextStyle(color: kClaySub),
-                ),
-              ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SummaryCard(
-                  title: 'Total Users',
-                  value: '${summary.totalUsers}',
-                ),
-                _SummaryCard(
-                  title: 'Approved',
-                  value: '${summary.approvedUsers}',
-                ),
-                _SummaryCard(
-                  title: 'Pending',
-                  value: '${summary.pendingRequests}',
-                ),
-                _SummaryCard(title: 'Admins', value: '${summary.adminCount}'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Expanded(
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: Text(
-                    'Pending Requests',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: kClayPrimary,
-                    ),
+                    'Manage staff, roles, and pending approvals.',
+                    style: const TextStyle(color: kClaySub),
                   ),
                 ),
-                if (requests.isNotEmpty)
-                  TextButton(
-                    onPressed:
-                        () => _toggleSelectAllRequests(requests, !allSelected),
-                    child: Text(allSelected ? 'Clear All' : 'Select All'),
-                  ),
-              ],
-            ),
-            if (_selectedRequestIds.isNotEmpty) ...[
-              const SizedBox(height: 8),
               Row(
                 children: [
-                  FilledButton(
-                    onPressed: () => _bulkApprove(requests),
-                    child: Text('Bulk Approve (${_selectedRequestIds.length})'),
+                  Expanded(
+                    child: _SummaryCard(
+                      title: 'Total Users',
+                      value: '${summary.totalUsers}',
+                    ),
                   ),
-                  const SizedBox(width: 10),
-                  OutlinedButton(
-                    onPressed: _bulkDelete,
-                    child: Text('Bulk Delete (${_selectedRequestIds.length})'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SummaryCard(
+                      title: 'Approved',
+                      value: '${summary.approvedUsers}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SummaryCard(
+                      title: 'Pending',
+                      value: '${summary.pendingRequests}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _SummaryCard(
+                      title: 'Admins',
+                      value: '${summary.adminCount}',
+                    ),
                   ),
                 ],
               ),
-            ],
-            const SizedBox(height: 8),
-            if (requests.isEmpty)
-              const _EmptyCard(message: 'No pending access requests right now.')
-            else
-              ...requests.map((request) {
-                final selectedRole =
-                    _requestRoles[request.id] ?? request.roleRequested;
-                final isSelected = _selectedRequestIds.contains(request.id);
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Pending Requests',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: kClayPrimary,
+                      ),
+                    ),
+                  ),
+                  if (requests.isNotEmpty)
+                    TextButton(
+                      onPressed:
+                          () =>
+                              _toggleSelectAllRequests(requests, !allSelected),
+                      child: Text(allSelected ? 'Clear All' : 'Select All'),
+                    ),
+                ],
+              ),
+              if (_selectedRequestIds.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    FilledButton(
+                      onPressed: () => _bulkApprove(requests),
+                      child: Text(
+                        'Bulk Approve (${_selectedRequestIds.length})',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    OutlinedButton(
+                      onPressed: _bulkDelete,
+                      child: Text(
+                        'Bulk Delete (${_selectedRequestIds.length})',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 8),
+              if (requests.isEmpty)
+                const _EmptyCard(
+                  message: 'No pending access requests right now.',
+                )
+              else
+                ...requests.map((request) {
+                  final selectedRole =
+                      _requestRoles[request.id] ?? request.roleRequested;
+                  final isSelected = _selectedRequestIds.contains(request.id);
+                  return _SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: isSelected,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value ?? false) {
+                                    _selectedRequestIds.add(request.id);
+                                  } else {
+                                    _selectedRequestIds.remove(request.id);
+                                  }
+                                });
+                              },
+                            ),
+                            Expanded(
+                              child: Text(
+                                request.name.isEmpty
+                                    ? 'Unnamed Request'
+                                    : request.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(request.email),
+                        Text(
+                          'Requested on ${formatDateLabel(request.createdAt.toIso8601String())}',
+                          style: const TextStyle(color: Color(0xFF55606E)),
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedRole,
+                          items:
+                              canManageSuperAdmins
+                                  ? const [
+                                    DropdownMenuItem(
+                                      value: 'sales',
+                                      child: Text('Sales'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admin',
+                                      child: Text('Admin'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'superadmin',
+                                      child: Text('Superadmin'),
+                                    ),
+                                  ]
+                                  : const [
+                                    DropdownMenuItem(
+                                      value: 'sales',
+                                      child: Text('Sales'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admin',
+                                      child: Text('Admin'),
+                                    ),
+                                  ],
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            setState(() {
+                              _requestRoles[request.id] = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            FilledButton(
+                              onPressed:
+                                  () => _approveRequest(request, selectedRole),
+                              child: const Text('Approve'),
+                            ),
+                            const SizedBox(width: 10),
+                            OutlinedButton(
+                              onPressed: () => _rejectRequest(request),
+                              child: const Text('Reject'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              const SizedBox(height: 12),
+              const Text(
+                'Current Staff',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: kClayPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...users.map((user) {
+                final selectedRole = _staffRoles[user.id] ?? user.role;
+                final isEditing = _editingUserIds.contains(user.id);
+                final isSelf =
+                    user.email.toLowerCase() ==
+                    widget.currentUser.email.toLowerCase();
+                final canManage =
+                    !isSelf &&
+                    (user.role != 'superadmin' || canManageSuperAdmins);
+                final roleItems =
+                    user.role == 'superadmin' || canManageSuperAdmins
+                        ? const [
+                          DropdownMenuItem(
+                            value: 'sales',
+                            child: Text('Sales'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Admin'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'superadmin',
+                            child: Text('Superadmin'),
+                          ),
+                        ]
+                        : const [
+                          DropdownMenuItem(
+                            value: 'sales',
+                            child: Text('Sales'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Admin'),
+                          ),
+                        ];
+
                 return _SectionCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Checkbox(
-                            value: isSelected,
-                            onChanged: (value) {
-                              setState(() {
-                                if (value ?? false) {
-                                  _selectedRequestIds.add(request.id);
-                                } else {
-                                  _selectedRequestIds.remove(request.id);
-                                }
-                              });
-                            },
-                          ),
                           Expanded(
                             child: Text(
-                              request.name.isEmpty
-                                  ? 'Unnamed Request'
-                                  : request.name,
+                              user.name.isEmpty ? user.email : user.name,
                               style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
+                          Chip(label: Text(user.status)),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text(request.email),
+                      Text(user.email),
                       Text(
-                        'Requested on ${formatDateLabel(request.createdAt.toIso8601String())}',
+                        'Station ${user.stationId}',
                         style: const TextStyle(color: Color(0xFF55606E)),
                       ),
+                      Text(
+                        'Added on ${formatDateLabel(user.createdAt.toIso8601String())}',
+                        style: const TextStyle(color: Color(0xFF55606E)),
+                      ),
+                      if (user.requestCreatedAt != null)
+                        Text(
+                          'Requested on ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
+                          style: const TextStyle(color: Color(0xFF55606E)),
+                        ),
+                      if (user.reviewedAt != null)
+                        Text(
+                          'Reviewed on ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
+                          style: const TextStyle(color: Color(0xFF55606E)),
+                        ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         initialValue: selectedRole,
-                        items:
-                            canManageSuperAdmins
-                                ? const [
-                                  DropdownMenuItem(
-                                    value: 'sales',
-                                    child: Text('Sales'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'admin',
-                                    child: Text('Admin'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'superadmin',
-                                    child: Text('Superadmin'),
-                                  ),
-                                ]
-                                : const [
-                                  DropdownMenuItem(
-                                    value: 'sales',
-                                    child: Text('Sales'),
-                                  ),
-                                  DropdownMenuItem(
-                                    value: 'admin',
-                                    child: Text('Admin'),
-                                  ),
-                                ],
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          setState(() {
-                            _requestRoles[request.id] = value;
-                          });
-                        },
+                        items: roleItems,
+                        onChanged:
+                            isEditing && canManage
+                                ? (value) {
+                                  if (value == null) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    _staffRoles[user.id] = value;
+                                  });
+                                }
+                                : null,
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          FilledButton(
-                            onPressed:
-                                () => _approveRequest(request, selectedRole),
-                            child: const Text('Approve'),
+                      if (canManage && !isEditing)
+                        OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              _editingUserIds.add(user.id);
+                            });
+                          },
+                          child: const Text('Edit'),
+                        )
+                      else if (canManage && isEditing)
+                        Row(
+                          children: [
+                            FilledButton(
+                              onPressed:
+                                  () => _saveStaffRole(user, selectedRole),
+                              child: const Text('Save Role'),
+                            ),
+                            const SizedBox(width: 10),
+                            OutlinedButton(
+                              onPressed: () => _deleteStaff(user),
+                              child: const Text('Delete'),
+                            ),
+                            const SizedBox(width: 10),
+                            TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _editingUserIds.remove(user.id);
+                                  _staffRoles.remove(user.id);
+                                });
+                              },
+                              child: const Text('Cancel'),
+                            ),
+                          ],
+                        )
+                      else
+                        const Text(
+                          'Protected account',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF55606E),
                           ),
-                          const SizedBox(width: 10),
-                          OutlinedButton(
-                            onPressed: () => _rejectRequest(request),
-                            child: const Text('Reject'),
-                          ),
-                        ],
-                      ),
+                        ),
                     ],
                   ),
                 );
               }),
-            const SizedBox(height: 12),
-            const Text(
-              'Current Staff',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: kClayPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ...users.map((user) {
-              final selectedRole = _staffRoles[user.id] ?? user.role;
-              final isEditing = _editingUserIds.contains(user.id);
-              final isSelf =
-                  user.email.toLowerCase() ==
-                  widget.currentUser.email.toLowerCase();
-              final canManage =
-                  !isSelf &&
-                  (user.role != 'superadmin' || canManageSuperAdmins);
-              final roleItems =
-                  user.role == 'superadmin' || canManageSuperAdmins
-                      ? const [
-                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                        DropdownMenuItem(
-                          value: 'superadmin',
-                          child: Text('Superadmin'),
-                        ),
-                      ]
-                      : const [
-                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                      ];
-
-              return _SectionCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            user.name.isEmpty ? user.email : user.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        Chip(label: Text(user.status)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(user.email),
-                    Text(
-                      'Station ${user.stationId}',
-                      style: const TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    Text(
-                      'Added on ${formatDateLabel(user.createdAt.toIso8601String())}',
-                      style: const TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    if (user.requestCreatedAt != null)
-                      Text(
-                        'Requested on ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                    if (user.reviewedAt != null)
-                      Text(
-                        'Reviewed on ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedRole,
-                      items: roleItems,
-                      onChanged:
-                          isEditing && canManage
-                              ? (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _staffRoles[user.id] = value;
-                                });
-                              }
-                              : null,
-                    ),
-                    const SizedBox(height: 12),
-                    if (canManage && !isEditing)
-                      OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            _editingUserIds.add(user.id);
-                          });
-                        },
-                        child: const Text('Edit'),
-                      )
-                    else if (canManage && isEditing)
-                      Row(
-                        children: [
-                          FilledButton(
-                            onPressed: () => _saveStaffRole(user, selectedRole),
-                            child: const Text('Save Role'),
-                          ),
-                          const SizedBox(width: 10),
-                          OutlinedButton(
-                            onPressed: () => _deleteStaff(user),
-                            child: const Text('Delete'),
-                          ),
-                          const SizedBox(width: 10),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _editingUserIds.remove(user.id);
-                                _staffRoles.remove(user.id);
-                              });
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                        ],
-                      )
-                    else
-                      const Text(
-                        'Protected account',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF55606E),
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
+            ],
+          ),
         );
       },
     );
@@ -708,18 +742,17 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minWidth: 80),
       padding: const EdgeInsets.all(14),
       decoration: clayCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          OneLineScaleText(
             title,
             style: const TextStyle(color: kClaySub, fontSize: 12),
           ),
           const SizedBox(height: 6),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w900,
@@ -740,10 +773,7 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClayCard(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: child,
-    );
+    return ClayCard(margin: const EdgeInsets.only(bottom: 12), child: child);
   }
 }
 
@@ -758,10 +788,7 @@ class _EmptyCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: Text(
         message,
-        style: const TextStyle(
-          color: kClaySub,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(color: kClaySub, fontWeight: FontWeight.w600),
       ),
     );
   }

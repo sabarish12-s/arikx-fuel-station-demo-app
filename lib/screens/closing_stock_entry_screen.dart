@@ -9,6 +9,7 @@ import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/daily_entry_dialogs.dart';
+import '../widgets/responsive_text.dart';
 
 class ClosingStockEntryScreen extends StatefulWidget {
   const ClosingStockEntryScreen({super.key});
@@ -1243,8 +1244,9 @@ class _ClosingHeroChip extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
+      child: OneLineScaleText(
         '$label  $value',
+        alignment: Alignment.center,
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
@@ -1269,8 +1271,9 @@ class _ClosingPill extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
+      child: OneLineScaleText(
         label,
+        alignment: Alignment.center,
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.w700,
@@ -1314,7 +1317,7 @@ class _PumpRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
@@ -1349,7 +1352,7 @@ class _PaymentRow extends StatelessWidget {
               ),
             ),
           ),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               fontWeight: FontWeight.w800,

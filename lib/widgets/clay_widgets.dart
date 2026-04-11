@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'responsive_text.dart';
+
 const kClayBg = Color(0xFFECEFF8);
 const kClayPrimary = Color(0xFF1A2561);
 const kClaySub = Color(0xFF8A93B8);
@@ -72,8 +74,10 @@ class ClaySubHeader extends StatelessWidget {
             GestureDetector(
               onTap: onBack,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
@@ -99,7 +103,7 @@ class ClaySubHeader extends StatelessWidget {
                       color: kClayPrimary,
                     ),
                     SizedBox(width: 4),
-                    Text(
+                    OneLineScaleText(
                       'Back',
                       style: TextStyle(
                         color: kClayPrimary,
@@ -114,7 +118,7 @@ class ClaySubHeader extends StatelessWidget {
             const SizedBox(width: 12),
           ],
           Expanded(
-            child: Text(
+            child: OneLineScaleText(
               title,
               style: const TextStyle(
                 fontSize: 19,

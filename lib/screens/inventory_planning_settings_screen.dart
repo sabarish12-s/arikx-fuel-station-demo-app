@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 import '../utils/formatters.dart';
 import '../widgets/clay_widgets.dart';
 
@@ -60,12 +61,12 @@ class _InventoryPlanningSettingsScreenState
   void _seedControllers(StationConfigModel station) {
     if (_seeded) return;
     final planning = station.inventoryPlanning;
-    _petrolController.text =
-        (planning.openingStock['petrol'] ?? 0).toStringAsFixed(2);
-    _dieselController.text =
-        (planning.openingStock['diesel'] ?? 0).toStringAsFixed(2);
-    _twoTController.text =
-        (planning.openingStock['two_t_oil'] ?? 0).toStringAsFixed(2);
+    _petrolController.text = (planning.openingStock['petrol'] ?? 0)
+        .toStringAsFixed(2);
+    _dieselController.text = (planning.openingStock['diesel'] ?? 0)
+        .toStringAsFixed(2);
+    _twoTController.text = (planning.openingStock['two_t_oil'] ?? 0)
+        .toStringAsFixed(2);
     _deliveryLeadController.text = planning.deliveryLeadDays.toString();
     _alertBeforeController.text = planning.alertBeforeDays.toString();
     _seeded = true;
@@ -144,9 +145,9 @@ class _InventoryPlanningSettingsScreenState
         _seeded = false;
         _future = _inventoryService.fetchStationConfig();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Planning rules saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Planning rules saved.')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -176,9 +177,7 @@ class _InventoryPlanningSettingsScreenState
             color: kClayBg,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                Text('Failed to load: ${_errorText(snapshot.error)}'),
-              ],
+              children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
             ),
           );
         }
@@ -198,21 +197,22 @@ class _InventoryPlanningSettingsScreenState
                   ClaySubHeader(
                     title: 'Tank Stock & Reorder Planning',
                     onBack: widget.onBack,
-                    trailing: widget.canEdit
-                        ? _EditTogglePill(
-                            isEditing: _isEditing,
-                            onTap: () {
-                              setState(() {
-                                if (_isEditing) {
-                                  _isEditing = false;
-                                  _resetFromStation(station);
-                                } else {
-                                  _isEditing = true;
-                                }
-                              });
-                            },
-                          )
-                        : null,
+                    trailing:
+                        widget.canEdit
+                            ? _EditTogglePill(
+                              isEditing: _isEditing,
+                              onTap: () {
+                                setState(() {
+                                  if (_isEditing) {
+                                    _isEditing = false;
+                                    _resetFromStation(station);
+                                  } else {
+                                    _isEditing = true;
+                                  }
+                                });
+                              },
+                            )
+                            : null,
                   ),
 
                 // ── Hero ───────────────────────────────────────────
@@ -382,13 +382,14 @@ class _InventoryPlanningSettingsScreenState
                   FilledButton.icon(
                     onPressed:
                         _isEditing && !_saving ? () => _save(station) : null,
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
+                    icon:
+                        _saving
+                            ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Icon(Icons.save_outlined),
                     label: Text(_saving ? 'Saving...' : 'Save Planning Rules'),
                   ),
                 ],
@@ -413,18 +414,19 @@ class _InventoryPlanningSettingsScreenState
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed: station == null
-                      ? null
-                      : () {
-                          setState(() {
-                            if (_isEditing) {
-                              _isEditing = false;
-                              _resetFromStation(station);
-                            } else {
-                              _isEditing = true;
-                            }
-                          });
-                        },
+                  onPressed:
+                      station == null
+                          ? null
+                          : () {
+                            setState(() {
+                              if (_isEditing) {
+                                _isEditing = false;
+                                _resetFromStation(station);
+                              } else {
+                                _isEditing = true;
+                              }
+                            });
+                          },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -464,8 +466,9 @@ class _EditTogglePill extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
+        child: OneLineScaleText(
           isEditing ? 'Cancel' : 'Edit',
+          alignment: Alignment.center,
           style: TextStyle(
             color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
             fontWeight: FontWeight.w700,

@@ -5,6 +5,7 @@ import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class DailySummaryScreen extends StatefulWidget {
   const DailySummaryScreen({super.key});
@@ -136,7 +137,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                 child: Column(
                   children: [
                     _SummaryMetricRow(
-                      label: 'Revenue',
+                      label: 'Sales',
                       value: formatCurrency(data.revenue),
                     ),
                     const Divider(color: kClayBg, height: 24),
@@ -197,7 +198,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                           children: [
                             Expanded(
                               child: _MetricColumn(
-                                label: 'Revenue',
+                                label: 'Sales',
                                 value: formatCurrency(item.revenue),
                               ),
                             ),
@@ -225,61 +226,66 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
               const _SectionLabel(label: 'PAYMENTS'),
               const SizedBox(height: 10),
               ClayCard(
-                child: entry == null
-                    ? const Text(
-                        'No daily entry saved for this date.',
-                        style: TextStyle(
-                          color: kClaySub,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _SummaryMetricRow(
-                            label: 'Cash',
-                            value: formatCurrency(entry.paymentBreakdown.cash),
+                child:
+                    entry == null
+                        ? const Text(
+                          'No daily entry saved for this date.',
+                          style: TextStyle(
+                            color: kClaySub,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const Divider(color: kClayBg, height: 24),
-                          _SummaryMetricRow(
-                            label: 'HP Pay',
-                            value: formatCurrency(entry.paymentBreakdown.check),
-                          ),
-                          const Divider(color: kClayBg, height: 24),
-                          _SummaryMetricRow(
-                            label: 'UPI',
-                            value: formatCurrency(entry.paymentBreakdown.upi),
-                          ),
-                          const Divider(color: kClayBg, height: 24),
-                          _SummaryMetricRow(
-                            label: 'Credit',
-                            value: formatCurrency(
-                              entry.creditEntries.fold<double>(
-                                0,
-                                (sum, item) => sum + item.amount,
+                        )
+                        : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SummaryMetricRow(
+                              label: 'Cash',
+                              value: formatCurrency(
+                                entry.paymentBreakdown.cash,
                               ),
                             ),
-                          ),
-                          if (entry.varianceNote.isNotEmpty) ...[
-                            const SizedBox(height: 16),
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFEF2F2),
-                                borderRadius: BorderRadius.circular(16),
+                            const Divider(color: kClayBg, height: 24),
+                            _SummaryMetricRow(
+                              label: 'HP Pay',
+                              value: formatCurrency(
+                                entry.paymentBreakdown.check,
                               ),
-                              child: Text(
-                                entry.varianceNote,
-                                style: const TextStyle(
-                                  color: Color(0xFFB91C1C),
-                                  fontWeight: FontWeight.w700,
+                            ),
+                            const Divider(color: kClayBg, height: 24),
+                            _SummaryMetricRow(
+                              label: 'UPI',
+                              value: formatCurrency(entry.paymentBreakdown.upi),
+                            ),
+                            const Divider(color: kClayBg, height: 24),
+                            _SummaryMetricRow(
+                              label: 'Credit',
+                              value: formatCurrency(
+                                entry.creditEntries.fold<double>(
+                                  0,
+                                  (sum, item) => sum + item.amount,
                                 ),
                               ),
                             ),
+                            if (entry.varianceNote.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  entry.varianceNote,
+                                  style: const TextStyle(
+                                    color: Color(0xFFB91C1C),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
+                        ),
               ),
             ],
           );
@@ -322,8 +328,9 @@ class _HeroChip extends StatelessWidget {
         color: Colors.white.withValues(alpha: 0.18),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
+      child: OneLineScaleText(
         '$label  $value',
+        alignment: Alignment.center,
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
@@ -345,7 +352,7 @@ class _SummaryMetricRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Text(
+          child: OneLineScaleText(
             label,
             style: const TextStyle(
               color: kClaySub,
@@ -354,7 +361,7 @@ class _SummaryMetricRow extends StatelessWidget {
             ),
           ),
         ),
-        Text(
+        OneLineScaleText(
           value,
           style: const TextStyle(
             color: kClayPrimary,
@@ -378,7 +385,7 @@ class _MetricColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        OneLineScaleText(
           label,
           style: const TextStyle(
             color: kClaySub,
@@ -387,7 +394,7 @@ class _MetricColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        OneLineScaleText(
           value,
           style: const TextStyle(
             color: kClayPrimary,
@@ -416,8 +423,9 @@ class _DailyStatusBadge extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
+      child: OneLineScaleText(
         status.isEmpty ? 'Unknown' : status,
+        alignment: Alignment.center,
         style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w800),
       ),
     );

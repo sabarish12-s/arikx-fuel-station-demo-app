@@ -7,18 +7,10 @@ import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class SalesDashboardScreen extends StatefulWidget {
-  const SalesDashboardScreen({
-    super.key,
-    this.onOpenClosingStock,
-    this.onOpenEntryHistory,
-    this.onOpenDailySummary,
-  });
-
-  final FutureOr<void> Function()? onOpenClosingStock;
-  final FutureOr<void> Function()? onOpenEntryHistory;
-  final FutureOr<void> Function()? onOpenDailySummary;
+  const SalesDashboardScreen({super.key});
 
   @override
   State<SalesDashboardScreen> createState() => _SalesDashboardScreenState();
@@ -27,7 +19,6 @@ class SalesDashboardScreen extends StatefulWidget {
 class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   final SalesService _salesService = SalesService();
   late Future<SalesDashboardModel> _future;
-  String? _busyAction;
 
   String _errorText(Object? error) {
     return userFacingErrorMessage(error);
@@ -43,27 +34,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
     setState(() {
       _future = _salesService.fetchDashboard();
     });
-  }
-
-  Future<void> _runAction(
-    String actionKey,
-    FutureOr<void> Function()? action,
-  ) async {
-    if (_busyAction != null || action == null) {
-      return;
-    }
-    setState(() {
-      _busyAction = actionKey;
-    });
-    try {
-      await Future<void>.sync(action);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _busyAction = null;
-        });
-      }
-    }
   }
 
   @override
@@ -111,6 +81,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
+              // ── Hero header ────────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
                 decoration: BoxDecoration(
@@ -149,73 +120,100 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Today Revenue ${formatCurrency(data.revenue)}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
                     const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    Row(
                       children: [
-                        _HeroStatChip(
-                          label: 'Revenue',
-                          value: formatCurrency(data.revenue),
-                        ),
-                        _HeroStatChip(
-                          label: 'Liters',
-                          value: formatLiters(
-                            data.petrolSold + data.dieselSold + data.twoTSold,
+                        Expanded(
+                          child: _HeroStatChip(
+                            label: 'Liters',
+                            value: formatLiters(
+                              data.petrolSold +
+                                  data.dieselSold +
+                                  data.twoTSold,
+                            ),
                           ),
                         ),
-                        _HeroStatChip(
-                          label: 'Flagged',
-                          value: '$flaggedEntries',
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _HeroStatChip(
+                            label: 'Flagged',
+                            value: '$flaggedEntries',
+                          ),
                         ),
-                        _HeroStatChip(
-                          label: 'Pending',
-                          value: '$pendingEntries',
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _HeroStatChip(
+                            label: 'Pending',
+                            value: '$pendingEntries',
+                          ),
                         ),
-                        _HeroStatChip(
-                          label: 'Approved',
-                          value: '$approvedEntries',
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: _HeroStatChip(
+                            label: 'Approved',
+                            value: '$approvedEntries',
+                          ),
                         ),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              _ActionCard(
-                title: 'Enter Daily Sales',
-                icon: Icons.propane_tank_outlined,
-                iconBg: const Color(0xFFD7F2FB),
-                loading: _busyAction == 'sales',
-                onTap: () => _runAction('sales', widget.onOpenClosingStock),
-              ),
-              const SizedBox(height: 12),
-              _ActionCard(
-                title: 'Entry History',
-                icon: Icons.list_alt_rounded,
-                iconBg: const Color(0xFFE8ECF9),
-                loading: _busyAction == 'history',
-                onTap: () => _runAction('history', widget.onOpenEntryHistory),
-              ),
-              const SizedBox(height: 12),
-              _ActionCard(
-                title: 'Daily Summary',
-                icon: Icons.analytics_outlined,
-                iconBg: const Color(0xFFEDE4FF),
-                loading: _busyAction == 'summary',
-                onTap: () => _runAction('summary', widget.onOpenDailySummary),
-              ),
+
               const SizedBox(height: 18),
+
+              // ── Fuel sales cards ───────────────────────────────────────
               const Text(
-                'TODAY\'S ENTRIES',
+                'FUEL DISPENSED',
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: kClaySub,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _FuelCard(
+                      label: 'Petrol',
+                      liters: data.petrolSold,
+                      icon: Icons.local_gas_station_rounded,
+                      color: const Color(0xFF1A3A7A),
+                      bgColor: const Color(0xFFD7E8FB),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _FuelCard(
+                      label: 'Diesel',
+                      liters: data.dieselSold,
+                      icon: Icons.oil_barrel_rounded,
+                      color: const Color(0xFF2AA878),
+                      bgColor: const Color(0xFFD4F5E9),
+                    ),
+                  ),
+                  if (data.twoTSold > 0) ...[
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _FuelCard(
+                        label: '2T Oil',
+                        liters: data.twoTSold,
+                        icon: Icons.opacity_rounded,
+                        color: const Color(0xFFCE5828),
+                        bgColor: const Color(0xFFFDE8DF),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+
+              const SizedBox(height: 22),
+
+              // ── Recently submitted ─────────────────────────────────────
+              const Text(
+                'RECENTLY SUBMITTED',
                 style: TextStyle(
                   fontSize: 11,
                   letterSpacing: 1.1,
@@ -227,7 +225,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               if (data.todaysEntries.isEmpty)
                 const ClayCard(
                   child: Text(
-                    'No entries have been created today.',
+                    'No entries submitted yet.',
                     style: TextStyle(
                       color: kClaySub,
                       fontWeight: FontWeight.w600,
@@ -289,23 +287,25 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${formatLiters(entry.totals.sold.petrol)} petrol, ${formatLiters(entry.totals.sold.diesel)} diesel, ${formatLiters(entry.totals.sold.twoT)} 2T oil',
+                                '${formatLiters(entry.totals.sold.petrol)} petrol  •  ${formatLiters(entry.totals.sold.diesel)} diesel'
+                                '${entry.totals.sold.twoT > 0 ? '  •  ${formatLiters(entry.totals.sold.twoT)} 2T' : ''}',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: kClayPrimary,
+                                  fontSize: 13,
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                entry.flagged
-                                    ? entry.varianceNote
-                                    : 'Collected ${formatCurrency(entry.paymentTotal)} • ${entry.status}',
-                                style: const TextStyle(
-                                  color: kClaySub,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                              if (entry.flagged && entry.varianceNote.isNotEmpty) ...[
+                                const SizedBox(height: 3),
+                                Text(
+                                  entry.varianceNote,
+                                  style: const TextStyle(
+                                    color: Color(0xFFCE5828),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
                           ),
                         ),
@@ -321,6 +321,79 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   }
 }
 
+// ── Fuel dispensed card ────────────────────────────────────────────────────────
+class _FuelCard extends StatelessWidget {
+  const _FuelCard({
+    required this.label,
+    required this.liters,
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+  });
+
+  final String label;
+  final double liters;
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8C0DC).withValues(alpha: 0.7),
+            offset: const Offset(4, 4),
+            blurRadius: 12,
+          ),
+          const BoxShadow(
+            color: Colors.white,
+            offset: Offset(-3, -3),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 12),
+          OneLineScaleText(
+            formatLiters(liters),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: kClaySub,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Hero stat chip ─────────────────────────────────────────────────────────────
 class _HeroStatChip extends StatelessWidget {
   const _HeroStatChip({required this.label, required this.value});
 
@@ -330,13 +403,14 @@ class _HeroStatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
+      child: OneLineScaleText(
         '$label  $value',
+        alignment: Alignment.center,
         style: const TextStyle(
           color: Colors.white,
           fontSize: 12,
@@ -347,75 +421,7 @@ class _HeroStatChip extends StatelessWidget {
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  const _ActionCard({
-    required this.title,
-    required this.icon,
-    required this.iconBg,
-    required this.loading,
-    this.onTap,
-  });
-
-  final String title;
-  final IconData icon;
-  final Color iconBg;
-  final bool loading;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return ClayCard(
-      padding: EdgeInsets.zero,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(20),
-          onTap: loading ? null : onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 54,
-                  height: 54,
-                  decoration: BoxDecoration(
-                    color: iconBg,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(icon, color: kClayPrimary),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    loading ? '$title  Loading...' : title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18,
-                      color: kClayPrimary,
-                    ),
-                  ),
-                ),
-                loading
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          kClayHeroStart,
-                        ),
-                      ),
-                    )
-                    : const Icon(Icons.chevron_right_rounded, color: kClaySub),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
+// ── Entry badge ────────────────────────────────────────────────────────────────
 class _DashboardEntryBadge extends StatelessWidget {
   const _DashboardEntryBadge({required this.flagged, required this.status});
 
@@ -446,8 +452,9 @@ class _DashboardEntryBadge extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
+      child: OneLineScaleText(
         label,
+        alignment: Alignment.center,
         style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w800),
       ),
     );

@@ -5,6 +5,7 @@ import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class FuelPriceSettingsScreen extends StatefulWidget {
   const FuelPriceSettingsScreen({
@@ -101,19 +102,23 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
   Future<void> _openPriceHistory(FuelPriceModel price) async {
     final result = await Navigator.of(context).push<FuelPriceModel>(
       MaterialPageRoute<FuelPriceModel>(
-        builder: (_) => _FuelPriceHistoryScreen(
-          title: _prettyFuelLabel(price.fuelTypeId),
-          initialPrice: _clonePrice(price),
-          canEdit: widget.canEdit,
-          startInEditMode: _isEditing,
-        ),
+        builder:
+            (_) => _FuelPriceHistoryScreen(
+              title: _prettyFuelLabel(price.fuelTypeId),
+              initialPrice: _clonePrice(price),
+              canEdit: widget.canEdit,
+              startInEditMode: _isEditing,
+            ),
       ),
     );
     if (!mounted || result == null) return;
     setState(() {
-      _draftPrices = _draftPrices
-          .map((item) => item.fuelTypeId == result.fuelTypeId ? result : item)
-          .toList();
+      _draftPrices =
+          _draftPrices
+              .map(
+                (item) => item.fuelTypeId == result.fuelTypeId ? result : item,
+              )
+              .toList();
     });
   }
 
@@ -129,9 +134,10 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         return fuelTypeId
             .split('_')
             .map(
-              (part) => part.isEmpty
-                  ? part
-                  : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+              (part) =>
+                  part.isEmpty
+                      ? part
+                      : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
             )
             .join(' ');
     }
@@ -139,9 +145,13 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
 
   String _periodLabel(FuelPricePeriodModel period) {
     final from =
-        period.effectiveFrom.isEmpty ? 'Unknown' : formatDateLabel(period.effectiveFrom);
+        period.effectiveFrom.isEmpty
+            ? 'Unknown'
+            : formatDateLabel(period.effectiveFrom);
     final to =
-        period.effectiveTo.isEmpty ? 'Ongoing' : formatDateLabel(period.effectiveTo);
+        period.effectiveTo.isEmpty
+            ? 'Ongoing'
+            : formatDateLabel(period.effectiveTo);
     return '$from to $to';
   }
 
@@ -211,8 +221,10 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
               GestureDetector(
                 onTap: _saving ? null : () => _openPriceHistory(price),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
                   decoration: BoxDecoration(
                     color: kClayBg,
                     borderRadius: BorderRadius.circular(12),
@@ -338,11 +350,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         if (snapshot.hasError) {
           return ColoredBox(
             color: kClayBg,
-            child: Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-              ),
-            ),
+            child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
           );
         }
         final prices = snapshot.data ?? const <FuelPriceModel>[];
@@ -359,19 +367,20 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                   ClaySubHeader(
                     title: 'Fuel Prices',
                     onBack: widget.onBack,
-                    trailing: widget.canEdit
-                        ? _EditTogglePill(
-                            isEditing: _isEditing,
-                            disabled: _draftPrices.isEmpty || _saving,
-                            onTap: () {
-                              if (_isEditing) {
-                                _cancelEditing();
-                              } else {
-                                setState(() => _isEditing = true);
-                              }
-                            },
-                          )
-                        : null,
+                    trailing:
+                        widget.canEdit
+                            ? _EditTogglePill(
+                              isEditing: _isEditing,
+                              disabled: _draftPrices.isEmpty || _saving,
+                              onTap: () {
+                                if (_isEditing) {
+                                  _cancelEditing();
+                                } else {
+                                  setState(() => _isEditing = true);
+                                }
+                              },
+                            )
+                            : null,
                   ),
 
                 // ── Header info ────────────────────────────────────
@@ -414,9 +423,10 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: _isEditing
-                                ? const Color(0xFF1A3A7A)
-                                : const Color(0xFF2AA878),
+                            color:
+                                _isEditing
+                                    ? const Color(0xFF1A3A7A)
+                                    : const Color(0xFF2AA878),
                           ),
                         ),
                       ),
@@ -452,15 +462,16 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
               builder: (context, snapshot) {
                 final prices = snapshot.data ?? const <FuelPriceModel>[];
                 return TextButton(
-                  onPressed: prices.isEmpty || _saving
-                      ? null
-                      : () {
-                          if (_isEditing) {
-                            _cancelEditing();
-                          } else {
-                            setState(() => _isEditing = true);
-                          }
-                        },
+                  onPressed:
+                      prices.isEmpty || _saving
+                          ? null
+                          : () {
+                            if (_isEditing) {
+                              _cancelEditing();
+                            } else {
+                              setState(() => _isEditing = true);
+                            }
+                          },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -505,12 +516,14 @@ class _EditTogglePill extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
+        child: OneLineScaleText(
           isEditing ? 'Cancel' : 'Edit',
+          alignment: Alignment.center,
           style: TextStyle(
-            color: disabled
-                ? kClaySub
-                : isEditing
+            color:
+                disabled
+                    ? kClaySub
+                    : isEditing
                     ? const Color(0xFFCE5828)
                     : kClayPrimary,
             fontWeight: FontWeight.w700,
@@ -545,7 +558,7 @@ class _PriceMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          OneLineScaleText(
             label,
             style: const TextStyle(
               fontWeight: FontWeight.w700,
@@ -554,7 +567,7 @@ class _PriceMetric extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          OneLineScaleText(
             value,
             style: TextStyle(
               fontWeight: FontWeight.w900,
@@ -600,15 +613,17 @@ class _PriceHistoryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isCurrent
-            ? const Color(0xFF1A3A7A).withValues(alpha: 0.05)
-            : kClayBg,
+        color:
+            isCurrent
+                ? const Color(0xFF1A3A7A).withValues(alpha: 0.05)
+                : kClayBg,
         borderRadius: BorderRadius.circular(16),
-        border: isCurrent
-            ? Border.all(
-                color: const Color(0xFF1A3A7A).withValues(alpha: 0.20),
-              )
-            : null,
+        border:
+            isCurrent
+                ? Border.all(
+                  color: const Color(0xFF1A3A7A).withValues(alpha: 0.20),
+                )
+                : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -626,8 +641,10 @@ class _PriceHistoryTile extends StatelessWidget {
               ),
               if (isCurrent)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(999),
@@ -705,21 +722,21 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
   void initState() {
     super.initState();
     _isEditing = widget.startInEditMode && widget.canEdit;
-    final source = widget.initialPrice.periods.isNotEmpty
-        ? widget.initialPrice.periods
-        : [
-            FuelPricePeriodModel(
-              effectiveFrom: widget.initialPrice.effectiveFrom,
-              effectiveTo: widget.initialPrice.effectiveTo,
-              costPrice: widget.initialPrice.costPrice,
-              sellingPrice: widget.initialPrice.sellingPrice,
-              updatedAt: widget.initialPrice.updatedAt,
-              updatedBy: widget.initialPrice.updatedBy,
-            ),
-          ];
-    _periods = source
-        .map((period) => _EditablePricePeriod.fromModel(period))
-        .toList();
+    final source =
+        widget.initialPrice.periods.isNotEmpty
+            ? widget.initialPrice.periods
+            : [
+              FuelPricePeriodModel(
+                effectiveFrom: widget.initialPrice.effectiveFrom,
+                effectiveTo: widget.initialPrice.effectiveTo,
+                costPrice: widget.initialPrice.costPrice,
+                sellingPrice: widget.initialPrice.sellingPrice,
+                updatedAt: widget.initialPrice.updatedAt,
+                updatedBy: widget.initialPrice.updatedBy,
+              ),
+            ];
+    _periods =
+        source.map((period) => _EditablePricePeriod.fromModel(period)).toList();
   }
 
   @override
@@ -776,22 +793,24 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
   }
 
   String? _validateAllPeriods() {
-    final normalized = _periods
-        .map(
-          (period) => FuelPricePeriodModel(
-            effectiveFrom: period.effectiveFrom,
-            effectiveTo: period.effectiveTo,
-            costPrice: double.tryParse(period.costController.text.trim()) ?? 0,
-            sellingPrice:
-                double.tryParse(period.sellingController.text.trim()) ?? 0,
-            updatedAt: period.updatedAt,
-            updatedBy: period.updatedBy,
-          ),
-        )
-        .toList()
-      ..sort(
-        (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
-      );
+    final normalized =
+        _periods
+            .map(
+              (period) => FuelPricePeriodModel(
+                effectiveFrom: period.effectiveFrom,
+                effectiveTo: period.effectiveTo,
+                costPrice:
+                    double.tryParse(period.costController.text.trim()) ?? 0,
+                sellingPrice:
+                    double.tryParse(period.sellingController.text.trim()) ?? 0,
+                updatedAt: period.updatedAt,
+                updatedBy: period.updatedBy,
+              ),
+            )
+            .toList()
+          ..sort(
+            (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
+          );
 
     for (var index = 1; index < normalized.length; index += 1) {
       final previous = normalized[index - 1];
@@ -831,36 +850,40 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     if (formState == null || !formState.validate()) return;
     final overlapError = _validateAllPeriods();
     if (overlapError != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(overlapError)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(overlapError)));
       return;
     }
 
-    final nextPeriods = _periods
-        .map(
-          (period) => FuelPricePeriodModel(
-            effectiveFrom: period.effectiveFrom,
-            effectiveTo: period.effectiveTo,
-            costPrice: double.tryParse(period.costController.text.trim()) ?? 0,
-            sellingPrice:
-                double.tryParse(period.sellingController.text.trim()) ?? 0,
-            updatedAt: period.updatedAt,
-            updatedBy: period.updatedBy,
-          ),
-        )
-        .toList()
-      ..sort(
-        (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
-      );
+    final nextPeriods =
+        _periods
+            .map(
+              (period) => FuelPricePeriodModel(
+                effectiveFrom: period.effectiveFrom,
+                effectiveTo: period.effectiveTo,
+                costPrice:
+                    double.tryParse(period.costController.text.trim()) ?? 0,
+                sellingPrice:
+                    double.tryParse(period.sellingController.text.trim()) ?? 0,
+                updatedAt: period.updatedAt,
+                updatedBy: period.updatedBy,
+              ),
+            )
+            .toList()
+          ..sort(
+            (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
+          );
 
-    final current = FuelPriceModel(
-              fuelTypeId: widget.initialPrice.fuelTypeId,
-              costPrice: widget.initialPrice.costPrice,
-              sellingPrice: widget.initialPrice.sellingPrice,
-              updatedAt: widget.initialPrice.updatedAt,
-              updatedBy: widget.initialPrice.updatedBy,
-              periods: nextPeriods,
-            ).activePeriod ??
+    final current =
+        FuelPriceModel(
+          fuelTypeId: widget.initialPrice.fuelTypeId,
+          costPrice: widget.initialPrice.costPrice,
+          sellingPrice: widget.initialPrice.sellingPrice,
+          updatedAt: widget.initialPrice.updatedAt,
+          updatedBy: widget.initialPrice.updatedBy,
+          periods: nextPeriods,
+        ).activePeriod ??
         nextPeriods.last;
 
     Navigator.of(context).pop(
@@ -890,16 +913,17 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
       ),
     ]..sort((left, right) => right.effectiveFrom.compareTo(left.effectiveFrom));
 
-    final current = periods.isEmpty
-        ? null
-        : FuelPriceModel(
-            fuelTypeId: widget.initialPrice.fuelTypeId,
-            costPrice: widget.initialPrice.costPrice,
-            sellingPrice: widget.initialPrice.sellingPrice,
-            updatedAt: widget.initialPrice.updatedAt,
-            updatedBy: widget.initialPrice.updatedBy,
-            periods: periods,
-          ).activePeriod;
+    final current =
+        periods.isEmpty
+            ? null
+            : FuelPriceModel(
+              fuelTypeId: widget.initialPrice.fuelTypeId,
+              costPrice: widget.initialPrice.costPrice,
+              sellingPrice: widget.initialPrice.sellingPrice,
+              updatedAt: widget.initialPrice.updatedAt,
+              updatedBy: widget.initialPrice.updatedBy,
+              periods: periods,
+            ).activePeriod;
 
     return Scaffold(
       backgroundColor: kClayBg,
@@ -1004,8 +1028,8 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                         ),
                                         if (_periods.length > 1)
                                           IconButton(
-                                            onPressed: () =>
-                                                _removePeriod(index),
+                                            onPressed:
+                                                () => _removePeriod(index),
                                             icon: const Icon(
                                               Icons.delete_outline_rounded,
                                               color: Color(0xFFCE5828),
@@ -1018,10 +1042,11 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                       children: [
                                         Expanded(
                                           child: OutlinedButton.icon(
-                                            onPressed: () => _pickDate(
-                                              period: period,
-                                              isFrom: true,
-                                            ),
+                                            onPressed:
+                                                () => _pickDate(
+                                                  period: period,
+                                                  isFrom: true,
+                                                ),
                                             icon: const Icon(
                                               Icons.calendar_month_rounded,
                                             ),
@@ -1029,18 +1054,19 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                               period.effectiveFrom.isEmpty
                                                   ? 'From date'
                                                   : formatDateLabel(
-                                                      period.effectiveFrom,
-                                                    ),
+                                                    period.effectiveFrom,
+                                                  ),
                                             ),
                                           ),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: OutlinedButton.icon(
-                                            onPressed: () => _pickDate(
-                                              period: period,
-                                              isFrom: false,
-                                            ),
+                                            onPressed:
+                                                () => _pickDate(
+                                                  period: period,
+                                                  isFrom: false,
+                                                ),
                                             icon: const Icon(
                                               Icons.event_available_rounded,
                                             ),
@@ -1048,8 +1074,8 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                               period.effectiveTo.isEmpty
                                                   ? 'To: Ongoing'
                                                   : formatDateLabel(
-                                                      period.effectiveTo,
-                                                    ),
+                                                    period.effectiveTo,
+                                                  ),
                                             ),
                                           ),
                                         ),
@@ -1070,8 +1096,9 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                       ),
                                     if (period.updatedAt.trim().isNotEmpty)
                                       Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.only(
+                                          bottom: 8,
+                                        ),
                                         child: Text(
                                           'Last updated ${formatDateLabel(period.updatedAt)}',
                                           style: const TextStyle(
@@ -1084,30 +1111,28 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                       controller: period.costController,
                                       keyboardType:
                                           const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                      ),
+                                            decimal: true,
+                                          ),
                                       decoration: const InputDecoration(
                                         labelText: 'Cost price',
                                         filled: true,
                                         fillColor: kClayBg,
                                       ),
-                                      validator: (_) =>
-                                          _validatePeriod(period),
+                                      validator: (_) => _validatePeriod(period),
                                     ),
                                     const SizedBox(height: 12),
                                     TextFormField(
                                       controller: period.sellingController,
                                       keyboardType:
                                           const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                      ),
+                                            decimal: true,
+                                          ),
                                       decoration: const InputDecoration(
                                         labelText: 'Selling price',
                                         filled: true,
                                         fillColor: kClayBg,
                                       ),
-                                      validator: (_) =>
-                                          _validatePeriod(period),
+                                      validator: (_) => _validatePeriod(period),
                                     ),
                                   ],
                                 ),
@@ -1126,25 +1151,29 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                       )
                     else
                       Column(
-                        children: periods
-                            .map(
-                              (period) => _PriceHistoryTile(
-                                title:
-                                    '${_formatHistoryDate(period.effectiveFrom)} to ${_formatHistoryDate(period.effectiveTo, empty: 'Ongoing')}',
-                                effectiveFrom: period.effectiveFrom,
-                                effectiveTo: period.effectiveTo,
-                                updatedAt: period.updatedAt,
-                                costPrice: period.costPrice,
-                                sellingPrice: period.sellingPrice,
-                                isCurrent: current != null &&
-                                    period.effectiveFrom ==
-                                        current.effectiveFrom &&
-                                    period.effectiveTo == current.effectiveTo &&
-                                    period.costPrice == current.costPrice &&
-                                    period.sellingPrice == current.sellingPrice,
-                              ),
-                            )
-                            .toList(),
+                        children:
+                            periods
+                                .map(
+                                  (period) => _PriceHistoryTile(
+                                    title:
+                                        '${_formatHistoryDate(period.effectiveFrom)} to ${_formatHistoryDate(period.effectiveTo, empty: 'Ongoing')}',
+                                    effectiveFrom: period.effectiveFrom,
+                                    effectiveTo: period.effectiveTo,
+                                    updatedAt: period.updatedAt,
+                                    costPrice: period.costPrice,
+                                    sellingPrice: period.sellingPrice,
+                                    isCurrent:
+                                        current != null &&
+                                        period.effectiveFrom ==
+                                            current.effectiveFrom &&
+                                        period.effectiveTo ==
+                                            current.effectiveTo &&
+                                        period.costPrice == current.costPrice &&
+                                        period.sellingPrice ==
+                                            current.sellingPrice,
+                                  ),
+                                )
+                                .toList(),
                       ),
                   ],
                 ),

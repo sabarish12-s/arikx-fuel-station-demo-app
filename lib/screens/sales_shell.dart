@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_models.dart';
+import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 import 'account_screen.dart';
 import 'closing_stock_entry_screen.dart';
-import 'daily_summary_screen.dart';
 import 'entry_history_screen.dart';
 import 'inventory_hub_screen.dart';
 import 'sales_dashboard_screen.dart';
@@ -28,15 +28,7 @@ class _SalesShellState extends State<SalesShell> {
   void initState() {
     super.initState();
     _screens = [
-      SalesDashboardScreen(
-        onOpenClosingStock: () async => _selectIndex(1),
-        onOpenEntryHistory: () async => _selectIndex(3),
-        onOpenDailySummary: () async {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute<void>(builder: (_) => const DailySummaryScreen()));
-        },
-      ),
+      const SalesDashboardScreen(),
       const ClosingStockEntryScreen(),
       const InventoryHubScreen(),
       const EntryHistoryScreen(),
@@ -82,65 +74,30 @@ class _SalesShellState extends State<SalesShell> {
         children: List.generate(
           _screens.length,
           (index) =>
-              _loadedScreens.contains(index) ? _screens[index] : const SizedBox.shrink(),
+              _loadedScreens.contains(index)
+                  ? _screens[index]
+                  : const SizedBox.shrink(),
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB8C0DC).withValues(alpha: 0.3),
-              offset: const Offset(0, -6),
-              blurRadius: 18,
-            ),
-          ],
-        ),
-        child: NavigationBarTheme(
-          data: NavigationBarThemeData(
-            backgroundColor: Colors.white,
-            indicatorColor: kClayHeroStart.withValues(alpha: 0.12),
-            iconTheme: WidgetStateProperty.resolveWith((states) {
-              final selected = states.contains(WidgetState.selected);
-              return IconThemeData(color: selected ? kClayHeroStart : kClaySub);
-            }),
-            labelTextStyle: WidgetStateProperty.resolveWith((states) {
-              final selected = states.contains(WidgetState.selected);
-              return TextStyle(
-                color: selected ? kClayHeroStart : kClaySub,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
-              );
-            }),
+      bottomNavigationBar: AppBottomNavBar(
+        selectedIndex: _index,
+        onSelected: _selectIndex,
+        items: const [
+          AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+          AppBottomNavItem(icon: Icons.inventory_2_outlined, label: 'Sales'),
+          AppBottomNavItem(
+            icon: Icons.local_gas_station_outlined,
+            label: 'Inventory',
           ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: (value) {
-              _selectIndex(value);
-            },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.grid_view_rounded),
-                label: 'Dashboard',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.inventory_2_outlined),
-                label: 'Sales',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.local_gas_station_outlined),
-                label: 'Inventory',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.local_shipping_outlined),
-                label: 'History',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                label: 'Account',
-              ),
-            ],
+          AppBottomNavItem(
+            icon: Icons.local_shipping_outlined,
+            label: 'History',
           ),
-        ),
+          AppBottomNavItem(
+            icon: Icons.person_outline_rounded,
+            label: 'Account',
+          ),
+        ],
       ),
     );
   }

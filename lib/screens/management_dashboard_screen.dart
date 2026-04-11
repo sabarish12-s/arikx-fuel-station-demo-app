@@ -8,13 +8,24 @@ import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/responsive_text.dart';
 
 String _shortDateLabel(String raw) {
   final date = DateTime.tryParse(raw);
   if (date == null) return raw;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}';
 }
@@ -28,8 +39,7 @@ class ManagementDashboardScreen extends StatefulWidget {
       _ManagementDashboardScreenState();
 }
 
-class _ManagementDashboardScreenState
-    extends State<ManagementDashboardScreen> {
+class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   final ManagementService _managementService = ManagementService();
   late Future<ManagementDashboardModel> _future;
 
@@ -76,8 +86,9 @@ class _ManagementDashboardScreenState
       helpText: 'Select dashboard range',
     );
     if (range == null) return;
-    final fmt = (DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final fmt =
+        (DateTime d) =>
+            '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     setState(() {
       _preset = 'custom';
       _fromDate = fmt(range.start);
@@ -90,10 +101,14 @@ class _ManagementDashboardScreenState
 
   Color _pumpColor(String pumpId) {
     switch (pumpId) {
-      case 'pump1': return const Color(0xFF1E5CBA);
-      case 'pump2': return const Color(0xFF0F9D58);
-      case 'pump3': return const Color(0xFFF59E0B);
-      default:      return const Color(0xFF7C3AED);
+      case 'pump1':
+        return const Color(0xFF1E5CBA);
+      case 'pump2':
+        return const Color(0xFF0F9D58);
+      case 'pump3':
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFF7C3AED);
     }
   }
 
@@ -137,11 +152,13 @@ class _ManagementDashboardScreenState
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          ...presets.map((p) => _FilterPill(
-            label: p.value,
-            selected: _preset == p.key,
-            onTap: () => _applyPreset(p.key),
-          )),
+          ...presets.map(
+            (p) => _FilterPill(
+              label: p.value,
+              selected: _preset == p.key,
+              onTap: () => _applyPreset(p.key),
+            ),
+          ),
           _FilterPill(
             label: _preset == 'custom' ? 'Custom ✓' : 'Custom Range',
             selected: _preset == 'custom',
@@ -156,7 +173,9 @@ class _ManagementDashboardScreenState
   // ── Hero snapshot card ─────────────────────────────────────────────────────
   Widget _buildHeroCard(ManagementDashboardModel data) {
     final hasAlert =
-        data.varianceCount > 0 || data.flaggedCount > 0 || data.pendingRequests > 0;
+        data.varianceCount > 0 ||
+        data.flaggedCount > 0 ||
+        data.pendingRequests > 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -255,12 +274,13 @@ class _ManagementDashboardScreenState
                     label: 'Approved Entries',
                     value: '${data.entriesCompleted}',
                   ),
-                  right: data.twoTSold > 0
-                      ? _HeroMetricCell(
-                          label: '2T Oil Sold',
-                          value: formatLiters(data.twoTSold),
-                        )
-                      : const SizedBox.shrink(),
+                  right:
+                      data.twoTSold > 0
+                          ? _HeroMetricCell(
+                            label: '2T Oil Sold',
+                            value: formatLiters(data.twoTSold),
+                          )
+                          : const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -328,15 +348,21 @@ class _ManagementDashboardScreenState
 
   // ── Pump + Staff contribution ──────────────────────────────────────────────
   Widget _buildContributionSection(ManagementDashboardModel data) {
-    final pumpSlices = data.pumpPerformance.map((item) => _ContributionSlice(
-      label: formatPumpLabel(item.pumpId, item.pumpLabel),
-      amount: item.collectedAmount,
-      liters: item.liters,
-      subtitle: item.attendantsSeen.isEmpty
-          ? 'No attendants recorded'
-          : item.attendantsSeen.join(', '),
-      color: _pumpColor(item.pumpId),
-    )).toList();
+    final pumpSlices =
+        data.pumpPerformance
+            .map(
+              (item) => _ContributionSlice(
+                label: formatPumpLabel(item.pumpId, item.pumpLabel),
+                amount: item.collectedAmount,
+                liters: item.liters,
+                subtitle:
+                    item.attendantsSeen.isEmpty
+                        ? 'No attendants recorded'
+                        : item.attendantsSeen.join(', '),
+                color: _pumpColor(item.pumpId),
+              ),
+            )
+            .toList();
 
     final staffColors = _uniqueStaffColors(data.attendantPerformance.length);
     final staffSlices = [
@@ -345,32 +371,40 @@ class _ManagementDashboardScreenState
           label: data.attendantPerformance[i].attendantName,
           amount: data.attendantPerformance[i].collectedAmount,
           liters: data.attendantPerformance[i].liters,
-          subtitle: data.attendantPerformance[i].pumpsWorked.isEmpty
-              ? 'No pumps recorded'
-              : data.attendantPerformance[i].pumpsWorked.join(', '),
+          subtitle:
+              data.attendantPerformance[i].pumpsWorked.isEmpty
+                  ? 'No pumps recorded'
+                  : data.attendantPerformance[i].pumpsWorked.join(', '),
           color: staffColors[i],
         ),
     ];
 
-    final pumpItems = data.pumpPerformance.map((item) => _PerformanceItem(
-      title: formatPumpLabel(item.pumpId, item.pumpLabel),
-      subtitle: item.attendantsSeen.isEmpty
-          ? 'No attendants recorded'
-          : item.attendantsSeen.join(', '),
-      liters: item.liters,
-      collectedAmount: item.collectedAmount,
-      computedSalesValue: item.computedSalesValue,
-      variance: item.variance,
-      accent: _pumpColor(item.pumpId),
-    )).toList();
+    final pumpItems =
+        data.pumpPerformance
+            .map(
+              (item) => _PerformanceItem(
+                title: formatPumpLabel(item.pumpId, item.pumpLabel),
+                subtitle:
+                    item.attendantsSeen.isEmpty
+                        ? 'No attendants recorded'
+                        : item.attendantsSeen.join(', '),
+                liters: item.liters,
+                collectedAmount: item.collectedAmount,
+                computedSalesValue: item.computedSalesValue,
+                variance: item.variance,
+                accent: _pumpColor(item.pumpId),
+              ),
+            )
+            .toList();
 
     final staffItems = [
       for (int i = 0; i < data.attendantPerformance.length; i++)
         _PerformanceItem(
           title: data.attendantPerformance[i].attendantName,
-          subtitle: data.attendantPerformance[i].pumpsWorked.isEmpty
-              ? '${data.attendantPerformance[i].activeDays} active days'
-              : '${data.attendantPerformance[i].activeDays} active days  ·  ${data.attendantPerformance[i].pumpsWorked.join(', ')}',
+          subtitle:
+              data.attendantPerformance[i].pumpsWorked.isEmpty
+                  ? '${data.attendantPerformance[i].activeDays} active days'
+                  : '${data.attendantPerformance[i].activeDays} active days  ·  ${data.attendantPerformance[i].pumpsWorked.join(', ')}',
           liters: data.attendantPerformance[i].liters,
           collectedAmount: data.attendantPerformance[i].collectedAmount,
           computedSalesValue: data.attendantPerformance[i].computedSalesValue,
@@ -379,48 +413,56 @@ class _ManagementDashboardScreenState
         ),
     ];
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final wide = constraints.maxWidth >= 900;
-      if (wide) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 900;
+        if (wide) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: _ContributionPieCard(
+                  title: 'Pump Contribution',
+                  slices: pumpSlices,
+                  touchedIndex: _pumpTouchedIndex,
+                  onTouched: (i) => setState(() => _pumpTouchedIndex = i),
+                  performanceItems: pumpItems,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ContributionPieCard(
+                  title: 'Staff Contribution',
+                  slices: staffSlices,
+                  touchedIndex: _staffTouchedIndex,
+                  onTouched: (i) => setState(() => _staffTouchedIndex = i),
+                  performanceItems: staffItems,
+                ),
+              ),
+            ],
+          );
+        }
+        return Column(
           children: [
-            Expanded(child: _ContributionPieCard(
+            _ContributionPieCard(
               title: 'Pump Contribution',
               slices: pumpSlices,
               touchedIndex: _pumpTouchedIndex,
               onTouched: (i) => setState(() => _pumpTouchedIndex = i),
               performanceItems: pumpItems,
-            )),
-            const SizedBox(width: 12),
-            Expanded(child: _ContributionPieCard(
+            ),
+            const SizedBox(height: 12),
+            _ContributionPieCard(
               title: 'Staff Contribution',
               slices: staffSlices,
               touchedIndex: _staffTouchedIndex,
               onTouched: (i) => setState(() => _staffTouchedIndex = i),
               performanceItems: staffItems,
-            )),
+            ),
           ],
         );
-      }
-      return Column(children: [
-        _ContributionPieCard(
-          title: 'Pump Contribution',
-          slices: pumpSlices,
-          touchedIndex: _pumpTouchedIndex,
-          onTouched: (i) => setState(() => _pumpTouchedIndex = i),
-          performanceItems: pumpItems,
-        ),
-        const SizedBox(height: 12),
-        _ContributionPieCard(
-          title: 'Staff Contribution',
-          slices: staffSlices,
-          touchedIndex: _staffTouchedIndex,
-          onTouched: (i) => setState(() => _staffTouchedIndex = i),
-          performanceItems: staffItems,
-        ),
-      ]);
-    });
+      },
+    );
   }
 
   // ── Trend chart ────────────────────────────────────────────────────────────
@@ -454,9 +496,10 @@ class _ManagementDashboardScreenState
     final List<int> uniqueDateIndices = [];
     final seenDates = <String>{};
     for (int i = 0; i < trend.length; i++) {
-      final dateKey = trend[i].date.length >= 10
-          ? trend[i].date.substring(0, 10)
-          : trend[i].date;
+      final dateKey =
+          trend[i].date.length >= 10
+              ? trend[i].date.substring(0, 10)
+              : trend[i].date;
       if (seenDates.add(dateKey)) {
         uniqueDateIndices.add(i);
       }
@@ -487,52 +530,59 @@ class _ManagementDashboardScreenState
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine: (_) =>
-              const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
+          getDrawingHorizontalLine:
+              (_) => const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
-        lineTouchData: compact
-            ? const LineTouchData(enabled: false)
-            : LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => spots.map((s) {
-                    final idx = s.x.toInt();
-                    final point = trend[idx.clamp(0, trend.length - 1)];
-                    final isFirst = s.barIndex == 0;
-                    return LineTooltipItem(
-                      isFirst
-                          ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
-                          : 'Diesel ${formatLiters(s.y)}',
-                      TextStyle(
-                        color: isFirst
-                            ? const Color(0xFF1E5CBA)
-                            : const Color(0xFF0F9D58),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    );
-                  }).toList(),
+        lineTouchData:
+            compact
+                ? const LineTouchData(enabled: false)
+                : LineTouchData(
+                  touchTooltipData: LineTouchTooltipData(
+                    getTooltipItems:
+                        (spots) =>
+                            spots.map((s) {
+                              final idx = s.x.toInt();
+                              final point =
+                                  trend[idx.clamp(0, trend.length - 1)];
+                              final isFirst = s.barIndex == 0;
+                              return LineTooltipItem(
+                                isFirst
+                                    ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
+                                    : 'Diesel ${formatLiters(s.y)}',
+                                TextStyle(
+                                  color:
+                                      isFirst
+                                          ? const Color(0xFF1E5CBA)
+                                          : const Color(0xFF0F9D58),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }).toList(),
+                  ),
                 ),
-              ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(),
           rightTitles: const AxisTitles(),
-          leftTitles: compact
-              ? const AxisTitles()
-              : AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 48,
-                    interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
-                    getTitlesWidget: (value, _) => Text(
-                      '${value.toInt()} L',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF6B7280),
-                      ),
+          leftTitles:
+              compact
+                  ? const AxisTitles()
+                  : AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 48,
+                      interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
+                      getTitlesWidget:
+                          (value, _) => Text(
+                            '${value.toInt()} L',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
                     ),
                   ),
-                ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -551,7 +601,10 @@ class _ManagementDashboardScreenState
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     _shortDateLabel(trend[index].date),
-                    style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF6B7280),
+                    ),
                   ),
                 );
               },
@@ -569,12 +622,13 @@ class _ManagementDashboardScreenState
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
-              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
-                radius: 3,
-                color: const Color(0xFF1E5CBA),
-                strokeWidth: 0,
-                strokeColor: Colors.transparent,
-              ),
+              getDotPainter:
+                  (p, i, b, j) => FlDotCirclePainter(
+                    radius: 3,
+                    color: const Color(0xFF1E5CBA),
+                    strokeWidth: 0,
+                    strokeColor: Colors.transparent,
+                  ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -591,12 +645,13 @@ class _ManagementDashboardScreenState
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
-              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
-                radius: 3,
-                color: const Color(0xFF0F9D58),
-                strokeWidth: 0,
-                strokeColor: Colors.transparent,
-              ),
+              getDotPainter:
+                  (p, i, b, j) => FlDotCirclePainter(
+                    radius: 3,
+                    color: const Color(0xFF0F9D58),
+                    strokeWidth: 0,
+                    strokeColor: Colors.transparent,
+                  ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -607,38 +662,47 @@ class _ManagementDashboardScreenState
       );
     }
 
-    final legend = Row(children: [
-      _LegendDot(color: const Color(0xFF1E5CBA), label: 'Petrol'),
-      const SizedBox(width: 16),
-      _LegendDot(color: const Color(0xFF0F9D58), label: 'Diesel'),
-    ]);
+    final legend = Row(
+      children: [
+        _LegendDot(color: const Color(0xFF1E5CBA), label: 'Petrol'),
+        const SizedBox(width: 16),
+        _LegendDot(color: const Color(0xFF0F9D58), label: 'Diesel'),
+      ],
+    );
 
     return _SectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            _SectionHeader(title: 'Sales Trend'),
-            const Spacer(),
-            IconButton(
-              icon: const Icon(Icons.open_in_full_rounded, size: 18),
-              color: const Color(0xFF9CA3AF),
-              tooltip: 'Expand',
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  fullscreenDialog: true,
-                  builder: (_) => _TrendChartPage(
-                    trend: trend,
-                    rangeLabel: data.range.label,
-                    buildChartData: buildChartData,
-                    legend: legend,
-                  ),
-                ),
+          Row(
+            children: [
+              _SectionHeader(title: 'Sales Trend'),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.open_in_full_rounded, size: 18),
+                color: const Color(0xFF9CA3AF),
+                tooltip: 'Expand',
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        fullscreenDialog: true,
+                        builder:
+                            (_) => _TrendChartPage(
+                              trend: trend,
+                              rangeLabel: data.range.label,
+                              buildChartData: buildChartData,
+                              legend: legend,
+                            ),
+                      ),
+                    ),
               ),
-            ),
-          ]),
+            ],
+          ),
           const SizedBox(height: 12),
-          SizedBox(height: 200, child: LineChart(buildChartData(compact: true))),
+          SizedBox(
+            height: 200,
+            child: LineChart(buildChartData(compact: true)),
+          ),
           const SizedBox(height: 8),
           legend,
         ],
@@ -770,19 +834,18 @@ class _FilterPill extends StatelessWidget {
           color: selected ? const Color(0xFF1E5CBA) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected
-                ? const Color(0xFF1E5CBA)
-                : const Color(0xFFE5E7EB),
+            color: selected ? const Color(0xFF1E5CBA) : const Color(0xFFE5E7EB),
           ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF1E5CBA).withValues(alpha: 0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : [],
+          boxShadow:
+              selected
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF1E5CBA).withValues(alpha: 0.25),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : [],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -795,12 +858,14 @@ class _FilterPill extends StatelessWidget {
               ),
               const SizedBox(width: 5),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF374151),
+            Flexible(
+              child: OneLineScaleText(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : const Color(0xFF374151),
+                ),
               ),
             ),
           ],
@@ -843,7 +908,7 @@ class _HeroMetricCell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        OneLineScaleText(
           label,
           style: const TextStyle(
             color: Colors.white54,
@@ -853,7 +918,7 @@ class _HeroMetricCell extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 3),
-        Text(
+        OneLineScaleText(
           value,
           style: TextStyle(
             color: highlight ? const Color(0xFF93C5FD) : Colors.white,
@@ -884,9 +949,10 @@ class _AlertBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: active
-            ? color.withValues(alpha: 0.18)
-            : Colors.white.withValues(alpha: 0.08),
+        color:
+            active
+                ? color.withValues(alpha: 0.18)
+                : Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: active ? color.withValues(alpha: 0.5) : Colors.transparent,
@@ -895,7 +961,7 @@ class _AlertBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          OneLineScaleText(
             '$count',
             style: TextStyle(
               color: active ? color : Colors.white38,
@@ -904,7 +970,7 @@ class _AlertBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 5),
-          Text(
+          OneLineScaleText(
             label,
             style: TextStyle(
               color: active ? Colors.white70 : Colors.white38,
@@ -994,15 +1060,17 @@ class _ContributionPieCard extends StatelessWidget {
               ),
             )
           else
-            ...performanceItems.map((item) => _PerformanceTile(
-              title: item.title,
-              subtitle: item.subtitle,
-              liters: item.liters,
-              collectedAmount: item.collectedAmount,
-              computedSalesValue: item.computedSalesValue,
-              variance: item.variance,
-              accent: item.accent,
-            )),
+            ...performanceItems.map(
+              (item) => _PerformanceTile(
+                title: item.title,
+                subtitle: item.subtitle,
+                liters: item.liters,
+                collectedAmount: item.collectedAmount,
+                computedSalesValue: item.computedSalesValue,
+                variance: item.variance,
+                accent: item.accent,
+              ),
+            ),
         ],
       ),
     );
@@ -1037,74 +1105,90 @@ class _PieWithLeaderLabels extends StatelessWidget {
       );
     }
 
-    return LayoutBuilder(builder: (ctx, constraints) {
-      const double labelPad = 68.0;
-      final double chartW = constraints.maxWidth;
-      final double pieD = (chartW - labelPad * 2).clamp(80.0, double.infinity);
-      final double pieR = pieD / 2;
-      const double chartH = 270.0;
-      final Offset center = Offset(chartW / 2, chartH / 2);
+    return LayoutBuilder(
+      builder: (ctx, constraints) {
+        const double labelPad = 68.0;
+        final double chartW = constraints.maxWidth;
+        final double pieD = (chartW - labelPad * 2).clamp(
+          80.0,
+          double.infinity,
+        );
+        final double pieR = pieD / 2;
+        const double chartH = 270.0;
+        final Offset center = Offset(chartW / 2, chartH / 2);
 
-      return SizedBox(
-        width: chartW,
-        height: chartH,
-        child: Stack(children: [
-          // Full pie — no center hole
-          Positioned(
-            left: labelPad,
-            top: center.dy - pieR,
-            width: pieD,
-            height: pieD,
-            child: PieChart(PieChartData(
-              centerSpaceRadius: 0,
-              sectionsSpace: 2,
-              startDegreeOffset: -90,
-              pieTouchData: PieTouchData(
-                touchCallback: (event, response) {
-                  final isRelease = event is FlTapUpEvent ||
-                      event is FlLongPressEnd ||
-                      event is FlPointerExitEvent ||
-                      event is FlPanEndEvent;
-                  if (isRelease) { onTouched(-1); return; }
-                  final idx = response?.touchedSection?.touchedSectionIndex;
-                  if (idx != null && idx >= 0) onTouched(idx);
-                },
-              ),
-              sections: [
-                for (int i = 0; i < slices.length; i++)
-                  PieChartSectionData(
-                    value: slices[i].amount,
-                    color: (touchedIndex == -1 || touchedIndex == i)
-                        ? slices[i].color
-                        : slices[i].color.withValues(alpha: 0.3),
-                    radius: touchedIndex == i ? pieR + 6 : pieR,
-                    title: (slices[i].amount / total) >= 0.08
-                        ? '${((slices[i].amount / total) * 100).round()}%'
-                        : '',
-                    titleStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10,
+        return SizedBox(
+          width: chartW,
+          height: chartH,
+          child: Stack(
+            children: [
+              // Full pie — no center hole
+              Positioned(
+                left: labelPad,
+                top: center.dy - pieR,
+                width: pieD,
+                height: pieD,
+                child: PieChart(
+                  PieChartData(
+                    centerSpaceRadius: 0,
+                    sectionsSpace: 2,
+                    startDegreeOffset: -90,
+                    pieTouchData: PieTouchData(
+                      touchCallback: (event, response) {
+                        final isRelease =
+                            event is FlTapUpEvent ||
+                            event is FlLongPressEnd ||
+                            event is FlPointerExitEvent ||
+                            event is FlPanEndEvent;
+                        if (isRelease) {
+                          onTouched(-1);
+                          return;
+                        }
+                        final idx =
+                            response?.touchedSection?.touchedSectionIndex;
+                        if (idx != null && idx >= 0) onTouched(idx);
+                      },
                     ),
-                    titlePositionPercentageOffset: 0.6,
+                    sections: [
+                      for (int i = 0; i < slices.length; i++)
+                        PieChartSectionData(
+                          value: slices[i].amount,
+                          color:
+                              (touchedIndex == -1 || touchedIndex == i)
+                                  ? slices[i].color
+                                  : slices[i].color.withValues(alpha: 0.3),
+                          radius: touchedIndex == i ? pieR + 6 : pieR,
+                          title:
+                              (slices[i].amount / total) >= 0.08
+                                  ? '${((slices[i].amount / total) * 100).round()}%'
+                                  : '',
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 10,
+                          ),
+                          titlePositionPercentageOffset: 0.6,
+                        ),
+                    ],
                   ),
-              ],
-            )),
+                ),
+              ),
+              // Leader lines + outside labels drawn via CustomPaint
+              CustomPaint(
+                size: Size(chartW, chartH),
+                painter: _LeaderLinePainter(
+                  slices: slices,
+                  total: total,
+                  center: center,
+                  pieRadius: pieR,
+                  touchedIndex: touchedIndex,
+                ),
+              ),
+            ],
           ),
-          // Leader lines + outside labels drawn via CustomPaint
-          CustomPaint(
-            size: Size(chartW, chartH),
-            painter: _LeaderLinePainter(
-              slices: slices,
-              total: total,
-              center: center,
-              pieRadius: pieR,
-              touchedIndex: touchedIndex,
-            ),
-          ),
-        ]),
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -1181,13 +1265,15 @@ class _LeaderLinePainter extends CustomPainter {
           elbowPt.dy,
         );
 
-        final linePaint = Paint()
-          ..color = active
-              ? color.withValues(alpha: 0.6)
-              : color.withValues(alpha: 0.2)
-          ..strokeWidth = 1.2
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round;
+        final linePaint =
+            Paint()
+              ..color =
+                  active
+                      ? color.withValues(alpha: 0.6)
+                      : color.withValues(alpha: 0.2)
+              ..strokeWidth = 1.2
+              ..style = PaintingStyle.stroke
+              ..strokeCap = StrokeCap.round;
 
         canvas.drawLine(edgePt, elbowPt, linePaint);
         canvas.drawLine(elbowPt, stubPt, linePaint);
@@ -1196,18 +1282,23 @@ class _LeaderLinePainter extends CustomPainter {
         canvas.drawCircle(
           stubPt,
           2.0,
-          Paint()
-            ..color = active ? color : color.withValues(alpha: 0.25),
+          Paint()..color = active ? color : color.withValues(alpha: 0.25),
         );
 
         // Name label
-        final name = slices[i].label.length > 10
-            ? '${slices[i].label.substring(0, 9)}.'
-            : slices[i].label;
+        final name =
+            slices[i].label.length > 10
+                ? '${slices[i].label.substring(0, 9)}.'
+                : slices[i].label;
         _drawLabel(
-          canvas, name, stubPt, isRight,
+          canvas,
+          name,
+          stubPt,
+          isRight,
           color: active ? const Color(0xFF1A2561) : const Color(0xFFD1D5DB),
-          fontSize: 10.0, bold: true, dy: -8,
+          fontSize: 10.0,
+          bold: true,
+          dy: -8,
         );
       }
 
@@ -1256,61 +1347,99 @@ class _PerformanceTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                  color: Color(0xFF1A2561),
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: accent,
+                  shape: BoxShape.circle,
                 ),
               ),
-            ),
-            if (hasVariance)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Var ${formatCurrency(variance)}',
+              const SizedBox(width: 8),
+              Expanded(
+                child: OneLineScaleText(
+                  title,
                   style: const TextStyle(
-                    color: Color(0xFF92400E),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: Color(0xFF1A2561),
                   ),
                 ),
               ),
-          ]),
+              if (hasVariance)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: OneLineScaleText(
+                    'Var ${formatCurrency(variance)}',
+                    alignment: Alignment.center,
+                    style: const TextStyle(
+                      color: Color(0xFF92400E),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
           ),
           const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: _MetricTag(label: 'Petrol', value: formatLiters(liters.petrol))),
-            const SizedBox(width: 8),
-            Expanded(child: _MetricTag(label: 'Diesel', value: formatLiters(liters.diesel))),
-            if (liters.twoT > 0) ...[
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTag(
+                  label: 'Petrol',
+                  value: formatLiters(liters.petrol),
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: _MetricTag(label: '2T Oil', value: formatLiters(liters.twoT))),
+              Expanded(
+                child: _MetricTag(
+                  label: 'Diesel',
+                  value: formatLiters(liters.diesel),
+                ),
+              ),
+              if (liters.twoT > 0) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _MetricTag(
+                    label: '2T Oil',
+                    value: formatLiters(liters.twoT),
+                  ),
+                ),
+              ],
             ],
-          ]),
+          ),
           const SizedBox(height: 8),
-          Row(children: [
-            Expanded(child: _MetricTag(label: 'Collected', value: formatCurrency(collectedAmount))),
-            const SizedBox(width: 8),
-            Expanded(child: _MetricTag(label: 'Computed', value: formatCurrency(computedSalesValue))),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: _MetricTag(
+                  label: 'Collected',
+                  value: formatCurrency(collectedAmount),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTag(
+                  label: 'Computed',
+                  value: formatCurrency(computedSalesValue),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1342,7 +1471,7 @@ class _MetricTag extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          OneLineScaleText(
             label,
             style: const TextStyle(
               color: Color(0xFF9CA3AF),
@@ -1352,7 +1481,7 @@ class _MetricTag extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               color: Color(0xFF1A2561),
@@ -1374,22 +1503,24 @@ class _LegendDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      ),
-      const SizedBox(width: 5),
-      Text(
-        label,
-        style: const TextStyle(
-          fontSize: 12,
-          color: Color(0xFF374151),
-          fontWeight: FontWeight.w600,
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-      ),
-    ]);
+        const SizedBox(width: 5),
+        OneLineScaleText(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF374151),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
   }
 }
 

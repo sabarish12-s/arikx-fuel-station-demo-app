@@ -5,6 +5,7 @@ import '../services/credit_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class CreditLedgerScreen extends StatefulWidget {
   const CreditLedgerScreen({super.key});
@@ -557,7 +558,7 @@ class _HeroMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          OneLineScaleText(
             label,
             style: const TextStyle(
               color: Colors.white70,
@@ -567,15 +568,13 @@ class _HeroMetric extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
               fontWeight: FontWeight.w900,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
           Text(
             sub,
@@ -1193,7 +1192,7 @@ class _TransactionCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
+                      child: OneLineScaleText(
                         '${item.type.toUpperCase()}  ·  ${formatDateLabel(item.date)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
@@ -1202,7 +1201,7 @@ class _TransactionCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    Text(
+                    OneLineScaleText(
                       formatCurrency(item.amount),
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
