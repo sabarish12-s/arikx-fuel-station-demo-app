@@ -5,7 +5,6 @@ import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/responsive_text.dart';
-import 'credit_ledger_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_receipt_screen.dart';
 import 'inventory_planning_settings_screen.dart';
@@ -53,13 +52,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
               canEdit: widget.canManagePlanning,
             ),
       ),
-    );
-    if (mounted) await _refresh();
-  }
-
-  Future<void> _openCreditLedger() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()),
     );
     if (mounted) await _refresh();
   }
@@ -278,24 +270,15 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     Expanded(
                       flex: 2,
                       child: _InvActionBtn(
-                        icon: Icons.payments_outlined,
-                        label: 'Credit Ledger',
-                        onTap: _openCreditLedger,
+                        icon: Icons.tune_rounded,
+                        label: 'Planning Settings',
+                        onTap: _openPlanningSettings,
                       ),
                     ),
                     const SizedBox(width: 8),
                     _InvIconBtn(icon: Icons.refresh_rounded, onTap: _refresh),
                   ],
                 ),
-
-                if (widget.canManagePlanning) ...[
-                  const SizedBox(height: 8),
-                  _InvActionBtn(
-                    icon: Icons.tune_rounded,
-                    label: 'Planning Settings',
-                    onTap: _openPlanningSettings,
-                  ),
-                ],
 
                 const SizedBox(height: 18),
 

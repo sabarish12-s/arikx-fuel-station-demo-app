@@ -181,11 +181,17 @@ class InventoryService {
   Future<DeliveryReceiptModel> createDeliveryReceipt({
     required String date,
     required Map<String, double> quantities,
+    required String purchasedByName,
     String note = '',
   }) async {
     final response = await _apiClient.post(
       '/inventory/deliveries',
-      body: jsonEncode({'date': date, 'quantities': quantities, 'note': note}),
+      body: jsonEncode({
+        'date': date,
+        'quantities': quantities,
+        'purchasedByName': purchasedByName,
+        'note': note,
+      }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (_isMissingRoute(response.body)) {
@@ -431,10 +437,7 @@ class InventoryService {
         // Fall back to sales-visible entries when management endpoints are unavailable.
       }
     }
-    return _salesService.fetchEntries(
-      month: currentMonthKey(),
-      summary: true,
-    );
+    return _salesService.fetchEntries(month: currentMonthKey(), summary: true);
   }
 
   double _averageDailySales(List<ShiftEntryModel> entries, String fuelKey) {

@@ -6,6 +6,7 @@ import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_date_range_picker.dart';
 import '../widgets/responsive_text.dart';
 import 'entry_workflow_screen.dart';
 
@@ -135,14 +136,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         'Nov',
         'Dec',
       ];
-      String _s(String? d) {
+      String shortDate(String? d) {
         if (d == null) return '—';
         final dt = DateTime.tryParse(d);
         if (dt == null) return d;
         return '${short[dt.month - 1]} ${dt.day}';
       }
 
-      return '${_s(_filterFromDate)} – ${_s(_filterToDate)}';
+      return '${shortDate(_filterFromDate)} – ${shortDate(_filterToDate)}';
     }
     final parts = _filterMonth.split('-');
     if (parts.length != 2) return _filterMonth;
@@ -179,33 +180,33 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     DateTime? toDt =
         _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
 
-    Future<void> pickFrom(StateSetter set) async {
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: fromDt ?? now,
+    Future<void> pickRange(BuildContext pickerContext, StateSetter set) async {
+      final picked = await showAppDateRangePicker(
+        context: pickerContext,
+        fromDate: fromDt,
+        toDate: toDt,
         firstDate: DateTime(2024),
         lastDate: now,
-        helpText: 'From date',
+        helpText: 'Select entry range',
       );
-      if (picked != null) set(() => fromDt = picked);
+      if (picked != null) {
+        set(() {
+          fromDt = picked.start;
+          toDt = picked.end;
+        });
+      }
     }
 
-    Future<void> pickTo(StateSetter set) async {
-      final picked = await showDatePicker(
-        context: context,
-        initialDate: toDt ?? now,
-        firstDate: DateTime(2024),
-        lastDate: now,
-        helpText: 'To date',
-      );
-      if (picked != null) set(() => toDt = picked);
-    }
-
-    String _fmtDt(DateTime? dt) {
+    String formatDialogDate(DateTime? dt) {
       if (dt == null) return 'Tap to choose';
       return formatDateLabel(
         '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}',
       );
+    }
+
+    String formatDialogRange() {
+      if (fromDt == null || toDt == null) return 'Tap to choose';
+      return '${formatDialogDate(fromDt)} to ${formatDialogDate(toDt)}';
     }
 
     final applied = await showDialog<bool>(
@@ -258,7 +259,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     if (!byRange) ...[
                       // ── Month mode ───────────────────────────
                       DropdownButtonFormField<int>(
-                        value: selMonth,
+                        initialValue: selMonth,
                         decoration: const InputDecoration(
                           labelText: 'Month',
                           filled: true,
@@ -277,7 +278,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<int>(
-                        value: selYear,
+                        initialValue: selYear,
                         decoration: const InputDecoration(
                           labelText: 'Year',
                           filled: true,
@@ -303,20 +304,15 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                     ] else ...[
                       // ── Date range mode ──────────────────────
                       _DatePickerRow(
-                        label: 'From',
-                        value: _fmtDt(fromDt),
-                        onTap: () => pickFrom(setDialogState),
-                      ),
-                      const SizedBox(height: 10),
-                      _DatePickerRow(
-                        label: 'To',
-                        value: _fmtDt(toDt),
-                        onTap: () => pickTo(setDialogState),
+                        label: 'Date Range',
+                        value: formatDialogRange(),
+                        onTap: () => pickRange(dialogContext, setDialogState),
                       ),
                       const SizedBox(height: 16),
                       if (fromDt != null && toDt != null)
                         _PreviewBox(
-                          text: '${_fmtDt(fromDt)} – ${_fmtDt(toDt)}',
+                          text:
+                              '${formatDialogDate(fromDt)} – ${formatDialogDate(toDt)}',
                         ),
                     ],
                   ],
@@ -1792,6 +1788,8 @@ class _DatePickerRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

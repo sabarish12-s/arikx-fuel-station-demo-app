@@ -771,6 +771,7 @@ class DeliveryReceiptModel {
     required this.quantity,
     required this.quantities,
     required this.note,
+    required this.purchasedByName,
     required this.createdBy,
     required this.createdAt,
   });
@@ -782,6 +783,7 @@ class DeliveryReceiptModel {
   final double quantity;
   final Map<String, double> quantities;
   final String note;
+  final String purchasedByName;
   final String createdBy;
   final String createdAt;
 
@@ -804,6 +806,7 @@ class DeliveryReceiptModel {
         'two_t_oil': (quantitiesJson['two_t_oil'] as num?)?.toDouble() ?? 0,
       },
       note: json['note']?.toString() ?? '',
+      purchasedByName: json['purchasedByName']?.toString() ?? '',
       createdBy: json['createdBy']?.toString() ?? '',
       createdAt: json['createdAt']?.toString() ?? '',
     );

@@ -127,7 +127,7 @@ class ClaySubHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) trailing!,
+          ...(trailing == null ? const <Widget>[] : <Widget>[trailing!]),
         ],
       ),
     );

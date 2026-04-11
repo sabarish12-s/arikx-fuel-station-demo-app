@@ -42,10 +42,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         backgroundColor: kClayBg,
         title: const Text(
           'Delivery History',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: kClayPrimary,
-          ),
+          style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
         ),
         iconTheme: const IconThemeData(color: kClayPrimary),
       ),
@@ -61,13 +58,11 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
-                  Text(
-                      'Failed to load history\n${_errorText(snapshot.error)}'),
+                  Text('Failed to load history\n${_errorText(snapshot.error)}'),
                 ],
               );
             }
-            final deliveries =
-                snapshot.data ?? const <DeliveryReceiptModel>[];
+            final deliveries = snapshot.data ?? const <DeliveryReceiptModel>[];
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
@@ -80,7 +75,9 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
+                          color: const Color(
+                            0xFF1A3A7A,
+                          ).withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -132,7 +129,9 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
-    if ((petrol > 0 || diesel > 0) && twoT <= 0) return 'Petrol + Diesel Delivery';
+    if ((petrol > 0 || diesel > 0) && twoT <= 0) {
+      return 'Petrol + Diesel Delivery';
+    }
     if (twoT > 0 && petrol <= 0 && diesel <= 0) return '2T Oil Delivery';
     return 'Mixed Delivery';
   }
@@ -142,24 +141,33 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
-    if (petrol > 0)
-      items.add(_DeliveryQtyItem(
-        label: 'Petrol',
-        liters: petrol,
-        color: const Color(0xFF1298B8),
-      ));
-    if (diesel > 0)
-      items.add(_DeliveryQtyItem(
-        label: 'Diesel',
-        liters: diesel,
-        color: const Color(0xFF2AA878),
-      ));
-    if (twoT > 0)
-      items.add(_DeliveryQtyItem(
-        label: '2T Oil',
-        liters: twoT,
-        color: const Color(0xFF7048A8),
-      ));
+    if (petrol > 0) {
+      items.add(
+        _DeliveryQtyItem(
+          label: 'Petrol',
+          liters: petrol,
+          color: const Color(0xFF1298B8),
+        ),
+      );
+    }
+    if (diesel > 0) {
+      items.add(
+        _DeliveryQtyItem(
+          label: 'Diesel',
+          liters: diesel,
+          color: const Color(0xFF2AA878),
+        ),
+      );
+    }
+    if (twoT > 0) {
+      items.add(
+        _DeliveryQtyItem(
+          label: '2T Oil',
+          liters: twoT,
+          color: const Color(0xFF7048A8),
+        ),
+      );
+    }
     return items;
   }
 
@@ -214,33 +222,45 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
                   '${formatDateLabel(delivery.date)}  ·  Total ${formatLiters(delivery.quantity)}',
                   style: const TextStyle(color: kClaySub, fontSize: 12),
                 ),
+                if (delivery.purchasedByName.trim().isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Purchased by ${delivery.purchasedByName}',
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 if (qtyItems.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 6,
-                    children: qtyItems
-                        .map(
-                          (item) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: item.color.withValues(alpha: 0.10),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              '${item.label}: ${formatLiters(item.liters)}',
-                              style: TextStyle(
-                                color: item.color,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 12,
+                    children:
+                        qtyItems
+                            .map(
+                              (item) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: item.color.withValues(alpha: 0.10),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  '${item.label}: ${formatLiters(item.liters)}',
+                                  style: TextStyle(
+                                    color: item.color,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                        )
-                        .toList(),
+                            )
+                            .toList(),
                   ),
                 ],
                 if (delivery.note.trim().isNotEmpty) ...[

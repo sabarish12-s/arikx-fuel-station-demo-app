@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_date_range_picker.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
 
@@ -754,28 +755,25 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     return '${now.year}-$month-$day';
   }
 
-  Future<void> _pickDate({
-    required _EditablePricePeriod period,
-    required bool isFrom,
-  }) async {
-    final raw = isFrom ? period.effectiveFrom : period.effectiveTo;
-    final initial = DateTime.tryParse(raw) ?? DateTime.now();
-    final picked = await showDatePicker(
+  Future<void> _pickDateRange({required _EditablePricePeriod period}) async {
+    final picked = await showAppDateRangePicker(
       context: context,
-      initialDate: initial,
+      fromDate: DateTime.tryParse(period.effectiveFrom),
+      toDate: DateTime.tryParse(period.effectiveTo),
       firstDate: DateTime(2024),
       lastDate: DateTime(2100),
-      helpText: isFrom ? 'Select start date' : 'Select end date',
+      helpText: 'Select price period',
     );
     if (picked == null) return;
-    final month = picked.month.toString().padLeft(2, '0');
-    final day = picked.day.toString().padLeft(2, '0');
+    String fmt(DateTime date) {
+      final month = date.month.toString().padLeft(2, '0');
+      final day = date.day.toString().padLeft(2, '0');
+      return '${date.year}-$month-$day';
+    }
+
     setState(() {
-      if (isFrom) {
-        period.effectiveFrom = '${picked.year}-$month-$day';
-      } else {
-        period.effectiveTo = '${picked.year}-$month-$day';
-      }
+      period.effectiveFrom = fmt(picked.start);
+      period.effectiveTo = fmt(picked.end);
     });
   }
 
@@ -1043,39 +1041,17 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                                         Expanded(
                                           child: OutlinedButton.icon(
                                             onPressed:
-                                                () => _pickDate(
+                                                () => _pickDateRange(
                                                   period: period,
-                                                  isFrom: true,
                                                 ),
                                             icon: const Icon(
                                               Icons.calendar_month_rounded,
                                             ),
                                             label: Text(
-                                              period.effectiveFrom.isEmpty
-                                                  ? 'From date'
-                                                  : formatDateLabel(
-                                                    period.effectiveFrom,
-                                                  ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed:
-                                                () => _pickDate(
-                                                  period: period,
-                                                  isFrom: false,
-                                                ),
-                                            icon: const Icon(
-                                              Icons.event_available_rounded,
-                                            ),
-                                            label: Text(
-                                              period.effectiveTo.isEmpty
-                                                  ? 'To: Ongoing'
-                                                  : formatDateLabel(
-                                                    period.effectiveTo,
-                                                  ),
+                                              '${period.effectiveFrom.isEmpty ? 'From date' : formatDateLabel(period.effectiveFrom)} to '
+                                              '${period.effectiveTo.isEmpty ? 'Ongoing' : formatDateLabel(period.effectiveTo)}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                         ),

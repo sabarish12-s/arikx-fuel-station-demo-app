@@ -7,6 +7,7 @@ import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_date_range_picker.dart';
 import '../widgets/responsive_text.dart';
 import 'credit_ledger_screen.dart';
 
@@ -34,7 +35,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final CreditService _creditService = CreditService();
   final ReportExportService _reportExportService = ReportExportService();
   late Future<_MonthlyReportViewData> _future;
-  String _month = currentMonthKey();
+  final String _month = currentMonthKey();
   DateTime? _fromDate;
   DateTime? _toDate;
   bool _exporting = false;
@@ -172,32 +173,19 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     return '${date.year}-$m-$d';
   }
 
-  Future<void> _pickFromDate() async {
-    final picked = await showDatePicker(
+  Future<void> _pickDateRange() async {
+    final picked = await showAppDateRangePicker(
       context: context,
-      initialDate: _fromDate ?? DateTime.now(),
+      fromDate: _fromDate,
+      toDate: _toDate,
       firstDate: DateTime(2024),
       lastDate: DateTime(2100),
-      helpText: 'From date',
+      helpText: 'Select report range',
     );
     if (picked == null) return;
     setState(() {
-      _fromDate = picked;
-      _future = _fetchReport();
-    });
-  }
-
-  Future<void> _pickToDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _toDate ?? _fromDate ?? DateTime.now(),
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2100),
-      helpText: 'To date',
-    );
-    if (picked == null) return;
-    setState(() {
-      _toDate = picked;
+      _fromDate = picked.start;
+      _toDate = picked.end;
       _future = _fetchReport();
     });
   }
@@ -288,27 +276,22 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (dialogContext, setDialogState) {
-            Future<void> pickFrom() async {
-              final picked = await showDatePicker(
+            Future<void> pickRange() async {
+              final picked = await showAppDateRangePicker(
                 context: dialogContext,
-                initialDate: exportFrom,
+                fromDate: exportFrom,
+                toDate: exportTo,
                 firstDate: DateTime(2024),
                 lastDate: DateTime(2100),
-                helpText: 'From date',
+                helpText:
+                    shareMode ? 'Select share range' : 'Select export range',
               );
-              if (picked != null) setDialogState(() => exportFrom = picked);
-            }
-
-            Future<void> pickTo() async {
-              final picked = await showDatePicker(
-                context: dialogContext,
-                initialDate:
-                    exportTo.isBefore(exportFrom) ? exportFrom : exportTo,
-                firstDate: DateTime(2024),
-                lastDate: DateTime(2100),
-                helpText: 'To date',
-              );
-              if (picked != null) setDialogState(() => exportTo = picked);
+              if (picked != null) {
+                setDialogState(() {
+                  exportFrom = picked.start;
+                  exportTo = picked.end;
+                });
+              }
             }
 
             void applyPreset(DateTime from, DateTime to) => setDialogState(() {
@@ -359,15 +342,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                     ),
                     const SizedBox(height: 14),
                     _ExportDateTile(
-                      label: 'FROM',
-                      value: _fmtDt(exportFrom),
-                      onTap: pickFrom,
-                    ),
-                    const SizedBox(height: 8),
-                    _ExportDateTile(
-                      label: 'TO',
-                      value: _fmtDt(exportTo),
-                      onTap: pickTo,
+                      label: 'DATE RANGE',
+                      value: '${_fmtDt(exportFrom)} to ${_fmtDt(exportTo)}',
+                      onTap: pickRange,
                     ),
                   ],
                 ),
@@ -550,17 +527,12 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                       children: [
                         Expanded(
                           child: _ReportDateTile(
-                            label: 'FROM',
-                            value: _fromDate != null ? _fmtDt(_fromDate!) : '—',
-                            onTap: _pickFromDate,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _ReportDateTile(
-                            label: 'TO',
-                            value: _toDate != null ? _fmtDt(_toDate!) : '—',
-                            onTap: _pickToDate,
+                            label: 'DATE RANGE',
+                            value:
+                                _fromDate != null && _toDate != null
+                                    ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
+                                    : '—',
+                            onTap: _pickDateRange,
                           ),
                         ),
                       ],
@@ -863,12 +835,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                               dotData: FlDotData(
                                 show: report.trend.length <= 8,
                                 getDotPainter:
-                                    (_, __, ___, ____) => FlDotCirclePainter(
-                                      radius: 4,
-                                      color: const Color(0xFF1A3A7A),
-                                      strokeWidth: 2,
-                                      strokeColor: Colors.white,
-                                    ),
+                                    (spot, percent, bar, index) =>
+                                        FlDotCirclePainter(
+                                          radius: 4,
+                                          color: const Color(0xFF1A3A7A),
+                                          strokeWidth: 2,
+                                          strokeColor: Colors.white,
+                                        ),
                               ),
                               belowBarData: BarAreaData(
                                 show: true,
@@ -1331,6 +1304,8 @@ class _ReportDateTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -1605,26 +1580,30 @@ class _ExportDateTile extends StatelessWidget {
               color: Color(0xFF1A3A7A),
             ),
             const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF55606E),
-                    letterSpacing: 0.8,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF55606E),
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF293340),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF293340),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),

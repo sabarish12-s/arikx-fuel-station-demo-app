@@ -4,8 +4,11 @@ import '../models/domain_models.dart';
 import '../services/credit_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_date_range_picker.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
+
+double _collectableCreditBalance(double balance) => balance <= 0 ? 0 : balance;
 
 class CreditLedgerScreen extends StatefulWidget {
   const CreditLedgerScreen({super.key});
@@ -119,22 +122,19 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
     }
   }
 
-  Future<void> _pickDate(bool isFrom) async {
-    final selected = await showDatePicker(
+  Future<void> _pickDateRange() async {
+    final selected = await showAppDateRangePicker(
       context: context,
-      initialDate:
-          isFrom ? (_fromDate ?? DateTime.now()) : (_toDate ?? DateTime.now()),
+      fromDate: _fromDate,
+      toDate: _toDate,
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
-      helpText: isFrom ? 'Select from date' : 'Select to date',
+      helpText: 'Select credit ledger range',
     );
     if (selected == null) return;
     setState(() {
-      if (isFrom) {
-        _fromDate = selected;
-      } else {
-        _toDate = selected;
-      }
+      _fromDate = selected.start;
+      _toDate = selected.end;
       _future = _load();
     });
   }
@@ -161,6 +161,13 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                     width: double.maxFinite,
                     child: LayoutBuilder(
                       builder: (context, constraints) {
+                        CreditCustomerSummaryModel? selectedCustomer;
+                        for (final item in customers) {
+                          if (item.customer.id == selectedCustomerId) {
+                            selectedCustomer = item;
+                            break;
+                          }
+                        }
                         final dropdownWidth =
                             constraints.maxWidth.isFinite
                                 ? constraints.maxWidth
@@ -200,6 +207,11 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                               decoration: const InputDecoration(
                                 labelText: 'Amount',
                                 filled: true,
+                              ).copyWith(
+                                helperText:
+                                    selectedCustomer == null
+                                        ? null
+                                        : 'Borrowed balance: ${formatCurrency(_collectableCreditBalance(selectedCustomer.currentBalance))}',
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -275,13 +287,38 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                           );
                           return;
                         }
+                        final amount =
+                            double.tryParse(amountController.text.trim()) ?? 0;
+                        if (amount <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: Color(0xFFB91C1C),
+                              content: Text(
+                                'Collection amount must be greater than zero.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        final collectableBalance = _collectableCreditBalance(
+                          selectedCustomer.currentBalance,
+                        );
+                        if (amount > collectableBalance) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFFB91C1C),
+                              content: Text(
+                                'Amount received cannot be more than borrowed balance ${formatCurrency(collectableBalance)}.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         try {
                           await _creditService.recordCollection(
                             customerId: selectedCustomer.customer.id,
                             name: selectedCustomer.customer.name,
-                            amount:
-                                double.tryParse(amountController.text.trim()) ??
-                                0,
+                            amount: amount,
                             date: dateController.text.trim(),
                             paymentMode: paymentMode,
                             note: noteController.text.trim(),
@@ -464,18 +501,11 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                         _DatePill(
                           icon: Icons.date_range_rounded,
                           label:
-                              _fromDate == null
-                                  ? 'From'
-                                  : formatDateLabel(_toApiDate(_fromDate!)),
-                          onTap: () => _pickDate(true),
-                        ),
-                        _DatePill(
-                          icon: Icons.event_rounded,
-                          label:
-                              _toDate == null
-                                  ? 'To'
-                                  : formatDateLabel(_toApiDate(_toDate!)),
-                          onTap: () => _pickDate(false),
+                              _fromDate == null || _toDate == null
+                                  ? 'Date Range'
+                                  : '${formatDateLabel(_toApiDate(_fromDate!))} to '
+                                      '${formatDateLabel(_toApiDate(_toDate!))}',
+                          onTap: _pickDateRange,
                         ),
                         if (_fromDate != null || _toDate != null)
                           GestureDetector(
@@ -663,6 +693,9 @@ class _DatePill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width - 32,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -685,12 +718,16 @@ class _DatePill extends StatelessWidget {
           children: [
             Icon(icon, size: 14, color: kClaySub),
             const SizedBox(width: 5),
-            Text(
-              label,
-              style: const TextStyle(
-                color: kClaySub,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: kClaySub,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -826,9 +863,11 @@ class _CreditCustomerDetailScreenState
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Amount',
                             filled: true,
+                            helperText:
+                                'Borrowed balance: ${formatCurrency(_collectableCreditBalance(detail.currentBalance))}',
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -881,13 +920,38 @@ class _CreditCustomerDetailScreenState
                     ),
                     FilledButton(
                       onPressed: () async {
+                        final amount =
+                            double.tryParse(amountController.text.trim()) ?? 0;
+                        if (amount <= 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              backgroundColor: Color(0xFFB91C1C),
+                              content: Text(
+                                'Collection amount must be greater than zero.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        final collectableBalance = _collectableCreditBalance(
+                          detail.currentBalance,
+                        );
+                        if (amount > collectableBalance) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              backgroundColor: const Color(0xFFB91C1C),
+                              content: Text(
+                                'Amount received cannot be more than borrowed balance ${formatCurrency(collectableBalance)}.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         try {
                           await _creditService.recordCollection(
                             customerId: detail.customer.id,
                             name: detail.customer.name,
-                            amount:
-                                double.tryParse(amountController.text.trim()) ??
-                                0,
+                            amount: amount,
                             date: dateController.text.trim(),
                             paymentMode: paymentMode,
                             note: noteController.text.trim(),

@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_date_range_picker.dart';
 import '../widgets/responsive_text.dart';
 import '../widgets/clay_widgets.dart';
 
@@ -48,25 +49,22 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     );
   }
 
-  Future<void> _pickDate({required bool isFrom}) async {
-    final initialDate = isFrom ? _fromDate : _toDate;
-    final selected = await showDatePicker(
+  Future<void> _pickDateRange() async {
+    final selected = await showAppDateRangePicker(
       context: context,
-      initialDate: initialDate,
+      fromDate: _fromDate,
+      toDate: _toDate,
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
-      helpText: isFrom ? 'Select from date' : 'Select to date',
+      helpText: 'Select entry range',
     );
     if (selected == null) {
       return;
     }
 
     setState(() {
-      if (isFrom) {
-        _fromDate = selected;
-      } else {
-        _toDate = selected;
-      }
+      _fromDate = selected.start;
+      _toDate = selected.end;
       _future = _loadEntries();
     });
   }
@@ -86,52 +84,52 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
       backgroundColor: kClayBg,
       body: SafeArea(
         child: FutureBuilder<List<ShiftEntryModel>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const ColoredBox(
-              color: kClayBg,
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kClayPrimary,
-                  fontWeight: FontWeight.w700,
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const ColoredBox(
+                color: kClayBg,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return Center(
+                child: Text(
+                  userFacingErrorMessage(snapshot.error),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: kClayPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            );
-          }
+              );
+            }
 
-          final entries = snapshot.data ?? [];
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-            children: [
-              _buildHeroCard(),
-              const SizedBox(height: 12),
-              if (entries.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.only(top: 60),
-                  child: Center(
-                    child: Text(
-                      'No entries for the selected filters.',
-                      style: TextStyle(
-                        color: kClaySub,
-                        fontWeight: FontWeight.w700,
+            final entries = snapshot.data ?? [];
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                _buildHeroCard(),
+                const SizedBox(height: 12),
+                if (entries.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 60),
+                    child: Center(
+                      child: Text(
+                        'No entries for the selected filters.',
+                        style: TextStyle(
+                          color: kClaySub,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                )
-              else
-                ...entries.map(_buildEntryCard),
-            ],
-          );
-        },
-      ),
+                  )
+                else
+                  ...entries.map(_buildEntryCard),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -190,17 +188,21 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              OutlinedButton.icon(
-                onPressed: () => _pickDate(isFrom: true),
-                icon: const Icon(Icons.event_available_rounded),
-                label: Text('From: ${formatDateLabel(_toApiDate(_fromDate))}'),
-                style: _historyFilterButtonStyle(),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pickDate(isFrom: false),
-                icon: const Icon(Icons.event_rounded),
-                label: Text('To: ${formatDateLabel(_toApiDate(_toDate))}'),
-                style: _historyFilterButtonStyle(),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width - 32,
+                ),
+                child: OutlinedButton.icon(
+                  onPressed: _pickDateRange,
+                  icon: const Icon(Icons.event_available_rounded),
+                  label: Text(
+                    '${formatDateLabel(_toApiDate(_fromDate))} to '
+                    '${formatDateLabel(_toApiDate(_toDate))}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  style: _historyFilterButtonStyle(),
+                ),
               ),
               TextButton(
                 onPressed: _clearDateRange,

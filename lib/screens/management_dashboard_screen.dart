@@ -8,6 +8,7 @@ import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_date_range_picker.dart';
 import '../widgets/responsive_text.dart';
 
 String _shortDateLabel(String raw) {
@@ -76,19 +77,17 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   }
 
   Future<void> _pickCustomRange() async {
-    final initialStart = DateTime.tryParse(_fromDate ?? '') ?? DateTime.now();
-    final initialEnd = DateTime.tryParse(_toDate ?? '') ?? initialStart;
-    final range = await showDateRangePicker(
+    final range = await showAppDateRangePicker(
       context: context,
+      fromDate: DateTime.tryParse(_fromDate ?? ''),
+      toDate: DateTime.tryParse(_toDate ?? ''),
       firstDate: DateTime(2024),
       lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: initialStart, end: initialEnd),
       helpText: 'Select dashboard range',
     );
     if (range == null) return;
-    final fmt =
-        (DateTime d) =>
-            '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    String fmt(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
     setState(() {
       _preset = 'custom';
       _fromDate = fmt(range.start);
@@ -506,7 +505,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     }
 
     // For compact view show at most 5 labels; for full screen show all unique dates.
-    Set<int> _labelIndices(bool compact) {
+    Set<int> labelIndices(bool compact) {
       if (!compact) return uniqueDateIndices.toSet();
       if (uniqueDateIndices.length <= 5) return uniqueDateIndices.toSet();
       // Evenly spread 5 labels across the unique date indices.
@@ -521,7 +520,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     }
 
     LineChartData buildChartData({required bool compact}) {
-      final labelSet = _labelIndices(compact);
+      final labelSet = labelIndices(compact);
       return LineChartData(
         minX: 0,
         maxX: (trend.length - 1).toDouble(),
@@ -1107,15 +1106,21 @@ class _PieWithLeaderLabels extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (ctx, constraints) {
-        const double labelPad = 68.0;
-        final double chartW = constraints.maxWidth;
-        final double pieD = (chartW - labelPad * 2).clamp(
-          80.0,
-          double.infinity,
-        );
-        final double pieR = pieD / 2;
+        const double labelSpace = 68.0;
         const double chartH = 270.0;
+        const double verticalPad = 20.0;
+        const double touchExpansion = 6.0;
+        final double chartW = constraints.maxWidth;
+        final double maxPieDByWidth =
+            chartW - (labelSpace * 2) - (touchExpansion * 2);
+        const double maxPieDByHeight =
+            chartH - (verticalPad * 2) - (touchExpansion * 2);
+        final double pieD = math
+            .min(maxPieDByWidth, maxPieDByHeight)
+            .clamp(80.0, maxPieDByHeight);
+        final double pieR = pieD / 2;
         final Offset center = Offset(chartW / 2, chartH / 2);
+        final double pieBoxD = pieD + touchExpansion * 2;
 
         return SizedBox(
           width: chartW,
@@ -1124,10 +1129,10 @@ class _PieWithLeaderLabels extends StatelessWidget {
             children: [
               // Full pie — no center hole
               Positioned(
-                left: labelPad,
-                top: center.dy - pieR,
-                width: pieD,
-                height: pieD,
+                left: center.dx - pieBoxD / 2,
+                top: center.dy - pieBoxD / 2,
+                width: pieBoxD,
+                height: pieBoxD,
                 child: PieChart(
                   PieChartData(
                     centerSpaceRadius: 0,
@@ -1157,7 +1162,8 @@ class _PieWithLeaderLabels extends StatelessWidget {
                               (touchedIndex == -1 || touchedIndex == i)
                                   ? slices[i].color
                                   : slices[i].color.withValues(alpha: 0.3),
-                          radius: touchedIndex == i ? pieR + 6 : pieR,
+                          radius:
+                              touchedIndex == i ? pieR + touchExpansion : pieR,
                           title:
                               (slices[i].amount / total) >= 0.08
                                   ? '${((slices[i].amount / total) * 100).round()}%'
