@@ -1632,39 +1632,45 @@ class _ActionBtnState extends State<_ActionBtn> {
                     ]
                     : [],
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              widget.loading
-                  ? SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        fg.withValues(alpha: 0.85),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    widget.loading
+                        ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              fg.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        )
+                        : Icon(
+                          widget.icon,
+                          size: 14,
+                          color: disabled ? fg.withValues(alpha: 0.4) : fg,
+                        ),
+                    const SizedBox(width: 5),
+                    Text(
+                      widget.label,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: disabled ? fg.withValues(alpha: 0.4) : fg,
                       ),
                     ),
-                  )
-                  : Icon(
-                    widget.icon,
-                    size: 14,
-                    color: disabled ? fg.withValues(alpha: 0.4) : fg,
-                  ),
-              const SizedBox(width: 5),
-              Flexible(
-                child: OneLineScaleText(
-                  widget.label,
-                  textAlign: TextAlign.center,
-                  alignment: Alignment.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: disabled ? fg.withValues(alpha: 0.4) : fg,
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
