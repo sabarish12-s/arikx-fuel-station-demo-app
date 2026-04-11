@@ -7,6 +7,7 @@ import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 
 String _shortDateLabel(String raw) {
   final date = DateTime.tryParse(raw);
@@ -660,7 +661,7 @@ class _ManagementDashboardScreenState
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
-                  'Failed to load\n${snapshot.error.toString().replaceFirst("Exception: ", "")}',
+                  'Failed to load\n${userFacingErrorMessage(snapshot.error)}',
                 ),
               ],
             );

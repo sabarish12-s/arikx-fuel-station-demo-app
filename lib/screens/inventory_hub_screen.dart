@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import 'credit_ledger_screen.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_receipt_screen.dart';
@@ -103,7 +104,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   Text(
-                    snapshot.error.toString().replaceFirst('Exception: ', ''),
+                    userFacingErrorMessage(snapshot.error),
                   ),
                 ],
               );

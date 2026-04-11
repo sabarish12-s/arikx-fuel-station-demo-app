@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
+import '../utils/user_facing_errors.dart';
 import 'auth_service.dart';
 
 class ApiClient {
@@ -48,37 +49,29 @@ class ApiClient {
   }
 
   String errorMessage(http.Response response, {String? fallback}) {
+    String? candidate;
     try {
       final Object? decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) {
         final String message = decoded['message']?.toString().trim() ?? '';
         final String error = decoded['error']?.toString().trim() ?? '';
         if (message.isNotEmpty && error.isNotEmpty) {
-          return '$message: $error';
-        }
-        if (message.isNotEmpty) {
-          return message;
-        }
-        if (error.isNotEmpty) {
-          return error;
+          candidate = '$message: $error';
+        } else if (message.isNotEmpty) {
+          candidate = message;
+        } else if (error.isNotEmpty) {
+          candidate = error;
         }
       }
     } catch (_) {
       // Fall through to plain text cleanup below.
     }
 
-    final String body = response.body.trim();
-    final String lowered = body.toLowerCase();
-    if (lowered.contains('cannot get ') || lowered.contains('cannot post ')) {
-      return fallback ??
-          'This feature is not available on the current server yet.';
+    candidate ??= response.body.trim();
+    if (candidate.isEmpty) {
+      candidate =
+          fallback ?? 'Request failed with status ${response.statusCode}.';
     }
-    if (body.startsWith('<!DOCTYPE html>') || body.startsWith('<html')) {
-      return fallback ?? 'The server returned an invalid response.';
-    }
-    if (body.isNotEmpty) {
-      return body;
-    }
-    return fallback ?? 'Request failed with status ${response.statusCode}.';
+    return userFacingErrorMessage(candidate);
   }
 }

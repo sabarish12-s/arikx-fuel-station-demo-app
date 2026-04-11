@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class FuelPriceSettingsScreen extends StatefulWidget {
@@ -81,7 +82,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userFacingErrorMessage(error)),
         ),
       );
     } finally {
@@ -339,7 +340,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
             color: kClayBg,
             child: Center(
               child: Text(
-                snapshot.error.toString().replaceFirst('Exception: ', ''),
+                userFacingErrorMessage(snapshot.error),
               ),
             ),
           );

@@ -4,6 +4,7 @@ import '../models/access_request.dart';
 import '../services/admin_service.dart';
 import '../services/auth_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 import 'login_screen.dart';
@@ -21,7 +22,7 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
   late Future<List<AccessRequest>> _requestsFuture;
 
   String _errorText(Object? error) {
-    return error.toString().replaceFirst('Exception: ', '');
+    return userFacingErrorMessage(error);
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class FlagThresholdSettingsScreen extends StatefulWidget {
@@ -32,7 +33,7 @@ class _FlagThresholdSettingsScreenState
   bool _saving = false;
 
   String _errorText(Object? error) {
-    return error.toString().replaceFirst('Exception: ', '');
+    return userFacingErrorMessage(error);
   }
 
   @override
@@ -94,7 +95,7 @@ class _FlagThresholdSettingsScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userFacingErrorMessage(error)),
         ),
       );
     } finally {

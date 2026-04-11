@@ -5,6 +5,7 @@ import '../models/auth_models.dart';
 import '../models/user_management_models.dart';
 import '../services/user_management_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class UserManagementScreen extends StatefulWidget {
@@ -303,7 +304,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             color: kClayBg,
             child: Center(
               child: Text(
-                snapshot.error.toString().replaceFirst('Exception: ', ''),
+                userFacingErrorMessage(snapshot.error),
               ),
             ),
           );

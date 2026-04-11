@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class DeliveryReceiptScreen extends StatefulWidget {
@@ -145,7 +146,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userFacingErrorMessage(error)),
         ),
       );
     } finally {

@@ -6,6 +6,7 @@ import '../services/inventory_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/daily_entry_dialogs.dart';
 
@@ -390,7 +391,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
         return;
       }
       setState(() {
-        _error = error.toString().replaceFirst('Exception: ', '');
+        _error = userFacingErrorMessage(error);
       });
     } finally {
       if (mounted) {

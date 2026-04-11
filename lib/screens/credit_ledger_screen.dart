@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/credit_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class CreditLedgerScreen extends StatefulWidget {
@@ -24,7 +25,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   _future;
 
   String _errorText(Object? error) {
-    return error.toString().replaceFirst('Exception: ', '');
+    return userFacingErrorMessage(error);
   }
 
   @override
@@ -291,12 +292,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(
-                                error.toString().replaceFirst(
-                                  'Exception: ',
-                                  '',
-                                ),
-                              ),
+                              content: Text(userFacingErrorMessage(error)),
                             ),
                           );
                         }
@@ -791,7 +787,7 @@ class _CreditCustomerDetailScreenState
   late Future<CreditCustomerDetailModel> _future;
 
   String _errorText(Object? error) {
-    return error.toString().replaceFirst('Exception: ', '');
+    return userFacingErrorMessage(error);
   }
 
   @override
@@ -904,12 +900,7 @@ class _CreditCustomerDetailScreenState
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(
-                                error.toString().replaceFirst(
-                                  'Exception: ',
-                                  '',
-                                ),
-                              ),
+                              content: Text(userFacingErrorMessage(error)),
                             ),
                           );
                         }

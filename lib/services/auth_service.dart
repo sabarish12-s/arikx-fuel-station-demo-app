@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../models/auth_models.dart';
+import '../utils/user_facing_errors.dart';
 import 'native_config_service.dart';
 import 'notification_service.dart';
 
@@ -100,36 +101,30 @@ class AuthService {
   }
 
   String _extractBackendError(http.Response response) {
+    String? candidate;
     try {
       final Object? decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic>) {
         final String message = decoded['message']?.toString().trim() ?? '';
         final String error = decoded['error']?.toString().trim() ?? '';
 
-        if (error.contains('Cloud Firestore API has not been used') ||
-            error.contains('PERMISSION_DENIED')) {
-          return 'Backend Firebase access is not enabled for this project yet. The API server needs Firebase storage/auth access fixed.';
-        }
-
         if (message.isNotEmpty && error.isNotEmpty) {
-          return '$message: $error';
-        }
-        if (message.isNotEmpty) {
-          return message;
-        }
-        if (error.isNotEmpty) {
-          return error;
+          candidate = '$message: $error';
+        } else if (message.isNotEmpty) {
+          candidate = message;
+        } else if (error.isNotEmpty) {
+          candidate = error;
         }
       }
     } catch (_) {
       // Fall back to the raw response body below.
     }
 
-    final String body = response.body.trim();
-    if (body.isNotEmpty) {
-      return body;
+    candidate ??= response.body.trim();
+    if (candidate.isEmpty) {
+      candidate = 'Authentication failed with status ${response.statusCode}.';
     }
-    return 'Authentication failed with status ${response.statusCode}.';
+    return userFacingErrorMessage(candidate);
   }
 
   Future<AuthResponse> signInWithGoogle() async {

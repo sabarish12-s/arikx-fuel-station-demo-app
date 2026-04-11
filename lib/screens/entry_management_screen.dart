@@ -5,6 +5,7 @@ import '../services/management_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import 'entry_workflow_screen.dart';
 
 class EntryManagementScreen extends StatefulWidget {
@@ -437,7 +438,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userFacingErrorMessage(error)),
         ),
       );
     } finally {
@@ -487,7 +488,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userFacingErrorMessage(error)),
         ),
       );
     } finally {
@@ -553,7 +554,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
-          content: Text(error.toString().replaceFirst('Exception: ', '')),
+          content: Text(userFacingErrorMessage(error)),
         ),
       );
     } finally {
@@ -579,7 +580,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 children: [
                   Center(
                     child: Text(
-                      snapshot.error.toString().replaceFirst('Exception: ', ''),
+                      userFacingErrorMessage(snapshot.error),
                     ),
                   ),
                 ],

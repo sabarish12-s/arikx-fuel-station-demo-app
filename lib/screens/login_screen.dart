@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/auth_models.dart';
 import '../navigation/app_router.dart';
 import '../services/auth_service.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 
@@ -65,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen>
         raw.contains('no credential available')) {
       return 'No Google account is available on this device. Add a Google account and try again.';
     }
-    return raw.replaceFirst('Exception: ', '');
+    return userFacingErrorMessage(raw);
   }
 
   Future<void> _continueWithGoogle() async {

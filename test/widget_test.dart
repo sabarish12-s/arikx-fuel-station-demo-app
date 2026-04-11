@@ -6,7 +6,8 @@ void main() {
   testWidgets('Login screen renders key content', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
 
-    expect(find.text('Fuel Station\nManager'), findsOneWidget);
-    expect(find.text('Continue with\nGoogle'), findsOneWidget);
+    expect(find.text('RK Fuels'), findsOneWidget);
+    expect(find.text('Continue to your station workspace'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
   });
 }

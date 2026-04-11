@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class EntryHistoryScreen extends StatefulWidget {
@@ -98,7 +99,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                snapshot.error.toString().replaceFirst('Exception: ', ''),
+                userFacingErrorMessage(snapshot.error),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: kClayPrimary,

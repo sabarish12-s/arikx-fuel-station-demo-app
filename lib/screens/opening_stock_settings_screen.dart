@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class OpeningStockSettingsScreen extends StatefulWidget {
@@ -159,7 +160,7 @@ class _OpeningStockSettingsScreenState
             color: kClayBg,
             child: Center(
               child: Text(
-                snapshot.error.toString().replaceFirst('Exception: ', ''),
+                userFacingErrorMessage(snapshot.error),
               ),
             ),
           );

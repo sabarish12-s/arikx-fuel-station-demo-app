@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
+import '../utils/user_facing_errors.dart';
 import '../utils/formatters.dart';
 import '../widgets/clay_widgets.dart';
 
@@ -119,7 +120,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
         if (snapshot.hasError) {
           return Center(
             child: Text(
-              snapshot.error.toString().replaceFirst('Exception: ', ''),
+              userFacingErrorMessage(snapshot.error),
             ),
           );
         }

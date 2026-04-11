@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class DailySummaryScreen extends StatefulWidget {
@@ -43,7 +44,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
           if (snapshot.hasError) {
             return Center(
               child: Text(
-                snapshot.error.toString().replaceFirst('Exception: ', ''),
+                userFacingErrorMessage(snapshot.error),
                 style: const TextStyle(
                   color: kClayPrimary,
                   fontWeight: FontWeight.w700,

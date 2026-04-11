@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 
 class SalesDashboardScreen extends StatefulWidget {
@@ -29,7 +30,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   String? _busyAction;
 
   String _errorText(Object? error) {
-    return error.toString().replaceFirst('Exception: ', '');
+    return userFacingErrorMessage(error);
   }
 
   @override

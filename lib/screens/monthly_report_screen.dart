@@ -5,6 +5,7 @@ import '../models/domain_models.dart';
 import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
+import '../utils/user_facing_errors.dart';
 import 'credit_ledger_screen.dart';
 
 class MonthlyReportScreen extends StatefulWidget {
@@ -276,7 +277,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         backgroundColor: const Color(0xFFB91C1C),
-        content: Text(error.toString().replaceFirst('Exception: ', '')),
+        content: Text(userFacingErrorMessage(error)),
       ));
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -385,7 +386,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 Padding(
                   padding: const EdgeInsets.only(top: 80),
                   child: Center(
-                    child: Text(snapshot.error.toString().replaceFirst('Exception: ', '')),
+                    child: Text(userFacingErrorMessage(snapshot.error)),
                   ),
                 )
               else
