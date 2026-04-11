@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -21,15 +24,36 @@ class InventoryHubScreen extends StatefulWidget {
 class _InventoryHubScreenState extends State<InventoryHubScreen> {
   final InventoryService _inventoryService = InventoryService();
   late Future<InventoryDashboardModel> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   @override
   void initState() {
     super.initState();
-    _future = _inventoryService.fetchInventoryDashboard();
+    _future = _load();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/inventory/dashboard')) {
+        return;
+      }
+      setState(() => _future = _load());
+    });
+  }
+
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<InventoryDashboardModel> _load({bool forceRefresh = false}) {
+    return _inventoryService.fetchInventoryDashboard(
+      forceRefresh: forceRefresh,
+    );
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _inventoryService.fetchInventoryDashboard());
+    setState(() => _future = _load(forceRefresh: true));
     await _future;
   }
 
@@ -96,6 +120,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             }
             if (snapshot.hasError) {
               return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [Text(userFacingErrorMessage(snapshot.error))],
               );
@@ -106,6 +131,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             final alertCount = data.forecast.where((f) => f.shouldAlert).length;
 
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 // ── Hero header ─────────────────────────────────────

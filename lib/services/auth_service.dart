@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../models/auth_models.dart';
 import '../utils/user_facing_errors.dart';
+import 'api_response_cache.dart';
 import 'native_config_service.dart';
 import 'notification_service.dart';
 
@@ -188,6 +189,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    await ApiResponseCache.clearAll();
     final SharedPreferences prefs = await _prefs();
     await prefs.remove(_jwtKey);
     await prefs.remove(_userKey);

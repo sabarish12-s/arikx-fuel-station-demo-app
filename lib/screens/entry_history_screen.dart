@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -18,6 +21,7 @@ class EntryHistoryScreen extends StatefulWidget {
 class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   final SalesService _salesService = SalesService();
   late Future<List<ShiftEntryModel>> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   late DateTime _fromDate;
   late DateTime _toDate;
 
@@ -28,10 +32,19 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     _toDate = DateTime(today.year, today.month, today.day);
     _fromDate = _toDate.subtract(const Duration(days: 29));
     _future = _loadEntries();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/sales/entries')) {
+        return;
+      }
+      setState(() => _future = _loadEntries());
+    });
   }
 
   @override
   void dispose() {
+    _cacheSubscription.cancel();
     super.dispose();
   }
 
@@ -41,12 +54,18 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     return '${date.year}-$month-$day';
   }
 
-  Future<List<ShiftEntryModel>> _loadEntries() {
+  Future<List<ShiftEntryModel>> _loadEntries({bool forceRefresh = false}) {
     return _salesService.fetchEntries(
       fromDate: _toApiDate(_fromDate),
       toDate: _toApiDate(_toDate),
       summary: true,
+      forceRefresh: forceRefresh,
     );
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _future = _loadEntries(forceRefresh: true));
+    await _future;
   }
 
   Future<void> _pickDateRange() async {
@@ -83,52 +102,56 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       body: SafeArea(
-        child: FutureBuilder<List<ShiftEntryModel>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const ColoredBox(
-                color: kClayBg,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (snapshot.hasError) {
-              return Center(
-                child: Text(
-                  userFacingErrorMessage(snapshot.error),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: kClayPrimary,
-                    fontWeight: FontWeight.w700,
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: FutureBuilder<List<ShiftEntryModel>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const ColoredBox(
+                  color: kClayBg,
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    userFacingErrorMessage(snapshot.error),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            final entries = snapshot.data ?? [];
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [
-                _buildHeroCard(),
-                const SizedBox(height: 12),
-                if (entries.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 60),
-                    child: Center(
-                      child: Text(
-                        'No entries for the selected filters.',
-                        style: TextStyle(
-                          color: kClaySub,
-                          fontWeight: FontWeight.w700,
+              final entries = snapshot.data ?? [];
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: [
+                  _buildHeroCard(),
+                  const SizedBox(height: 12),
+                  if (entries.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 60),
+                      child: Center(
+                        child: Text(
+                          'No entries for the selected filters.',
+                          style: TextStyle(
+                            color: kClaySub,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  )
-                else
-                  ...entries.map(_buildEntryCard),
-              ],
-            );
-          },
+                    )
+                  else
+                    ...entries.map(_buildEntryCard),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

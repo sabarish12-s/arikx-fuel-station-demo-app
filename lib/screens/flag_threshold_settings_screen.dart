@@ -55,6 +55,14 @@ class _FlagThresholdSettingsScreenState
     _seeded = true;
   }
 
+  Future<void> _refresh() async {
+    setState(() {
+      _seeded = false;
+      _future = _inventoryService.fetchStationConfig(forceRefresh: true);
+    });
+    await _future;
+  }
+
   Future<void> _save(StationConfigModel station) async {
     final value = double.tryParse(_thresholdController.text.trim());
     if (value == null || value < 0) {
@@ -86,7 +94,7 @@ class _FlagThresholdSettingsScreenState
       setState(() {
         _isEditing = false;
         _seeded = false;
-        _future = _inventoryService.fetchStationConfig();
+        _future = _inventoryService.fetchStationConfig(forceRefresh: true);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Variance threshold saved.')),
@@ -106,226 +114,233 @@ class _FlagThresholdSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<StationConfigModel>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const ColoredBox(
-            color: kClayBg,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-        if (snapshot.hasError) {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<StationConfigModel>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const ColoredBox(
+              color: kClayBg,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return ColoredBox(
+              color: kClayBg,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                children: [
+                  Text('Failed to load: ${_errorText(snapshot.error)}'),
+                ],
+              ),
+            );
+          }
+
+          final station = snapshot.data!;
+          _seedController(station);
+
           return ColoredBox(
             color: kClayBg,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
-            ),
-          );
-        }
-
-        final station = snapshot.data!;
-        _seedController(station);
-
-        return ColoredBox(
-          color: kClayBg,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            children: [
-              if (widget.embedded && widget.onBack != null)
-                ClaySubHeader(
-                  title: 'Variance Rules',
-                  onBack: widget.onBack,
-                  trailing:
-                      widget.canEdit && !_isEditing
-                          ? _ClayEditButton(
-                            onTap: () => setState(() => _isEditing = true),
-                          )
-                          : null,
-                ),
-
-              // ── Hero card ──────────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: const LinearGradient(
-                    colors: [kClayHeroStart, kClayHeroEnd],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                if (widget.embedded && widget.onBack != null)
+                  ClaySubHeader(
+                    title: 'Variance Rules',
+                    onBack: widget.onBack,
+                    trailing:
+                        widget.canEdit && !_isEditing
+                            ? _ClayEditButton(
+                              onTap: () => setState(() => _isEditing = true),
+                            )
+                            : null,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kClayHeroEnd.withValues(alpha: 0.45),
-                      offset: const Offset(0, 10),
-                      blurRadius: 24,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'VARIANCE THRESHOLD',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '₹${station.flagThreshold.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Entries with a payment–revenue difference at or above this amount are flagged for review.',
-                      style: TextStyle(color: Colors.white70, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
 
-              const SizedBox(height: 14),
-
-              // ── Edit card ──────────────────────────────────────────
-              ClayCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Variance Threshold',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: kClayPrimary,
-                      ),
+                // ── Hero card ──────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [kClayHeroStart, kClayHeroEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Set the minimum difference (in ₹) between collected payment and computed revenue that triggers a flag.',
-                      style: TextStyle(color: kClaySub, height: 1.4),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_isEditing) ...[
-                      TextFormField(
-                        controller: _thresholdController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(
-                            RegExp(r'^\d*\.?\d{0,2}'),
-                          ),
-                        ],
-                        decoration: InputDecoration(
-                          labelText: 'Threshold amount (₹)',
-                          filled: true,
-                          fillColor: kClayBg,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                          prefixText: '₹ ',
-                          helperText:
-                              'Set to 0 to flag every entry with any difference.',
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          TextButton(
-                            onPressed:
-                                _saving
-                                    ? null
-                                    : () {
-                                      setState(() {
-                                        _isEditing = false;
-                                        _seeded = false;
-                                        _thresholdController.text = station
-                                            .flagThreshold
-                                            .toStringAsFixed(2);
-                                        _seeded = true;
-                                      });
-                                    },
-                            child: const Text('Cancel'),
-                          ),
-                          const SizedBox(width: 10),
-                          FilledButton.icon(
-                            onPressed: _saving ? null : () => _save(station),
-                            icon: const Icon(Icons.save_rounded),
-                            label: Text(_saving ? 'Saving…' : 'Save'),
-                          ),
-                        ],
-                      ),
-                    ] else ...[
-                      _InfoRow(
-                        label: 'Current threshold',
-                        value: '₹${station.flagThreshold.toStringAsFixed(2)}',
-                      ),
-                      const SizedBox(height: 8),
-                      _InfoRow(
-                        label: 'Effect',
-                        value:
-                            station.flagThreshold == 0
-                                ? 'Every mismatch is flagged'
-                                : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
+                    boxShadow: [
+                      BoxShadow(
+                        color: kClayHeroEnd.withValues(alpha: 0.45),
+                        offset: const Offset(0, 10),
+                        blurRadius: 24,
                       ),
                     ],
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── How flagging works ─────────────────────────────────
-              ClayCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'How flagging works',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: kClayPrimary,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'VARIANCE THRESHOLD',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          letterSpacing: 1.1,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _BulletRow(
-                      icon: Icons.flag_rounded,
-                      color: const Color(0xFFCE5828),
-                      text:
-                          'An entry is flagged when the difference between collected payment and computed revenue is ≥ the threshold.',
-                    ),
-                    const SizedBox(height: 8),
-                    _BulletRow(
-                      icon: Icons.check_circle_rounded,
-                      color: const Color(0xFF2AA878),
-                      text:
-                          'Approving an entry clears its flag — approved entries are never shown as flagged.',
-                    ),
-                    const SizedBox(height: 8),
-                    _BulletRow(
-                      icon: Icons.warning_amber_rounded,
-                      color: const Color(0xFFB45309),
-                      text:
-                          'Negative meter readings and limit breaches always flag an entry regardless of this threshold.',
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        '₹${station.flagThreshold.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Entries with a payment–revenue difference at or above this amount are flagged for review.',
+                        style: TextStyle(color: Colors.white70, height: 1.4),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+
+                const SizedBox(height: 14),
+
+                // ── Edit card ──────────────────────────────────────────
+                ClayCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Variance Threshold',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Set the minimum difference (in ₹) between collected payment and computed revenue that triggers a flag.',
+                        style: TextStyle(color: kClaySub, height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_isEditing) ...[
+                        TextFormField(
+                          controller: _thresholdController,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d*\.?\d{0,2}'),
+                            ),
+                          ],
+                          decoration: InputDecoration(
+                            labelText: 'Threshold amount (₹)',
+                            filled: true,
+                            fillColor: kClayBg,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            prefixText: '₹ ',
+                            helperText:
+                                'Set to 0 to flag every entry with any difference.',
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            TextButton(
+                              onPressed:
+                                  _saving
+                                      ? null
+                                      : () {
+                                        setState(() {
+                                          _isEditing = false;
+                                          _seeded = false;
+                                          _thresholdController.text = station
+                                              .flagThreshold
+                                              .toStringAsFixed(2);
+                                          _seeded = true;
+                                        });
+                                      },
+                              child: const Text('Cancel'),
+                            ),
+                            const SizedBox(width: 10),
+                            FilledButton.icon(
+                              onPressed: _saving ? null : () => _save(station),
+                              icon: const Icon(Icons.save_rounded),
+                              label: Text(_saving ? 'Saving…' : 'Save'),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        _InfoRow(
+                          label: 'Current threshold',
+                          value: '₹${station.flagThreshold.toStringAsFixed(2)}',
+                        ),
+                        const SizedBox(height: 8),
+                        _InfoRow(
+                          label: 'Effect',
+                          value:
+                              station.flagThreshold == 0
+                                  ? 'Every mismatch is flagged'
+                                  : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // ── How flagging works ─────────────────────────────────
+                ClayCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'How flagging works',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _BulletRow(
+                        icon: Icons.flag_rounded,
+                        color: const Color(0xFFCE5828),
+                        text:
+                            'An entry is flagged when the difference between collected payment and computed revenue is ≥ the threshold.',
+                      ),
+                      const SizedBox(height: 8),
+                      _BulletRow(
+                        icon: Icons.check_circle_rounded,
+                        color: const Color(0xFF2AA878),
+                        text:
+                            'Approving an entry clears its flag — approved entries are never shown as flagged.',
+                      ),
+                      const SizedBox(height: 8),
+                      _BulletRow(
+                        icon: Icons.warning_amber_rounded,
+                        color: const Color(0xFFB45309),
+                        text:
+                            'Negative meter readings and limit breaches always flag an entry regardless of this threshold.',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }

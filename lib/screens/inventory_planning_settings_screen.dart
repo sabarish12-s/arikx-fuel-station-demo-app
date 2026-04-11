@@ -80,7 +80,7 @@ class _InventoryPlanningSettingsScreenState
   Future<void> _reload() async {
     setState(() {
       _seeded = false;
-      _future = _inventoryService.fetchStationConfig();
+      _future = _inventoryService.fetchStationConfig(forceRefresh: true);
     });
     await _future;
   }
@@ -143,7 +143,7 @@ class _InventoryPlanningSettingsScreenState
       setState(() {
         _isEditing = false;
         _seeded = false;
-        _future = _inventoryService.fetchStationConfig();
+        _future = _inventoryService.fetchStationConfig(forceRefresh: true);
       });
       ScaffoldMessenger.of(
         context,

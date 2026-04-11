@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 
 import '../models/auth_models.dart';
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -43,6 +45,7 @@ class ManagementDashboardScreen extends StatefulWidget {
 class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   final ManagementService _managementService = ManagementService();
   late Future<ManagementDashboardModel> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   // Default to last7 — "today" is not useful since entries are logged next day
   String _preset = 'last7';
@@ -55,15 +58,34 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/management/dashboard')) {
+        return;
+      }
+      setState(() => _future = _load());
+    });
   }
 
-  Future<ManagementDashboardModel> _load() => _managementService.fetchDashboard(
-    preset: _preset == 'custom' ? null : _preset,
-    fromDate: _fromDate,
-    toDate: _toDate,
-  );
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
 
-  Future<void> _refresh() async => setState(() => _future = _load());
+  Future<ManagementDashboardModel> _load({bool forceRefresh = false}) =>
+      _managementService.fetchDashboard(
+        preset: _preset == 'custom' ? null : _preset,
+        fromDate: _fromDate,
+        toDate: _toDate,
+        forceRefresh: forceRefresh,
+      );
+
+  Future<void> _refresh() async {
+    setState(() => _future = _load(forceRefresh: true));
+    await _future;
+  }
 
   Future<void> _applyPreset(String preset) async {
     setState(() {
@@ -721,6 +743,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           }
           if (snapshot.hasError) {
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
                 Text(
@@ -733,6 +756,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           final data = snapshot.data!;
 
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 32),
             children: [
               // Filter bar

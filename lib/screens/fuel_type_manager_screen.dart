@@ -34,7 +34,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
 
   void _reload() {
     setState(() {
-      _future = _inventoryService.fetchFuelTypes();
+      _future = _inventoryService.fetchFuelTypes(forceRefresh: true);
     });
   }
 
@@ -50,42 +50,43 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
 
     final bool? save = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null ? 'Add Fuel Type' : 'Edit Fuel Type'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: idController,
-                decoration: const InputDecoration(labelText: 'Id'),
+      builder:
+          (context) => AlertDialog(
+            title: Text(existing == null ? 'Add Fuel Type' : 'Edit Fuel Type'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: idController,
+                    decoration: const InputDecoration(labelText: 'Id'),
+                  ),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  TextField(
+                    controller: shortController,
+                    decoration: const InputDecoration(labelText: 'Short Name'),
+                  ),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(labelText: 'Description'),
+                  ),
+                ],
               ),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
               ),
-              TextField(
-                controller: shortController,
-                decoration: const InputDecoration(labelText: 'Short Name'),
-              ),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Save'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
     );
 
     if (save != true) return;
@@ -118,16 +119,13 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
           return const Center(child: CircularProgressIndicator());
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              userFacingErrorMessage(snapshot.error),
-            ),
-          );
+          return Center(child: Text(userFacingErrorMessage(snapshot.error)));
         }
         final fuelTypes = snapshot.data ?? [];
         return ColoredBox(
           color: kClayBg,
           child: ListView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             itemCount: fuelTypes.length + (widget.embedded ? 1 : 0),
             itemBuilder: (context, index) {
@@ -135,50 +133,55 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                 return ClaySubHeader(
                   title: 'Fuel Types',
                   onBack: widget.onBack,
-                  trailing: widget.canEdit
-                      ? GestureDetector(
-                          onTap: () => _openEditor(),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFB8C0DC)
-                                      .withValues(alpha: 0.65),
-                                  offset: const Offset(4, 4),
-                                  blurRadius: 10,
-                                ),
-                                const BoxShadow(
-                                  color: Colors.white,
-                                  offset: Offset(-3, -3),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.add_rounded,
-                                    size: 16, color: kClayPrimary),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Add',
-                                  style: TextStyle(
-                                    color: kClayPrimary,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
+                  trailing:
+                      widget.canEdit
+                          ? GestureDetector(
+                            onTap: () => _openEditor(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFB8C0DC,
+                                    ).withValues(alpha: 0.65),
+                                    offset: const Offset(4, 4),
+                                    blurRadius: 10,
                                   ),
-                                ),
-                              ],
+                                  const BoxShadow(
+                                    color: Colors.white,
+                                    offset: Offset(-3, -3),
+                                    blurRadius: 8,
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.add_rounded,
+                                    size: 16,
+                                    color: kClayPrimary,
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Add',
+                                    style: TextStyle(
+                                      color: kClayPrimary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        )
-                      : null,
+                          )
+                          : null,
                 );
               }
 
@@ -228,10 +231,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                       const SizedBox(height: 6),
                       Text(
                         'Added on ${formatDateLabel(fuelType.createdAt)}',
-                        style: const TextStyle(
-                          color: kClaySub,
-                          fontSize: 12,
-                        ),
+                        style: const TextStyle(color: kClaySub, fontSize: 12),
                       ),
                     ],
                     if (widget.canEdit) ...[
@@ -245,8 +245,9 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                           const SizedBox(width: 8),
                           TextButton(
                             onPressed: () async {
-                              await _inventoryService
-                                  .deleteFuelType(fuelType.id);
+                              await _inventoryService.deleteFuelType(
+                                fuelType.id,
+                              );
                               _reload();
                             },
                             child: const Text('Delete'),
@@ -269,18 +270,16 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
 
     return Scaffold(
       backgroundColor: kClayBg,
-      appBar: AppBar(
-        backgroundColor: kClayBg,
-        title: const Text('Fuel Types'),
-      ),
-      floatingActionButton: widget.canEdit
-          ? FloatingActionButton.extended(
-              onPressed: () => _openEditor(),
-              label: const Text('Add Fuel Type'),
-              icon: const Icon(Icons.add),
-            )
-          : null,
-      body: content,
+      appBar: AppBar(backgroundColor: kClayBg, title: const Text('Fuel Types')),
+      floatingActionButton:
+          widget.canEdit
+              ? FloatingActionButton.extended(
+                onPressed: () => _openEditor(),
+                label: const Text('Add Fuel Type'),
+                icon: const Icon(Icons.add),
+              )
+              : null,
+      body: RefreshIndicator(onRefresh: () async => _reload(), child: content),
     );
   }
 }

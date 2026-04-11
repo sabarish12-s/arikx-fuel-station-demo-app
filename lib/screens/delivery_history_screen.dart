@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -16,17 +19,34 @@ class DeliveryHistoryScreen extends StatefulWidget {
 class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   final InventoryService _inventoryService = InventoryService();
   late Future<List<DeliveryReceiptModel>> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   @override
   void initState() {
     super.initState();
-    _future = _inventoryService.fetchDeliveries();
+    _future = _load();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/inventory/deliveries')) {
+        return;
+      }
+      setState(() => _future = _load());
+    });
+  }
+
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<List<DeliveryReceiptModel>> _load({bool forceRefresh = false}) {
+    return _inventoryService.fetchDeliveries(forceRefresh: forceRefresh);
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _future = _inventoryService.fetchDeliveries();
-    });
+    setState(() => _future = _load(forceRefresh: true));
     await _future;
   }
 
@@ -56,6 +76,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             }
             if (snapshot.hasError) {
               return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   Text('Failed to load history\n${_errorText(snapshot.error)}'),
@@ -64,6 +85,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             }
             final deliveries = snapshot.data ?? const <DeliveryReceiptModel>[];
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 // ── Summary pill ─────────────────────────────────

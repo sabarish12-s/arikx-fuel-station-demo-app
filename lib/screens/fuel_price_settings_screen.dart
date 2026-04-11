@@ -59,7 +59,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
   Future<void> _reload() async {
     setState(() {
       _seeded = false;
-      _future = _inventoryService.fetchPrices();
+      _future = _inventoryService.fetchPrices(forceRefresh: true);
     });
     await _future;
   }
@@ -68,7 +68,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
     setState(() => _saving = true);
     try {
       await _inventoryService.savePrices(_draftPrices);
-      final saved = await _inventoryService.fetchPrices();
+      final saved = await _inventoryService.fetchPrices(forceRefresh: true);
       if (!mounted) return;
       setState(() {
         _draftPrices = saved.map(_clonePrice).toList();

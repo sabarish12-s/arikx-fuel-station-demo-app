@@ -17,6 +17,7 @@ class ManagementService {
     String? preset,
     String? fromDate,
     String? toDate,
+    bool forceRefresh = false,
   }) async {
     final params = <String, String>{};
     if (preset != null && preset.isNotEmpty) {
@@ -30,7 +31,11 @@ class ManagementService {
     }
     final suffix =
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
-    final response = await _apiClient.get('/management/dashboard$suffix');
+    final response = await _apiClient.get(
+      '/management/dashboard$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -48,6 +53,7 @@ class ManagementService {
     String? toDate,
     bool approvedOnly = false,
     bool summary = true,
+    bool forceRefresh = false,
   }) async {
     final params = <String, String>{};
     if (month != null && month.isNotEmpty) {
@@ -65,7 +71,11 @@ class ManagementService {
     params['view'] = summary ? 'summary' : 'detail';
     final String suffix =
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
-    final response = await _apiClient.get('/management/entries$suffix');
+    final response = await _apiClient.get(
+      '/management/entries$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -80,8 +90,15 @@ class ManagementService {
         .toList();
   }
 
-  Future<ShiftEntryModel> fetchEntryDetail(String entryId) async {
-    final response = await _apiClient.get(_entryPath(entryId));
+  Future<ShiftEntryModel> fetchEntryDetail(
+    String entryId, {
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      _entryPath(entryId),
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -137,9 +154,7 @@ class ManagementService {
   }
 
   Future<ShiftEntryModel> approveEntry(String entryId) async {
-    final response = await _apiClient.post(
-      _entryPath(entryId, '/approve'),
-    );
+    final response = await _apiClient.post(_entryPath(entryId, '/approve'));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to approve entry.'),
@@ -149,14 +164,20 @@ class ManagementService {
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
   }
 
-  Future<ShiftEntryModel> changeEntryDate(String entryId, String newDate) async {
+  Future<ShiftEntryModel> changeEntryDate(
+    String entryId,
+    String newDate,
+  ) async {
     final response = await _apiClient.patch(
       _entryPath(entryId, '/date'),
       body: jsonEncode({'date': newDate}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-        _apiClient.errorMessage(response, fallback: 'Failed to change entry date.'),
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to change entry date.',
+        ),
       );
     }
     final json = _apiClient.decodeObject(response);
@@ -176,6 +197,7 @@ class ManagementService {
     String? month,
     String? fromDate,
     String? toDate,
+    bool forceRefresh = false,
   }) async {
     final params = <String, String>{};
     if (month != null && month.isNotEmpty) {
@@ -189,7 +211,11 @@ class ManagementService {
     }
     final String suffix =
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
-    final response = await _apiClient.get('/management/reports/monthly$suffix');
+    final response = await _apiClient.get(
+      '/management/reports/monthly$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(

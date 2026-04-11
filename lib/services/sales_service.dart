@@ -9,13 +9,22 @@ class SalesService {
 
   final ApiClient _apiClient;
 
-  Future<SalesDashboardModel> fetchDashboard() async {
-    return fetchDashboardForDate();
+  Future<SalesDashboardModel> fetchDashboard({
+    bool forceRefresh = false,
+  }) async {
+    return fetchDashboardForDate(forceRefresh: forceRefresh);
   }
 
-  Future<SalesDashboardModel> fetchDashboardForDate({String? date}) async {
+  Future<SalesDashboardModel> fetchDashboardForDate({
+    String? date,
+    bool forceRefresh = false,
+  }) async {
     final String suffix = date == null ? '' : '?date=$date';
-    final response = await _apiClient.get('/sales/dashboard$suffix');
+    final response = await _apiClient.get(
+      '/sales/dashboard$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -32,6 +41,7 @@ class SalesService {
     String? fromDate,
     String? toDate,
     bool summary = false,
+    bool forceRefresh = false,
   }) async {
     final params = <String, String>{
       if (month != null && month.isNotEmpty) 'month': month,
@@ -41,7 +51,11 @@ class SalesService {
     };
     final String suffix =
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
-    final response = await _apiClient.get('/sales/entries$suffix');
+    final response = await _apiClient.get(
+      '/sales/entries$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to load entries.'),
@@ -53,9 +67,16 @@ class SalesService {
         .toList();
   }
 
-  Future<DailySummaryModel> fetchDailySummary({String? date}) async {
+  Future<DailySummaryModel> fetchDailySummary({
+    String? date,
+    bool forceRefresh = false,
+  }) async {
     final String suffix = date == null ? '' : '?date=$date';
-    final response = await _apiClient.get('/sales/summary/daily$suffix');
+    final response = await _apiClient.get(
+      '/sales/summary/daily$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(

@@ -41,7 +41,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   Future<void> _reload() async {
     setState(() {
-      _future = _service.fetchOverview();
+      _future = _service.fetchOverview(forceRefresh: true);
       _selectedRequestIds.clear();
       _editingUserIds.clear();
     });

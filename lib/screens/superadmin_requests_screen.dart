@@ -33,7 +33,7 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
 
   Future<void> _refresh() async {
     setState(() {
-      _requestsFuture = _adminService.fetchPendingRequests();
+      _requestsFuture = _adminService.fetchPendingRequests(forceRefresh: true);
     });
   }
 
@@ -61,20 +61,21 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
             onPressed: () async {
               final shouldLogout = await showDialog<bool>(
                 context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Logout'),
-                  content: const Text('Are you sure you want to logout?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
+                builder:
+                    (context) => AlertDialog(
+                      title: const Text('Logout'),
+                      content: const Text('Are you sure you want to logout?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(context).pop(true),
+                          child: const Text('Logout'),
+                        ),
+                      ],
                     ),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Logout'),
-                    ),
-                  ],
-                ),
               );
               if (shouldLogout != true) {
                 return;

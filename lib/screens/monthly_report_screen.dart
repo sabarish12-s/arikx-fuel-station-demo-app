@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/credit_service.dart';
 import '../services/management_service.dart';
 import '../services/report_export_service.dart';
@@ -35,6 +38,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final CreditService _creditService = CreditService();
   final ReportExportService _reportExportService = ReportExportService();
   late Future<_MonthlyReportViewData> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   final String _month = currentMonthKey();
   DateTime? _fromDate;
   DateTime? _toDate;
@@ -48,9 +52,28 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     _fromDate = today.subtract(const Duration(days: 29));
     _toDate = today;
     _future = _fetchReport();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted || !update.background) {
+        return;
+      }
+      if (!update.path.startsWith('/management/reports/monthly') &&
+          !update.path.startsWith('/management/entries') &&
+          !update.path.startsWith('/credits/customers')) {
+        return;
+      }
+      setState(() => _future = _fetchReport());
+    });
   }
 
-  Future<_MonthlyReportViewData> _fetchReport() async {
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<_MonthlyReportViewData> _fetchReport({
+    bool forceRefresh = false,
+  }) async {
     final monthParam = _fromDate == null && _toDate == null ? _month : null;
     final fromDateParam = _fromDate == null ? null : _toApiDate(_fromDate!);
     final toDateParam = _toDate == null ? null : _toApiDate(_toDate!);
@@ -58,12 +81,14 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       month: monthParam,
       fromDate: fromDateParam,
       toDate: toDateParam,
+      forceRefresh: forceRefresh,
     );
-    final creditSummaryFuture = _fetchCreditSummary();
+    final creditSummaryFuture = _fetchCreditSummary(forceRefresh: forceRefresh);
     final entryPaymentBreakdownFuture = _fetchEntryPaymentBreakdown(
       month: monthParam,
       fromDate: fromDateParam,
       toDate: toDateParam,
+      forceRefresh: forceRefresh,
     );
 
     final report = await reportFuture;
@@ -84,6 +109,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     String? month,
     String? fromDate,
     String? toDate,
+    bool forceRefresh = false,
   }) async {
     try {
       final entries = await _managementService.fetchEntries(
@@ -91,6 +117,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         fromDate: fromDate,
         toDate: toDate,
         summary: false,
+        forceRefresh: forceRefresh,
       );
       return _paymentBreakdownFromEntries(entries);
     } catch (_) {
@@ -156,16 +183,25 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         (breakdown['credit'] ?? 0);
   }
 
-  Future<CreditLedgerSummaryModel?> _fetchCreditSummary() async {
+  Future<CreditLedgerSummaryModel?> _fetchCreditSummary({
+    bool forceRefresh = false,
+  }) async {
     try {
-      final (summary, _) = await _creditService.fetchCustomers();
+      final (summary, _) = await _creditService.fetchCustomers(
+        forceRefresh: forceRefresh,
+      );
       return summary;
     } catch (_) {
       return null;
     }
   }
 
-  void _reload() => setState(() => _future = _fetchReport());
+  void _reload() => setState(() => _future = _fetchReport(forceRefresh: true));
+
+  Future<void> _refresh() async {
+    setState(() => _future = _fetchReport(forceRefresh: true));
+    await _future;
+  }
 
   String _toApiDate(DateTime date) {
     final m = date.month.toString().padLeft(2, '0');
@@ -436,132 +472,136 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_MonthlyReportViewData>(
-      future: _future,
-      builder: (context, snapshot) {
-        return ColoredBox(
-          color: const Color(0xFFECEFF8),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            children: [
-              // ── Filter card ───────────────────────────────────────
-              _ClayCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.tune_rounded,
-                          color: Color(0xFF1A3A7A),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Report Filters',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1A2561),
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<_MonthlyReportViewData>(
+        future: _future,
+        builder: (context, snapshot) {
+          return ColoredBox(
+            color: const Color(0xFFECEFF8),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                // ── Filter card ───────────────────────────────────────
+                _ClayCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.tune_rounded,
+                            color: Color(0xFF1A3A7A),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Report Filters',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1A2561),
+                              ),
                             ),
                           ),
-                        ),
-                        GestureDetector(
-                          onTap: _reload,
-                          child: Container(
-                            padding: const EdgeInsets.all(7),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFECEFF8),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFFB8C0DC,
-                                  ).withValues(alpha: 0.6),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: 5,
-                                ),
-                                const BoxShadow(
-                                  color: Colors.white,
-                                  offset: Offset(-2, -2),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.refresh_rounded,
-                              size: 16,
-                              color: Color(0xFF4A5598),
+                          GestureDetector(
+                            onTap: _reload,
+                            child: Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFECEFF8),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFB8C0DC,
+                                    ).withValues(alpha: 0.6),
+                                    offset: const Offset(2, 2),
+                                    blurRadius: 5,
+                                  ),
+                                  const BoxShadow(
+                                    color: Colors.white,
+                                    offset: Offset(-2, -2),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.refresh_rounded,
+                                size: 16,
+                                color: Color(0xFF4A5598),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    // Preset pills
-                    Row(
-                      children: [
-                        _PresetPill(
-                          label: 'Last 30 days',
-                          selected: _isLast30Days,
-                          onTap: _applyLast30Days,
-                        ),
-                        const SizedBox(width: 8),
-                        _PresetPill(
-                          label: 'This Month',
-                          selected: _isThisMonth,
-                          onTap: _applyThisMonth,
-                        ),
-                        const SizedBox(width: 8),
-                        _PresetPill(
-                          label: 'Last Month',
-                          selected: _isLastMonth,
-                          onTap: _applyLastMonth,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Date tiles
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ReportDateTile(
-                            label: 'DATE RANGE',
-                            value:
-                                _fromDate != null && _toDate != null
-                                    ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
-                                    : '—',
-                            onTap: _pickDateRange,
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      // Preset pills
+                      Row(
+                        children: [
+                          _PresetPill(
+                            label: 'Last 30 days',
+                            selected: _isLast30Days,
+                            onTap: _applyLast30Days,
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── Loading / error ───────────────────────────────────
-              if (snapshot.connectionState != ConnectionState.done)
-                const Padding(
-                  padding: EdgeInsets.only(top: 80),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (snapshot.hasError)
-                Padding(
-                  padding: const EdgeInsets.only(top: 80),
-                  child: Center(
-                    child: Text(userFacingErrorMessage(snapshot.error)),
+                          const SizedBox(width: 8),
+                          _PresetPill(
+                            label: 'This Month',
+                            selected: _isThisMonth,
+                            onTap: _applyThisMonth,
+                          ),
+                          const SizedBox(width: 8),
+                          _PresetPill(
+                            label: 'Last Month',
+                            selected: _isLastMonth,
+                            onTap: _applyLastMonth,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Date tiles
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _ReportDateTile(
+                              label: 'DATE RANGE',
+                              value:
+                                  _fromDate != null && _toDate != null
+                                      ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
+                                      : '—',
+                              onTap: _pickDateRange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                )
-              else
-                ..._buildReport(snapshot.data!),
-            ],
-          ),
-        );
-      },
+                ),
+
+                const SizedBox(height: 14),
+
+                // ── Loading / error ───────────────────────────────────
+                if (snapshot.connectionState != ConnectionState.done)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 80),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (snapshot.hasError)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 80),
+                    child: Center(
+                      child: Text(userFacingErrorMessage(snapshot.error)),
+                    ),
+                  )
+                else
+                  ..._buildReport(snapshot.data!),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

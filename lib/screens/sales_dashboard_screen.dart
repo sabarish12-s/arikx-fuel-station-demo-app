@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -19,6 +20,7 @@ class SalesDashboardScreen extends StatefulWidget {
 class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   final SalesService _salesService = SalesService();
   late Future<SalesDashboardModel> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   String _errorText(Object? error) {
     return userFacingErrorMessage(error);
@@ -27,13 +29,32 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _salesService.fetchDashboard();
+    _future = _load();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/sales/dashboard')) {
+        return;
+      }
+      setState(() => _future = _load());
+    });
+  }
+
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<SalesDashboardModel> _load({bool forceRefresh = false}) {
+    return _salesService.fetchDashboard(forceRefresh: forceRefresh);
   }
 
   Future<void> _refresh() async {
     setState(() {
-      _future = _salesService.fetchDashboard();
+      _future = _load(forceRefresh: true);
     });
+    await _future;
   }
 
   @override
@@ -51,6 +72,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           }
           if (snapshot.hasError) {
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 ClayCard(
@@ -79,6 +101,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               data.todaysEntries.where((entry) => entry.flagged).length;
 
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               // ── Hero header ────────────────────────────────────────────
@@ -127,9 +150,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                           child: _HeroStatChip(
                             label: 'Liters',
                             value: formatLiters(
-                              data.petrolSold +
-                                  data.dieselSold +
-                                  data.twoTSold,
+                              data.petrolSold + data.dieselSold + data.twoTSold,
                             ),
                           ),
                         ),
@@ -295,7 +316,8 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                                   fontSize: 13,
                                 ),
                               ),
-                              if (entry.flagged && entry.varianceNote.isNotEmpty) ...[
+                              if (entry.flagged &&
+                                  entry.varianceNote.isNotEmpty) ...[
                                 const SizedBox(height: 3),
                                 Text(
                                   entry.varianceNote,

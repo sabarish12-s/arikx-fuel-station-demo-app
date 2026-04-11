@@ -10,8 +10,14 @@ class UserManagementService {
 
   final ApiClient _apiClient;
 
-  Future<UserManagementOverview> fetchOverview() async {
-    final response = await _apiClient.get('/users/management');
+  Future<UserManagementOverview> fetchOverview({
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      '/users/management',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -23,8 +29,12 @@ class UserManagementService {
     return UserManagementOverview.fromJson(_apiClient.decodeObject(response));
   }
 
-  Future<List<AccessRequest>> fetchRequests() async {
-    final response = await _apiClient.get('/users/requests');
+  Future<List<AccessRequest>> fetchRequests({bool forceRefresh = false}) async {
+    final response = await _apiClient.get(
+      '/users/requests',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to load requests.'),
@@ -66,9 +76,7 @@ class UserManagementService {
     }
   }
 
-  Future<void> bulkApproveRequests(
-    List<Map<String, String>> items,
-  ) async {
+  Future<void> bulkApproveRequests(List<Map<String, String>> items) async {
     final response = await _apiClient.post(
       '/users/requests/bulk-approve',
       body: jsonEncode({'items': items}),
@@ -105,11 +113,7 @@ class UserManagementService {
   }) async {
     final response = await _apiClient.post(
       '/users/staff',
-      body: jsonEncode({
-        'email': email,
-        'name': name,
-        'role': role,
-      }),
+      body: jsonEncode({'email': email, 'name': name, 'role': role}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(

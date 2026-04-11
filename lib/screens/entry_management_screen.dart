@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/management_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
@@ -43,6 +46,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   bool _filterByDateRange = false;
 
   late Future<_EntryManagementData> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   bool _submitting = false;
   String? _activeEntryId;
   _EntryAction? _activeAction;
@@ -53,17 +57,37 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   void initState() {
     super.initState();
     _future = _loadData();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted || !update.background) {
+        return;
+      }
+      if (!update.path.startsWith('/management/entries') &&
+          !update.path.startsWith('/sales/dashboard')) {
+        return;
+      }
+      setState(() => _future = _loadData());
+    });
   }
 
-  Future<_EntryManagementData> _loadData() async {
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<_EntryManagementData> _loadData({bool forceRefresh = false}) async {
     final results = await Future.wait([
       _filterByDateRange
           ? _managementService.fetchEntries(
             fromDate: _filterFromDate,
             toDate: _filterToDate,
+            forceRefresh: forceRefresh,
           )
-          : _managementService.fetchEntries(month: _filterMonth),
-      _salesService.fetchDashboard(),
+          : _managementService.fetchEntries(
+            month: _filterMonth,
+            forceRefresh: forceRefresh,
+          ),
+      _salesService.fetchDashboard(forceRefresh: forceRefresh),
     ]);
 
     var entries = results[0] as List<ShiftEntryModel>;
@@ -100,7 +124,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = _loadData());
+    setState(() => _future = _loadData(forceRefresh: true));
     await _future;
   }
 

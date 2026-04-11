@@ -17,8 +17,14 @@ class InventoryService {
   final ManagementService _managementService = ManagementService();
   final SalesService _salesService = SalesService();
 
-  Future<List<FuelTypeModel>> fetchFuelTypes() async {
-    final response = await _apiClient.get('/inventory/fuel-types');
+  Future<List<FuelTypeModel>> fetchFuelTypes({
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      '/inventory/fuel-types',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -81,9 +87,16 @@ class InventoryService {
     }
   }
 
-  Future<List<FuelPriceModel>> fetchPrices({bool activeOnly = false}) async {
+  Future<List<FuelPriceModel>> fetchPrices({
+    bool activeOnly = false,
+    bool forceRefresh = false,
+  }) async {
     final suffix = activeOnly ? '?view=active' : '';
-    final response = await _apiClient.get('/inventory/prices$suffix');
+    final response = await _apiClient.get(
+      '/inventory/prices$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to load prices.'),
@@ -113,8 +126,14 @@ class InventoryService {
         .toList();
   }
 
-  Future<StationConfigModel> fetchStationConfig() async {
-    final response = await _apiClient.get('/inventory/station-config');
+  Future<StationConfigModel> fetchStationConfig({
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      '/inventory/station-config',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(
@@ -128,11 +147,17 @@ class InventoryService {
     );
   }
 
-  Future<InventoryDashboardModel> fetchInventoryDashboard() async {
+  Future<InventoryDashboardModel> fetchInventoryDashboard({
+    bool forceRefresh = false,
+  }) async {
     final user = await _authService.readCurrentUser();
     final role = user?.role.trim().toLowerCase() ?? 'sales';
 
-    final response = await _apiClient.get('/inventory/dashboard');
+    final response = await _apiClient.get(
+      '/inventory/dashboard',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return InventoryDashboardModel.fromJson(
         _apiClient.decodeObject(response),
@@ -141,12 +166,16 @@ class InventoryService {
     if (_shouldUseLegacyInventoryFallback(response.body)) {
       if (role == 'sales') {
         try {
-          return await _buildSalesInventoryDashboard();
+          return await _buildSalesInventoryDashboard(
+            forceRefresh: forceRefresh,
+          );
         } catch (_) {
-          return _buildEmergencySalesInventoryDashboard();
+          return _buildEmergencySalesInventoryDashboard(
+            forceRefresh: forceRefresh,
+          );
         }
       }
-      return _buildLegacyInventoryDashboard();
+      return _buildLegacyInventoryDashboard(forceRefresh: forceRefresh);
     }
     throw Exception(
       _apiClient.errorMessage(
@@ -156,8 +185,14 @@ class InventoryService {
     );
   }
 
-  Future<List<DeliveryReceiptModel>> fetchDeliveries() async {
-    final response = await _apiClient.get('/inventory/deliveries?view=summary');
+  Future<List<DeliveryReceiptModel>> fetchDeliveries({
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      '/inventory/deliveries?view=summary',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (_isMissingRoute(response.body) ||
           _isManagementAccessDenied(response.body)) {
@@ -251,10 +286,14 @@ class InventoryService {
     return _isMissingRoute(body) || _isManagementAccessDenied(body);
   }
 
-  Future<InventoryDashboardModel> _buildLegacyInventoryDashboard() async {
-    final station = await _loadStationForInventory();
-    final entries = await _loadEntriesForLegacyInventory();
-    final deliveries = await _safeFetchDeliveries();
+  Future<InventoryDashboardModel> _buildLegacyInventoryDashboard({
+    bool forceRefresh = false,
+  }) async {
+    final station = await _loadStationForInventory(forceRefresh: forceRefresh);
+    final entries = await _loadEntriesForLegacyInventory(
+      forceRefresh: forceRefresh,
+    );
+    final deliveries = await _safeFetchDeliveries(forceRefresh: forceRefresh);
     return _buildFallbackInventoryDashboard(
       station: station,
       entries: entries,
@@ -262,10 +301,14 @@ class InventoryService {
     );
   }
 
-  Future<InventoryDashboardModel> _buildSalesInventoryDashboard() async {
-    final station = await _loadStationForInventory();
-    final entries = await _loadSalesEntriesForInventory();
-    final deliveries = await _safeFetchDeliveries();
+  Future<InventoryDashboardModel> _buildSalesInventoryDashboard({
+    bool forceRefresh = false,
+  }) async {
+    final station = await _loadStationForInventory(forceRefresh: forceRefresh);
+    final entries = await _loadSalesEntriesForInventory(
+      forceRefresh: forceRefresh,
+    );
+    final deliveries = await _safeFetchDeliveries(forceRefresh: forceRefresh);
     return _buildFallbackInventoryDashboard(
       station: station,
       entries: entries,
@@ -273,9 +316,12 @@ class InventoryService {
     );
   }
 
-  Future<InventoryDashboardModel>
-  _buildEmergencySalesInventoryDashboard() async {
-    final dashboard = await _salesService.fetchDashboard();
+  Future<InventoryDashboardModel> _buildEmergencySalesInventoryDashboard({
+    bool forceRefresh = false,
+  }) async {
+    final dashboard = await _salesService.fetchDashboard(
+      forceRefresh: forceRefresh,
+    );
     final entries = _fallbackEntriesFromDashboard(dashboard);
     return _buildFallbackInventoryDashboard(
       station: dashboard.station,
@@ -380,23 +426,32 @@ class InventoryService {
     );
   }
 
-  Future<StationConfigModel> _loadStationForInventory() async {
+  Future<StationConfigModel> _loadStationForInventory({
+    bool forceRefresh = false,
+  }) async {
     try {
-      return await fetchStationConfig();
+      return await fetchStationConfig(forceRefresh: forceRefresh);
     } catch (_) {
-      final dashboard = await _salesService.fetchDashboard();
+      final dashboard = await _salesService.fetchDashboard(
+        forceRefresh: forceRefresh,
+      );
       return dashboard.station;
     }
   }
 
-  Future<List<ShiftEntryModel>> _loadSalesEntriesForInventory() async {
+  Future<List<ShiftEntryModel>> _loadSalesEntriesForInventory({
+    bool forceRefresh = false,
+  }) async {
     try {
       return await _salesService.fetchEntries(
         month: currentMonthKey(),
         summary: true,
+        forceRefresh: forceRefresh,
       );
     } catch (_) {
-      final dashboard = await _salesService.fetchDashboard();
+      final dashboard = await _salesService.fetchDashboard(
+        forceRefresh: forceRefresh,
+      );
       return _fallbackEntriesFromDashboard(dashboard);
     }
   }
@@ -415,15 +470,19 @@ class InventoryService {
     return entries;
   }
 
-  Future<List<DeliveryReceiptModel>> _safeFetchDeliveries() async {
+  Future<List<DeliveryReceiptModel>> _safeFetchDeliveries({
+    bool forceRefresh = false,
+  }) async {
     try {
-      return await fetchDeliveries();
+      return await fetchDeliveries(forceRefresh: forceRefresh);
     } catch (_) {
       return const [];
     }
   }
 
-  Future<List<ShiftEntryModel>> _loadEntriesForLegacyInventory() async {
+  Future<List<ShiftEntryModel>> _loadEntriesForLegacyInventory({
+    bool forceRefresh = false,
+  }) async {
     final user = await _authService.readCurrentUser();
     final role = user?.role.trim().toLowerCase() ?? 'sales';
     if (role == 'admin' || role == 'superadmin') {
@@ -432,12 +491,17 @@ class InventoryService {
           month: currentMonthKey(),
           approvedOnly: false,
           summary: true,
+          forceRefresh: forceRefresh,
         );
       } catch (_) {
         // Fall back to sales-visible entries when management endpoints are unavailable.
       }
     }
-    return _salesService.fetchEntries(month: currentMonthKey(), summary: true);
+    return _salesService.fetchEntries(
+      month: currentMonthKey(),
+      summary: true,
+      forceRefresh: forceRefresh,
+    );
   }
 
   double _averageDailySales(List<ShiftEntryModel> entries, String fuelKey) {

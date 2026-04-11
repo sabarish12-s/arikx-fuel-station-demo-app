@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
+import '../services/api_response_cache.dart';
 import '../services/credit_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -27,6 +30,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   List<CreditCustomerSummaryModel> _latestCustomers = const [];
   late Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>
   _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   String _errorText(Object? error) {
     return userFacingErrorMessage(error);
@@ -36,10 +40,19 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/credits/customers')) {
+        return;
+      }
+      setState(() => _future = _load());
+    });
   }
 
   @override
   void dispose() {
+    _cacheSubscription.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -50,19 +63,27 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
     return '${date.year}-$month-$day';
   }
 
-  Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)> _load() {
+  Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)> _load({
+    bool forceRefresh = false,
+  }) {
     return _creditService.fetchCustomers(
       query: _searchController.text.trim(),
       status: _status,
       fromDate: _fromDate == null ? null : _toApiDate(_fromDate!),
       toDate: _toDate == null ? null : _toApiDate(_toDate!),
+      forceRefresh: forceRefresh,
     );
   }
 
   void _reload() {
     setState(() {
-      _future = _load();
+      _future = _load(forceRefresh: true);
     });
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _future = _load(forceRefresh: true));
+    await _future;
   }
 
   Future<void> _openStandaloneCollectionDialogFromLedger() async {
@@ -388,184 +409,192 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
           ),
         ),
       ),
-      body: FutureBuilder<
-        (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)
-      >(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text(_errorText(snapshot.error)));
-          }
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: FutureBuilder<
+          (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)
+        >(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 80, 16, 24),
+                children: [Text(_errorText(snapshot.error))],
+              );
+            }
 
-          final (summary, customers) = snapshot.data!;
-          _latestCustomers = customers;
+            final (summary, customers) = snapshot.data!;
+            _latestCustomers = customers;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-            children: [
-              // ── Hero summary ──────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: const LinearGradient(
-                    colors: [kClayHeroStart, kClayHeroEnd],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              children: [
+                // ── Hero summary ──────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [kClayHeroStart, kClayHeroEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kClayHeroEnd.withValues(alpha: 0.45),
+                        offset: const Offset(0, 10),
+                        blurRadius: 24,
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kClayHeroEnd.withValues(alpha: 0.45),
-                      offset: const Offset(0, 10),
-                      blurRadius: 24,
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    _HeroMetric(
-                      label: 'Open',
-                      value: '${summary.openCustomerCount}',
-                      sub: 'customers',
-                    ),
-                    _HeroDivider(),
-                    _HeroMetric(
-                      label: 'Balance',
-                      value: formatCurrency(summary.openBalanceTotal),
-                      sub: 'outstanding',
-                    ),
-                    _HeroDivider(),
-                    _HeroMetric(
-                      label: 'Collected',
-                      value: formatCurrency(summary.collectedInRangeTotal),
-                      sub: 'in range',
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── Filters ───────────────────────────────────────
-              ClayCard(
-                margin: const EdgeInsets.only(bottom: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'FILTERS',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: kClaySub,
-                        letterSpacing: 1.1,
+                  child: Row(
+                    children: [
+                      _HeroMetric(
+                        label: 'Open',
+                        value: '${summary.openCustomerCount}',
+                        sub: 'customers',
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        hintText: 'Search by customer name',
-                        filled: true,
-                        fillColor: kClayBg,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        suffixIcon: IconButton(
-                          onPressed: _reload,
-                          icon: const Icon(Icons.search_rounded),
+                      _HeroDivider(),
+                      _HeroMetric(
+                        label: 'Balance',
+                        value: formatCurrency(summary.openBalanceTotal),
+                        sub: 'outstanding',
+                      ),
+                      _HeroDivider(),
+                      _HeroMetric(
+                        label: 'Collected',
+                        value: formatCurrency(summary.collectedInRangeTotal),
+                        sub: 'in range',
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 14),
+
+                // ── Filters ───────────────────────────────────────
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'FILTERS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: kClaySub,
+                          letterSpacing: 1.1,
                         ),
                       ),
-                      onSubmitted: (_) => _reload(),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final option in const ['all', 'open', 'closed'])
-                          _StatusPill(
-                            label: option.toUpperCase(),
-                            selected: _status == option,
-                            onTap: () {
-                              setState(() {
-                                _status = option;
-                                _future = _load();
-                              });
-                            },
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search by customer name',
+                          filled: true,
+                          fillColor: kClayBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
                           ),
-                        _DatePill(
-                          icon: Icons.date_range_rounded,
-                          label:
-                              _fromDate == null || _toDate == null
-                                  ? 'Date Range'
-                                  : '${formatDateLabel(_toApiDate(_fromDate!))} to '
-                                      '${formatDateLabel(_toApiDate(_toDate!))}',
-                          onTap: _pickDateRange,
+                          suffixIcon: IconButton(
+                            onPressed: _reload,
+                            icon: const Icon(Icons.search_rounded),
+                          ),
                         ),
-                        if (_fromDate != null || _toDate != null)
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _fromDate = null;
-                                _toDate = null;
-                                _future = _load();
-                              });
-                            },
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 6),
-                              child: Text(
-                                'Clear Range',
-                                style: TextStyle(
-                                  color: Color(0xFFCE5828),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
+                        onSubmitted: (_) => _reload(),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final option in const ['all', 'open', 'closed'])
+                            _StatusPill(
+                              label: option.toUpperCase(),
+                              selected: _status == option,
+                              onTap: () {
+                                setState(() {
+                                  _status = option;
+                                  _future = _load();
+                                });
+                              },
+                            ),
+                          _DatePill(
+                            icon: Icons.date_range_rounded,
+                            label:
+                                _fromDate == null || _toDate == null
+                                    ? 'Date Range'
+                                    : '${formatDateLabel(_toApiDate(_fromDate!))} to '
+                                        '${formatDateLabel(_toApiDate(_toDate!))}',
+                            onTap: _pickDateRange,
+                          ),
+                          if (_fromDate != null || _toDate != null)
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _fromDate = null;
+                                  _toDate = null;
+                                  _future = _load();
+                                });
+                              },
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 6),
+                                child: Text(
+                                  'Clear Range',
+                                  style: TextStyle(
+                                    color: Color(0xFFCE5828),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
 
-              // ── Customer list ─────────────────────────────────
-              if (customers.isEmpty)
-                ClayCard(
-                  child: const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'No credit customers found.',
-                        style: TextStyle(color: kClaySub),
+                // ── Customer list ─────────────────────────────────
+                if (customers.isEmpty)
+                  ClayCard(
+                    child: const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'No credit customers found.',
+                          style: TextStyle(color: kClaySub),
+                        ),
                       ),
                     ),
+                  )
+                else
+                  ...customers.map(
+                    (item) => _CustomerCard(
+                      item: item,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder:
+                                (_) => CreditCustomerDetailScreen(
+                                  customerId: item.customer.id,
+                                ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                )
-              else
-                ...customers.map(
-                  (item) => _CustomerCard(
-                    item: item,
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder:
-                              (_) => CreditCustomerDetailScreen(
-                                customerId: item.customer.id,
-                              ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -821,6 +850,7 @@ class _CreditCustomerDetailScreenState
     extends State<CreditCustomerDetailScreen> {
   final CreditService _creditService = CreditService();
   late Future<CreditCustomerDetailModel> _future;
+  late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   String _errorText(Object? error) {
     return userFacingErrorMessage(error);
@@ -829,13 +859,37 @@ class _CreditCustomerDetailScreenState
   @override
   void initState() {
     super.initState();
-    _future = _creditService.fetchCustomerDetail(widget.customerId);
+    _future = _load();
+    _cacheSubscription = ApiResponseCache.updates.listen((update) {
+      if (!mounted ||
+          !update.background ||
+          !update.path.startsWith('/credits/customers/${widget.customerId}')) {
+        return;
+      }
+      setState(() => _future = _load());
+    });
+  }
+
+  @override
+  void dispose() {
+    _cacheSubscription.cancel();
+    super.dispose();
+  }
+
+  Future<CreditCustomerDetailModel> _load({bool forceRefresh = false}) {
+    return _creditService.fetchCustomerDetail(
+      widget.customerId,
+      forceRefresh: forceRefresh,
+    );
   }
 
   void _reload() {
-    setState(() {
-      _future = _creditService.fetchCustomerDetail(widget.customerId);
-    });
+    setState(() => _future = _load(forceRefresh: true));
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _future = _load(forceRefresh: true));
+    await _future;
   }
 
   Future<void> _recordCollection(CreditCustomerDetailModel detail) async {
@@ -993,174 +1047,184 @@ class _CreditCustomerDetailScreenState
           style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
         ),
       ),
-      body: FutureBuilder<CreditCustomerDetailModel>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text(_errorText(snapshot.error)));
-          }
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: FutureBuilder<CreditCustomerDetailModel>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 80, 16, 24),
+                children: [Text(_errorText(snapshot.error))],
+              );
+            }
 
-          final detail = snapshot.data!;
-          final isOpen = detail.status == 'open';
+            final detail = snapshot.data!;
+            final isOpen = detail.status == 'open';
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            children: [
-              // ── Customer hero ────────────────────────────────
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: const LinearGradient(
-                    colors: [kClayHeroStart, kClayHeroEnd],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: kClayHeroEnd.withValues(alpha: 0.45),
-                      offset: const Offset(0, 10),
-                      blurRadius: 24,
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                // ── Customer hero ────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(24),
+                    gradient: const LinearGradient(
+                      colors: [kClayHeroStart, kClayHeroEnd],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            detail.customer.name,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            detail.status.toUpperCase(),
-                            style: TextStyle(
-                              color:
-                                  isOpen
-                                      ? const Color(0xFFFFB649)
-                                      : const Color(0xFF7EEFC0),
-                              fontWeight: FontWeight.w800,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: [
-                        _DetailMetric(
-                          label: 'Balance',
-                          value: formatCurrency(detail.currentBalance),
-                        ),
-                        _DetailDivider(),
-                        _DetailMetric(
-                          label: 'Issued',
-                          value: formatCurrency(detail.totalIssued),
-                        ),
-                        _DetailDivider(),
-                        _DetailMetric(
-                          label: 'Collected',
-                          value: formatCurrency(detail.totalCollected),
-                        ),
-                      ],
-                    ),
-                    if (detail.openedAt.isNotEmpty ||
-                        detail.lastClosedAt.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 12,
-                        children: [
-                          if (detail.openedAt.isNotEmpty)
-                            Text(
-                              'Opened ${formatDateLabel(detail.openedAt)}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                          if (detail.lastClosedAt.isNotEmpty)
-                            Text(
-                              'Closed ${formatDateLabel(detail.lastClosedAt)}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                              ),
-                            ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: kClayHeroEnd.withValues(alpha: 0.45),
+                        offset: const Offset(0, 10),
+                        blurRadius: 24,
                       ),
                     ],
-                    const SizedBox(height: 14),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton.icon(
-                        onPressed: () => _recordCollection(detail),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white.withValues(alpha: 0.18),
-                          foregroundColor: Colors.white,
-                          side: BorderSide(
-                            color: Colors.white.withValues(alpha: 0.30),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.payments_outlined, size: 16),
-                        label: const Text(
-                          'Record Collection',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // ── Transactions ─────────────────────────────────
-              if (detail.transactions.isEmpty)
-                ClayCard(
-                  child: const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        'No transactions yet.',
-                        style: TextStyle(color: kClaySub),
-                      ),
-                    ),
                   ),
-                )
-              else
-                ...detail.transactions.map(
-                  (item) => _TransactionCard(item: item),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              detail.customer.name,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              detail.status.toUpperCase(),
+                              style: TextStyle(
+                                color:
+                                    isOpen
+                                        ? const Color(0xFFFFB649)
+                                        : const Color(0xFF7EEFC0),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          _DetailMetric(
+                            label: 'Balance',
+                            value: formatCurrency(detail.currentBalance),
+                          ),
+                          _DetailDivider(),
+                          _DetailMetric(
+                            label: 'Issued',
+                            value: formatCurrency(detail.totalIssued),
+                          ),
+                          _DetailDivider(),
+                          _DetailMetric(
+                            label: 'Collected',
+                            value: formatCurrency(detail.totalCollected),
+                          ),
+                        ],
+                      ),
+                      if (detail.openedAt.isNotEmpty ||
+                          detail.lastClosedAt.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 12,
+                          children: [
+                            if (detail.openedAt.isNotEmpty)
+                              Text(
+                                'Opened ${formatDateLabel(detail.openedAt)}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            if (detail.lastClosedAt.isNotEmpty)
+                              Text(
+                                'Closed ${formatDateLabel(detail.lastClosedAt)}',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.icon(
+                          onPressed: () => _recordCollection(detail),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.18,
+                            ),
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.30),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: const Icon(Icons.payments_outlined, size: 16),
+                          label: const Text(
+                            'Record Collection',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-            ],
-          );
-        },
+
+                const SizedBox(height: 14),
+
+                // ── Transactions ─────────────────────────────────
+                if (detail.transactions.isEmpty)
+                  ClayCard(
+                    child: const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Text(
+                          'No transactions yet.',
+                          style: TextStyle(color: kClaySub),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  ...detail.transactions.map(
+                    (item) => _TransactionCard(item: item),
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

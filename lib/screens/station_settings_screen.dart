@@ -55,8 +55,8 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     super.dispose();
   }
 
-  Future<StationConfigModel> _load() async {
-    return _inventoryService.fetchStationConfig();
+  Future<StationConfigModel> _load({bool forceRefresh = false}) async {
+    return _inventoryService.fetchStationConfig(forceRefresh: forceRefresh);
   }
 
   void _seedControllers(StationConfigModel station) {
@@ -104,7 +104,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
   Future<void> _reload() async {
     setState(() {
       _seeded = false;
-      _future = _load();
+      _future = _load(forceRefresh: true);
     });
     await _future;
   }
@@ -163,7 +163,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     setState(() {
       _isEditing = false;
       _seeded = false;
-      _future = _load();
+      _future = _load(forceRefresh: true);
     });
   }
 

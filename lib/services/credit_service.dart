@@ -17,6 +17,7 @@ class CreditService {
     String status = 'all',
     String? fromDate,
     String? toDate,
+    bool forceRefresh = false,
   }) async {
     final params = <String, String>{
       if (query.trim().isNotEmpty) 'query': query.trim(),
@@ -26,7 +27,11 @@ class CreditService {
     };
     final suffix =
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
-    final response = await _apiClient.get('/credits/customers$suffix');
+    final response = await _apiClient.get(
+      '/credits/customers$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode >= 200 && response.statusCode < 300) {
       final json = _apiClient.decodeObject(response);
       return (
@@ -63,6 +68,7 @@ class CreditService {
     String? fromDate,
     String? toDate,
     String type = 'all',
+    bool forceRefresh = false,
   }) async {
     final params = <String, String>{
       if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
@@ -73,9 +79,13 @@ class CreditService {
         params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/credits/customers/$customerId$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
     );
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      return CreditCustomerDetailModel.fromJson(_apiClient.decodeObject(response));
+      return CreditCustomerDetailModel.fromJson(
+        _apiClient.decodeObject(response),
+      );
     }
     if (_isMissingRoute(response.body, '/credits/customers')) {
       return _buildLegacyCustomerDetail(
@@ -149,33 +159,37 @@ class CreditService {
       grouped.putIfAbsent(transaction.customerId, () => []).add(transaction);
     }
 
-    final customers = grouped.entries
-        .map((entry) => _legacySummaryFromTransactions(entry.value))
-        .where((item) {
-          if (query.trim().isNotEmpty &&
-              !item.customer.name.toLowerCase().contains(query.trim().toLowerCase())) {
-            return false;
-          }
-          if (status != 'all' && item.status != status) {
-            return false;
-          }
-          if (!_matchesRange(item.lastActivityDate, fromDate, toDate)) {
-            return false;
-          }
-          return true;
-        })
-        .toList()
-      ..sort((a, b) {
-        final balanceCompare = b.currentBalance.compareTo(a.currentBalance);
-        if (balanceCompare != 0) {
-          return balanceCompare;
-        }
-        return b.lastActivityDate.compareTo(a.lastActivityDate);
-      });
+    final customers =
+        grouped.entries
+            .map((entry) => _legacySummaryFromTransactions(entry.value))
+            .where((item) {
+              if (query.trim().isNotEmpty &&
+                  !item.customer.name.toLowerCase().contains(
+                    query.trim().toLowerCase(),
+                  )) {
+                return false;
+              }
+              if (status != 'all' && item.status != status) {
+                return false;
+              }
+              if (!_matchesRange(item.lastActivityDate, fromDate, toDate)) {
+                return false;
+              }
+              return true;
+            })
+            .toList()
+          ..sort((a, b) {
+            final balanceCompare = b.currentBalance.compareTo(a.currentBalance);
+            if (balanceCompare != 0) {
+              return balanceCompare;
+            }
+            return b.lastActivityDate.compareTo(a.lastActivityDate);
+          });
 
     return (
       CreditLedgerSummaryModel(
-        openCustomerCount: customers.where((item) => item.status == 'open').length,
+        openCustomerCount:
+            customers.where((item) => item.status == 'open').length,
         openBalanceTotal: customers
             .where((item) => item.status == 'open')
             .fold<double>(0, (sum, item) => sum + item.currentBalance),
@@ -366,13 +380,16 @@ class CreditService {
         .fold<double>(0, (sum, item) => sum + item.amount);
     final issuedInRange = sorted
         .where(
-          (item) => item.type == 'issue' && _matchesRange(item.date, fromDate, toDate),
+          (item) =>
+              item.type == 'issue' &&
+              _matchesRange(item.date, fromDate, toDate),
         )
         .fold<double>(0, (sum, item) => sum + item.amount);
     final collectedInRange = sorted
         .where(
           (item) =>
-              item.type == 'collection' && _matchesRange(item.date, fromDate, toDate),
+              item.type == 'collection' &&
+              _matchesRange(item.date, fromDate, toDate),
         )
         .fold<double>(0, (sum, item) => sum + item.amount);
 
@@ -399,12 +416,13 @@ class CreditService {
       totalCollected: totalCollected,
       issuedInRange: issuedInRange,
       collectedInRange: collectedInRange,
-      openedAt: sorted
-          .firstWhere(
-            (item) => item.type == 'issue',
-            orElse: () => sorted.first,
-          )
-          .date,
+      openedAt:
+          sorted
+              .firstWhere(
+                (item) => item.type == 'issue',
+                orElse: () => sorted.first,
+              )
+              .date,
       lastClosedAt: lastClosedAt,
       lastActivityDate: sorted.last.date,
     );
@@ -414,7 +432,9 @@ class CreditService {
     if (date.isEmpty) {
       return fromDate == null && toDate == null;
     }
-    if (fromDate != null && fromDate.isNotEmpty && date.compareTo(fromDate) < 0) {
+    if (fromDate != null &&
+        fromDate.isNotEmpty &&
+        date.compareTo(fromDate) < 0) {
       return false;
     }
     if (toDate != null && toDate.isNotEmpty && date.compareTo(toDate) > 0) {

@@ -9,8 +9,14 @@ class AdminService {
 
   final ApiClient _apiClient;
 
-  Future<List<AccessRequest>> fetchPendingRequests() async {
-    final response = await _apiClient.get('/admin/requests');
+  Future<List<AccessRequest>> fetchPendingRequests({
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      '/admin/requests',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to load requests.'),
