@@ -486,21 +486,33 @@ class InventoryService {
     );
   }
 
-  double _averageDailySales(List<ShiftEntryModel> entries, String fuelKey) {
+  double _averageDailySales(
+    List<ShiftEntryModel> entries,
+    String fuelKey, {
+    String? endDate,
+  }) {
     final totalsByDate = <String, double>{};
     for (final entry in entries) {
       final sold = _inventoryFuelTotal(entry, fuelKey);
       totalsByDate[entry.date] = (totalsByDate[entry.date] ?? 0) + sold;
     }
-    final recent = totalsByDate.entries.toList()
-      ..removeWhere((item) => item.value <= 0)
-      ..sort((a, b) => b.key.compareTo(a.key));
-    final selected = recent.take(7).toList();
-    if (selected.isEmpty) {
+    final resolvedEndDate =
+        endDate ?? DateTime.now().toIso8601String().split('T').first;
+    final windowDates = List<String>.generate(
+      7,
+      (index) => _shiftIsoDate(resolvedEndDate, -index),
+    ).reversed.toList();
+    final enteredDates = windowDates
+        .where((date) => totalsByDate.containsKey(date))
+        .toList(growable: false);
+    if (enteredDates.isEmpty) {
       return 0;
     }
-    final total = selected.fold<double>(0, (sum, item) => sum + item.value);
-    return total / selected.length;
+    final total = enteredDates.fold<double>(
+      0,
+      (sum, date) => sum + (totalsByDate[date] ?? 0),
+    );
+    return total / enteredDates.length;
   }
 
   FuelInventoryForecastModel _buildLegacyForecast({
