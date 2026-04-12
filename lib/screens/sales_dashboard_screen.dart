@@ -9,6 +9,7 @@ import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
+import 'credit_ledger_screen.dart';
 
 class SalesDashboardScreen extends StatefulWidget {
   const SalesDashboardScreen({super.key});
@@ -55,6 +56,12 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
       _future = _load(forceRefresh: true);
     });
     await _future;
+  }
+
+  Future<void> _openCreditLedger() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()),
+    );
   }
 
   @override
@@ -182,6 +189,22 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
               ),
 
               const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: _openCreditLedger,
+                style: FilledButton.styleFrom(
+                  backgroundColor: kClayHeroStart,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(Icons.account_balance_wallet_rounded),
+                label: const Text(
+                  'Credit Ledger',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
 
               // ── Fuel sales cards ───────────────────────────────────────
               const Text(
