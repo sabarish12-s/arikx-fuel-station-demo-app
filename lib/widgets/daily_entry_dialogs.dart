@@ -21,7 +21,11 @@ String _formatTestingQuantityInput(double quantity) {
 }
 
 String _testingSubtitle(PumpTestingModel testing) {
-  return 'Exclude petrol ${formatLiters(testing.petrol)} and diesel ${formatLiters(testing.diesel)} from billed sale for this pump.';
+  final inventoryText =
+      testing.addToInventory
+          ? 'Testing will also reduce inventory.'
+          : 'Testing will not reduce inventory.';
+  return 'Exclude petrol ${formatLiters(testing.petrol)} and diesel ${formatLiters(testing.diesel)} from billed sale for this pump. $inventoryText';
 }
 
 Future<DailyEntryDraft?> showDailyEntryEditorDialog({
@@ -42,6 +46,7 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
   final Map<String, TextEditingController> upiControllers = {};
   final Map<String, TextEditingController> creditControllers = {};
   final Map<String, bool> testingValues = {};
+  final Map<String, bool> testingInventoryValues = {};
   final Map<String, TextEditingController> testingPetrolControllers = {};
   final Map<String, TextEditingController> testingDieselControllers = {};
   String selectedDate = initialDraft?.date ?? initialDate;
@@ -70,6 +75,7 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
         initialDraft?.pumpTesting[pump.id] ??
         const PumpTestingModel(petrol: 0, diesel: 0);
     testingValues[pump.id] = testing.enabled;
+    testingInventoryValues[pump.id] = testing.addToInventory;
     testingPetrolControllers[pump.id] = TextEditingController(
       text: _formatTestingQuantityInput(testing.petrol),
     );
@@ -317,6 +323,9 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                                                       ?.text ??
                                                   '',
                                             ),
+                                            addToInventory:
+                                                testingInventoryValues[pump.id] ==
+                                                true,
                                           )
                                           : const PumpTestingModel(
                                             petrol: _defaultTestingQuantity,
@@ -350,6 +359,9 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                                                 _defaultTestingQuantity,
                                               );
                                         }
+                                      } else {
+                                        testingInventoryValues[pump.id] =
+                                            false;
                                       }
                                     });
                                   },
@@ -386,6 +398,24 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                                       filled: true,
                                       fillColor: Colors.white,
                                     ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  CheckboxListTile(
+                                    value:
+                                        testingInventoryValues[pump.id] == true,
+                                    contentPadding: EdgeInsets.zero,
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    title: const Text('Add testing to inventory'),
+                                    subtitle: const Text(
+                                      'If selected, inventory will reduce by the testing quantity too.',
+                                    ),
+                                    onChanged: (value) {
+                                      setDialogState(() {
+                                        testingInventoryValues[pump.id] =
+                                            value ?? false;
+                                      });
+                                    },
                                   ),
                                 ],
                               ],
@@ -451,6 +481,8 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                           pumpTesting[pump.id] = PumpTestingModel(
                             petrol: testingPetrol,
                             diesel: testingDiesel,
+                            addToInventory:
+                                testingInventoryValues[pump.id] == true,
                           );
                         } else {
                           pumpTesting[pump.id] = const PumpTestingModel(
@@ -744,7 +776,7 @@ Future<String?> showDailyEntryPreviewDialog({
                                                   BorderRadius.circular(16),
                                             ),
                                             child: Text(
-                                              'Testing excluded: petrol ${formatLiters(testing?.petrol ?? 0)}  |  diesel ${formatLiters(testing?.diesel ?? 0)}',
+                                              'Testing excluded from sales: petrol ${formatLiters(testing?.petrol ?? 0)}  |  diesel ${formatLiters(testing?.diesel ?? 0)}  |  inventory: ${testing?.addToInventory == true ? 'included' : 'excluded'}',
                                               style: const TextStyle(
                                                 color: Color(0xFF5B21B6),
                                                 fontWeight: FontWeight.w600,
@@ -1778,6 +1810,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   late final TextEditingController _testingDieselController;
   late final TextEditingController _mismatchReasonController;
   late bool _testingEnabled;
+  late bool _testingAddsToInventory;
   late List<_CreditEntryControllers> _creditEntryControllers;
 
   @override
@@ -1835,6 +1868,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       text: widget.initialDraft.mismatchReason,
     );
     _testingEnabled = widget.initialDraft.testingEnabled;
+    _testingAddsToInventory = widget.initialDraft.testing.addToInventory;
     if (widget.initialDraft.creditEntries.isEmpty &&
         widget.initialDraft.payments.credit > 0) {
       _creditEntryControllers = [
@@ -2219,6 +2253,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       }
       _creditEntryControllers = [];
       _testingEnabled = false;
+      _testingAddsToInventory = false;
       _testingPetrolController.clear();
       _testingDieselController.clear();
       _mismatchReasonController.clear();
@@ -2274,8 +2309,13 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                     diesel: _parseTestingQuantity(
                       _testingDieselController.text,
                     ),
+                    addToInventory: _testingAddsToInventory,
                   )
-                  : const PumpTestingModel(petrol: 0, diesel: 0),
+                  : const PumpTestingModel(
+                    petrol: 0,
+                    diesel: 0,
+                    addToInventory: false,
+                  ),
           payments: PumpPaymentBreakdownModel(
             cash: _parseAmount(_cashController.text),
             check: _parseAmount(_checkController.text),
@@ -2963,6 +3003,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                       diesel: _parseTestingQuantity(
                                         _testingDieselController.text,
                                       ),
+                                      addToInventory: _testingAddsToInventory,
                                     )
                                     : const PumpTestingModel(
                                       petrol: _defaultTestingQuantity,
@@ -2992,6 +3033,8 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                       _defaultTestingQuantity,
                                     );
                                   }
+                                } else {
+                                  _testingAddsToInventory = false;
                                 }
                               });
                             },
@@ -3036,6 +3079,22 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                     'diesel',
                                     value ?? '',
                                   ),
+                            ),
+                            const SizedBox(height: 12),
+                            CheckboxListTile(
+                              value: _testingAddsToInventory,
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity:
+                                  ListTileControlAffinity.leading,
+                              title: const Text('Add testing to inventory'),
+                              subtitle: const Text(
+                                'If selected, inventory will reduce by the testing quantity too.',
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _testingAddsToInventory = value ?? false;
+                                });
+                              },
                             ),
                           ],
                         ],

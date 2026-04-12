@@ -1182,6 +1182,7 @@ class _EntryCard extends StatelessWidget {
     final isFlagged = entry.flagged;
     final isDeleting = activeAction == _EntryAction.delete;
     final isApproving = activeAction == _EntryAction.approve;
+    final weekday = formatWeekdayLabel(entry.date);
     final pumpLabels = {
       for (final pump in station.pumps)
         pump.id: formatPumpLabel(pump.id, pump.label),
@@ -1222,7 +1223,9 @@ class _EntryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  formatDateLabel(entry.date),
+                  weekday.isEmpty
+                      ? formatDateLabel(entry.date)
+                      : '${formatDateLabel(entry.date)} ($weekday)',
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     fontSize: 17,

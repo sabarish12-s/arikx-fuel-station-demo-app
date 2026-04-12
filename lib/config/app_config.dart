@@ -1,6 +1,6 @@
 const String backendBaseUrl = String.fromEnvironment(
   'BACKEND_BASE_URL',
-  defaultValue: 'https://rkfuelsapi.vercel.app',
+  defaultValue: 'https://rk-fuels-backend.onrender.com',
 );
 
 const String googleWebClientId = String.fromEnvironment(

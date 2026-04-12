@@ -287,7 +287,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                       flex: 3,
                       child: _InvActionBtn(
                         icon: Icons.local_shipping_outlined,
-                        label: 'Record Delivery',
+                        label: 'Record Purchase',
                         onTap: () => _openDeliveryReceipt(data.forecast),
                         filled: true,
                       ),
@@ -392,7 +392,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                   ),
                 ),
 
-                // ── Recent delivery ──────────────────────────────────
+                // ── Recent purchase ──────────────────────────────────
                 _ClayCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +401,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         children: [
                           const Expanded(
                             child: Text(
-                              'Recent Delivery',
+                              'Recent Purchase',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -460,7 +460,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                       const SizedBox(height: 12),
                       if (data.deliveries.isEmpty)
                         const Text(
-                          'No delivery receipts recorded yet.',
+                          'No purchases recorded yet.',
                           style: TextStyle(
                             color: Color(0xFF8A93B8),
                             fontSize: 13,

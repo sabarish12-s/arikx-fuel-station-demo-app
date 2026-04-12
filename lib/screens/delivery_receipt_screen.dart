@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/auth_models.dart';
 import '../models/domain_models.dart';
+import '../services/auth_service.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -23,12 +25,13 @@ class DeliveryReceiptScreen extends StatefulWidget {
 
 class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
   final InventoryService _inventoryService = InventoryService();
+  final AuthService _authService = AuthService();
   final TextEditingController _petrolController = TextEditingController();
   final TextEditingController _dieselController = TextEditingController();
   final TextEditingController _twoTController = TextEditingController();
-  final TextEditingController _purchasedByController = TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   late DateTime _selectedDate;
+  String _purchasedByName = '';
   bool _saving = false;
 
   @override
@@ -38,6 +41,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
     _petrolController.addListener(_onQuantityChanged);
     _dieselController.addListener(_onQuantityChanged);
     _twoTController.addListener(_onQuantityChanged);
+    _loadPurchasedByName();
   }
 
   @override
@@ -48,9 +52,18 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
     _petrolController.dispose();
     _dieselController.dispose();
     _twoTController.dispose();
-    _purchasedByController.dispose();
     _noteController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPurchasedByName() async {
+    final AuthUser? user = await _authService.readCurrentUser();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _purchasedByName = user?.name.trim() ?? '';
+    });
   }
 
   void _onQuantityChanged() {
@@ -80,7 +93,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       initialDate: _selectedDate,
       firstDate: DateTime(2024),
       lastDate: DateTime(2100),
-      helpText: 'Select delivery date',
+      helpText: 'Select purchase date',
     );
     if (selected == null) {
       return;
@@ -99,7 +112,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFB91C1C),
-          content: Text('Delivery quantities cannot be negative.'),
+          content: Text('Purchase quantities cannot be negative.'),
         ),
       );
       return;
@@ -111,7 +124,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
         const SnackBar(
           backgroundColor: Color(0xFFB91C1C),
           content: Text(
-            'Enter at least one delivery quantity greater than zero.',
+            'Enter at least one purchase quantity greater than zero.',
           ),
         ),
       );
@@ -121,17 +134,16 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFB91C1C),
-          content: Text('Record 2T oil in a separate delivery receipt.'),
+          content: Text('Record 2T oil in a separate purchase entry.'),
         ),
       );
       return;
     }
-    final purchasedByName = _purchasedByController.text.trim();
-    if (purchasedByName.isEmpty) {
+    if (_purchasedByName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFB91C1C),
-          content: Text('Enter purchased by name.'),
+          content: Text('Could not determine the signed-in user name.'),
         ),
       );
       return;
@@ -142,14 +154,13 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       await _inventoryService.createDeliveryReceipt(
         date: _apiDate,
         quantities: {'petrol': petrol, 'diesel': diesel, 'two_t_oil': twoT},
-        purchasedByName: purchasedByName,
         note: _noteController.text.trim(),
       );
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Delivery receipt recorded.')),
+        const SnackBar(content: Text('Purchase recorded.')),
       );
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -198,7 +209,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       appBar: AppBar(
         backgroundColor: kClayBg,
         iconTheme: const IconThemeData(color: kClayPrimary),
-        title: const Text('Delivery Receipt'),
+        title: const Text('Purchase'),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -234,7 +245,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Received Stock',
+                  'Purchased Stock',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -253,14 +264,14 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const _ReceiptSectionLabel(label: 'DATE & DELIVERY'),
+          const _ReceiptSectionLabel(label: 'DATE & PURCHASE'),
           const SizedBox(height: 10),
           ClayCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Record the normal tanker arrival with petrol and diesel together. Record 2T oil in a separate receipt when it arrives independently.',
+                  'Record the normal tanker purchase with petrol and diesel together. Record 2T oil separately when it is purchased independently.',
                   style: TextStyle(
                     color: kClaySub,
                     height: 1.45,
@@ -301,7 +312,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'DELIVERY DATE',
+                                'PURCHASE DATE',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
@@ -361,22 +372,49 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          const _ReceiptSectionLabel(label: 'PURCHASED BY'),
+          const _ReceiptSectionLabel(label: 'ENTERED BY'),
           const SizedBox(height: 10),
           ClayCard(
-            child: TextField(
-              controller: _purchasedByController,
-              enabled: !_saving,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: 'Purchased by name',
-                filled: true,
-                fillColor: _saving ? const Color(0xFFE8EBF4) : kClayBg,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: kClayHeroStart.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: kClayHeroStart,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ENTERED BY USER',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                          color: kClaySub,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _purchasedByName.isEmpty ? 'Loading user...' : _purchasedByName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -412,7 +450,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                       ),
                     )
                     : const Icon(Icons.save_outlined),
-            label: Text(_saving ? 'Saving...' : 'Record Delivery'),
+            label: Text(_saving ? 'Saving...' : 'Record Purchase'),
             style: FilledButton.styleFrom(
               backgroundColor: kClayHeroStart,
               foregroundColor: Colors.white,

@@ -201,7 +201,7 @@ class InventoryService {
       throw Exception(
         _apiClient.errorMessage(
           response,
-          fallback: 'Failed to load deliveries.',
+          fallback: 'Failed to load purchases.',
         ),
       );
     }
@@ -216,7 +216,6 @@ class InventoryService {
   Future<DeliveryReceiptModel> createDeliveryReceipt({
     required String date,
     required Map<String, double> quantities,
-    required String purchasedByName,
     String note = '',
   }) async {
     final response = await _apiClient.post(
@@ -224,25 +223,24 @@ class InventoryService {
       body: jsonEncode({
         'date': date,
         'quantities': quantities,
-        'purchasedByName': purchasedByName,
         'note': note,
       }),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (_isMissingRoute(response.body)) {
         throw Exception(
-          'This server does not support delivery receipts yet. Update the backend before using inventory delivery.',
+          'This server does not support purchases yet. Update the backend before using inventory purchases.',
         );
       }
       if (_isManagementAccessDenied(response.body)) {
         throw Exception(
-          'You do not have permission to record delivery receipts on this server.',
+          'You do not have permission to record purchases on this server.',
         );
       }
       throw Exception(
         _apiClient.errorMessage(
           response,
-          fallback: 'Failed to save delivery receipt.',
+          fallback: 'Failed to save purchase.',
         ),
       );
     }
@@ -378,13 +376,13 @@ class InventoryService {
 
     for (final entry in entriesAfterBaseline) {
       currentStock['petrol'] = _roundNumber(
-        (currentStock['petrol'] ?? 0) - entry.totals.sold.petrol,
+        (currentStock['petrol'] ?? 0) - _inventoryFuelTotal(entry, 'petrol'),
       );
       currentStock['diesel'] = _roundNumber(
-        (currentStock['diesel'] ?? 0) - entry.totals.sold.diesel,
+        (currentStock['diesel'] ?? 0) - _inventoryFuelTotal(entry, 'diesel'),
       );
       currentStock['two_t_oil'] = _roundNumber(
-        (currentStock['two_t_oil'] ?? 0) - entry.totals.sold.twoT,
+        (currentStock['two_t_oil'] ?? 0) - _inventoryFuelTotal(entry, 'twoT'),
       );
     }
 
@@ -507,12 +505,7 @@ class InventoryService {
   double _averageDailySales(List<ShiftEntryModel> entries, String fuelKey) {
     final totalsByDate = <String, double>{};
     for (final entry in entries) {
-      final sold =
-          fuelKey == 'petrol'
-              ? entry.totals.sold.petrol
-              : fuelKey == 'diesel'
-              ? entry.totals.sold.diesel
-              : entry.totals.sold.twoT;
+      final sold = _inventoryFuelTotal(entry, fuelKey);
       totalsByDate[entry.date] = (totalsByDate[entry.date] ?? 0) + sold;
     }
     final recent =
@@ -571,6 +564,20 @@ class InventoryService {
 
   double _roundNumber(double value) {
     return double.parse(value.toStringAsFixed(2));
+  }
+
+  double _inventoryFuelTotal(ShiftEntryModel entry, String fuelKey) {
+    switch (fuelKey) {
+      case 'petrol':
+        return entry.inventoryTotals.petrol;
+      case 'diesel':
+        return entry.inventoryTotals.diesel;
+      case 'twoT':
+      case 'two_t_oil':
+        return entry.inventoryTotals.twoT;
+      default:
+        return 0;
+    }
   }
 
   String _entryInventoryTimestamp(ShiftEntryModel entry) {

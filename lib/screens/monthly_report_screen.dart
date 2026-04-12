@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
 import '../services/credit_service.dart';
+import '../services/inventory_service.dart';
 import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
@@ -36,6 +37,7 @@ class _MonthlyReportViewData {
 class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final ManagementService _managementService = ManagementService();
   final CreditService _creditService = CreditService();
+  final InventoryService _inventoryService = InventoryService();
   final ReportExportService _reportExportService = ReportExportService();
   late Future<_MonthlyReportViewData> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
@@ -440,23 +442,363 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       final safeFrom = fromStr.replaceAll('-', '');
       final safeTo = toStr.replaceAll('-', '');
       final title = 'rk_fuels_report_${safeFrom}_$safeTo';
-      final file = await _reportExportService.exportReport(
-        report: report,
-        title: title,
-        fromLabel: _fmtDt(from),
-        toLabel: _fmtDt(to),
-      );
       if (!mounted) return;
       if (shareMode) {
+        final file = await _reportExportService.exportReport(
+          report: report,
+          title: title,
+          fromLabel: _fmtDt(from),
+          toLabel: _fmtDt(to),
+        );
         await _reportExportService.shareFile(
           file,
           text: 'RK Fuels report ${_fmtDt(from)} to ${_fmtDt(to)}',
         );
       } else {
+        final savedLocation = await _reportExportService.saveReportToDownloads(
+          report: report,
+          title: title,
+          fromLabel: _fmtDt(from),
+          toLabel: _fmtDt(to),
+        );
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Report saved to ${file.path}')));
+        ).showSnackBar(SnackBar(content: Text('Report saved to $savedLocation')));
       }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
+
+  String _entryInventoryTimestamp(ShiftEntryModel entry) {
+    final approvedAt = entry.approvedAt.trim();
+    if (approvedAt.isNotEmpty) {
+      return approvedAt;
+    }
+    final updatedAt = entry.updatedAt.trim();
+    if (updatedAt.isNotEmpty) {
+      return updatedAt;
+    }
+    return entry.submittedAt.trim();
+  }
+
+  double _round2(double value) => double.parse(value.toStringAsFixed(2));
+
+  List<StockReportSection> _buildStockReportSections({
+    required StationConfigModel station,
+    required List<ShiftEntryModel> entries,
+    required List<DeliveryReceiptModel> deliveries,
+    required DateTime from,
+    required DateTime to,
+  }) {
+    final fromStr = _toApiDate(from);
+    final toStr = _toApiDate(to);
+    final baselineStock = station.inventoryPlanning.openingStock;
+    final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
+
+    final receiptsAfterBaseline =
+        deliveries.where((delivery) {
+            if (baselineUpdatedAt.isEmpty) {
+              return true;
+            }
+            return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
+          }).toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
+
+    final entriesAfterBaseline =
+        entries.where((entry) {
+            if (entry.status == 'preview') {
+              return false;
+            }
+            if (baselineUpdatedAt.isEmpty) {
+              return true;
+            }
+            return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) >
+                0;
+          }).toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
+
+    final startingStock = <String, double>{
+      'petrol': _round2(baselineStock['petrol'] ?? 0),
+      'diesel': _round2(baselineStock['diesel'] ?? 0),
+      'two_t_oil': _round2(baselineStock['two_t_oil'] ?? 0),
+    };
+
+    for (final receipt in receiptsAfterBaseline.where(
+      (item) => item.date.compareTo(fromStr) < 0,
+    )) {
+      for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
+        startingStock[fuelTypeId] = _round2(
+          (startingStock[fuelTypeId] ?? 0) +
+              (receipt.quantities[fuelTypeId] ?? 0),
+        );
+      }
+    }
+
+    for (final entry in entriesAfterBaseline.where(
+      (item) => item.date.compareTo(fromStr) < 0,
+    )) {
+      startingStock['petrol'] = _round2(
+        (startingStock['petrol'] ?? 0) - entry.inventoryTotals.petrol,
+      );
+      startingStock['diesel'] = _round2(
+        (startingStock['diesel'] ?? 0) - entry.inventoryTotals.diesel,
+      );
+      startingStock['two_t_oil'] = _round2(
+        (startingStock['two_t_oil'] ?? 0) - entry.inventoryTotals.twoT,
+      );
+    }
+
+    final inwardsByDate = <String, Map<String, double>>{};
+    for (final delivery in receiptsAfterBaseline.where(
+      (item) => item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
+    )) {
+      final bucket = inwardsByDate.putIfAbsent(
+        delivery.date,
+        () => {'petrol': 0, 'diesel': 0, 'two_t_oil': 0},
+      );
+      for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
+        bucket[fuelTypeId] = _round2(
+          (bucket[fuelTypeId] ?? 0) + (delivery.quantities[fuelTypeId] ?? 0),
+        );
+      }
+    }
+
+    final salesByDate = <String, Map<String, double>>{};
+    for (final entry in entriesAfterBaseline.where(
+      (item) => item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
+    )) {
+      final bucket = salesByDate.putIfAbsent(
+        entry.date,
+        () => {'petrol': 0, 'diesel': 0, 'two_t_oil': 0},
+      );
+      bucket['petrol'] = _round2(
+        (bucket['petrol'] ?? 0) + entry.inventoryTotals.petrol,
+      );
+      bucket['diesel'] = _round2(
+        (bucket['diesel'] ?? 0) + entry.inventoryTotals.diesel,
+      );
+      bucket['two_t_oil'] = _round2(
+        (bucket['two_t_oil'] ?? 0) + entry.inventoryTotals.twoT,
+      );
+    }
+
+    final allDates = {
+      ...inwardsByDate.keys,
+      ...salesByDate.keys,
+    }.toList()
+      ..sort();
+
+    List<StockReportSection> buildSections() {
+      final configs = [
+        {'key': 'petrol', 'label': 'Petrol'},
+        {'key': 'diesel', 'label': 'Diesel'},
+        {'key': 'two_t_oil', 'label': '2T Oil'},
+      ];
+
+      return configs.map((config) {
+        final fuelKey = config['key']!;
+        final label = config['label']!;
+        var cumulative = _round2(startingStock[fuelKey] ?? 0);
+        var totalInwards = 0.0;
+        var totalSales = 0.0;
+        final rows = <StockReportRow>[];
+
+        for (final date in allDates) {
+          final inwards = _round2(inwardsByDate[date]?[fuelKey] ?? 0);
+          final sales = _round2(salesByDate[date]?[fuelKey] ?? 0);
+          cumulative = _round2(cumulative + inwards - sales);
+          totalInwards = _round2(totalInwards + inwards);
+          totalSales = _round2(totalSales + sales);
+          rows.add(
+            StockReportRow(
+              date: date,
+              stockInwards: inwards,
+              sales: sales,
+              cumulative: cumulative,
+            ),
+          );
+        }
+
+        return StockReportSection(
+          label: label,
+          rows: rows,
+          totalInwards: totalInwards,
+          totalSales: totalSales,
+          closingCumulative: cumulative,
+        );
+      }).toList();
+    }
+
+    return buildSections();
+  }
+
+  Future<void> _openStockExportDialog() async {
+    final now = DateTime.now();
+    DateTime exportFrom = DateTime(now.year, now.month, 1);
+    DateTime exportTo = DateTime(now.year, now.month + 1, 0);
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> pickRange() async {
+              final picked = await showAppDateRangePicker(
+                context: dialogContext,
+                fromDate: exportFrom,
+                toDate: exportTo,
+                firstDate: DateTime(2024),
+                lastDate: DateTime(2100),
+                helpText: 'Select stock export range',
+              );
+              if (picked != null) {
+                setDialogState(() {
+                  exportFrom = picked.start;
+                  exportTo = picked.end;
+                });
+              }
+            }
+
+            void applyPreset(DateTime from, DateTime to) => setDialogState(() {
+              exportFrom = from;
+              exportTo = to;
+            });
+
+            final tMF = DateTime(now.year, now.month, 1);
+            final tMT = DateTime(now.year, now.month + 1, 0);
+            final lMF = DateTime(now.year, now.month - 1, 1);
+            final lMT = DateTime(now.year, now.month, 0);
+
+            return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              title: const Text('Export Stock Report'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Choose a date range for the stock export.',
+                      style: TextStyle(color: Color(0xFF55606E)),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ActionChip(
+                          label: const Text('This Month'),
+                          onPressed: () => applyPreset(tMF, tMT),
+                        ),
+                        ActionChip(
+                          label: const Text('Last Month'),
+                          onPressed: () => applyPreset(lMF, lMT),
+                        ),
+                        ActionChip(
+                          label: const Text('YTD'),
+                          onPressed:
+                              () => applyPreset(DateTime(now.year, 1, 1), now),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _ExportDateTile(
+                      label: 'DATE RANGE',
+                      value: '${_fmtDt(exportFrom)} to ${_fmtDt(exportTo)}',
+                      onTap: pickRange,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    if (exportTo.isBefore(exportFrom)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          backgroundColor: Color(0xFFB91C1C),
+                          content: Text(
+                            '"To" date must be on or after "From" date.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop();
+                    await _runStockExport(from: exportFrom, to: exportTo);
+                  },
+                  icon: const Icon(Icons.inventory_2_rounded),
+                  label: const Text('Export Stock CSV'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _runStockExport({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    setState(() => _exporting = true);
+    try {
+      final fromStr = _toApiDate(from);
+      final toStr = _toApiDate(to);
+      final station = await _inventoryService.fetchStationConfig();
+      final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
+      final baselineDate =
+          baselineUpdatedAt.isNotEmpty && baselineUpdatedAt.length >= 10
+              ? baselineUpdatedAt.substring(0, 10)
+              : fromStr;
+      final entries = await _managementService.fetchEntries(
+        fromDate: baselineDate.compareTo(fromStr) <= 0 ? baselineDate : fromStr,
+        toDate: toStr,
+        summary: true,
+      );
+      final deliveries = await _inventoryService.fetchDeliveries();
+      final sections = _buildStockReportSections(
+        station: station,
+        entries: entries,
+        deliveries: deliveries,
+        from: from,
+        to: to,
+      );
+      final safeFrom = fromStr.replaceAll('-', '');
+      final safeTo = toStr.replaceAll('-', '');
+      final title = 'rk_fuels_stock_report_${safeFrom}_$safeTo';
+      final savedLocation = await _reportExportService.saveStockReportToDownloads(
+        sections: sections,
+        title: title,
+        fromLabel: _fmtDt(from),
+        toLabel: _fmtDt(to),
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stock report saved to $savedLocation')),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -754,6 +1096,16 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: _HeroActionBtn(
+                icon: Icons.inventory_2_rounded,
+                label: _exporting ? 'Preparing...' : 'Stock Download',
+                onTap:
+                    _exporting ? null : () => _openStockExportDialog(),
+              ),
             ),
           ],
         ),

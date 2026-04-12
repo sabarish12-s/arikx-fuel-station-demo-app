@@ -165,15 +165,24 @@ double parseTestingQuantity(dynamic value) {
 }
 
 class PumpTestingModel {
-  const PumpTestingModel({required this.petrol, required this.diesel});
+  const PumpTestingModel({
+    required this.petrol,
+    required this.diesel,
+    this.addToInventory = false,
+  });
 
   final double petrol;
   final double diesel;
+  final bool addToInventory;
 
   bool get enabled => petrol > 0 || diesel > 0;
 
   Map<String, dynamic> toJson() {
-    return {'petrol': petrol, 'diesel': diesel};
+    return {
+      'petrol': petrol,
+      'diesel': diesel,
+      'addToInventory': addToInventory,
+    };
   }
 }
 
@@ -182,16 +191,21 @@ PumpTestingModel parsePumpTesting(dynamic value) {
     return PumpTestingModel(
       petrol: parseTestingQuantity(value['petrol']),
       diesel: parseTestingQuantity(value['diesel']),
+      addToInventory: value['addToInventory'] == true,
     );
   }
   if (value is Map) {
     return PumpTestingModel(
       petrol: parseTestingQuantity(value['petrol']),
       diesel: parseTestingQuantity(value['diesel']),
+      addToInventory: value['addToInventory'] == true,
     );
   }
   final quantity = parseTestingQuantity(value);
-  return PumpTestingModel(petrol: quantity, diesel: quantity);
+  return PumpTestingModel(
+    petrol: quantity,
+    diesel: quantity,
+  );
 }
 
 class DailyEntryDraft {
@@ -917,6 +931,7 @@ class ShiftEntryModel {
     required this.creditEntries,
     required this.creditCollections,
     required this.totals,
+    required this.inventoryTotals,
     required this.revenue,
     required this.computedRevenue,
     required this.paymentTotal,
@@ -952,6 +967,7 @@ class ShiftEntryModel {
   final List<CreditEntryModel> creditEntries;
   final List<CreditCollectionModel> creditCollections;
   final EntryTotals totals;
+  final FuelTotals inventoryTotals;
   final double revenue;
   final double computedRevenue;
   final double paymentTotal;
@@ -1029,6 +1045,23 @@ class ShiftEntryModel {
               .toList(),
       totals: EntryTotals.fromJson(
         json['totals'] as Map<String, dynamic>? ?? const {},
+      ),
+      inventoryTotals: FuelTotals.fromJson(
+        json['inventoryTotals'] as Map<String, dynamic>? ??
+            {
+              'petrol':
+                  ((json['totals'] as Map<String, dynamic>? ??
+                          const {})['sold'] as Map<String, dynamic>? ??
+                      const {})['petrol'],
+              'diesel':
+                  ((json['totals'] as Map<String, dynamic>? ??
+                          const {})['sold'] as Map<String, dynamic>? ??
+                      const {})['diesel'],
+              'twoT':
+                  ((json['totals'] as Map<String, dynamic>? ??
+                          const {})['sold'] as Map<String, dynamic>? ??
+                      const {})['twoT'],
+            },
       ),
       revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
       computedRevenue: (json['computedRevenue'] as num?)?.toDouble() ?? 0,

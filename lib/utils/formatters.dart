@@ -100,6 +100,23 @@ String formatDateLabel(String raw) {
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
+String formatWeekdayLabel(String raw) {
+  final date = DateTime.tryParse(raw);
+  if (date == null) {
+    return '';
+  }
+  const weekdays = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday',
+  ];
+  return weekdays[date.weekday - 1];
+}
+
 String currentMonthKey() {
   final now = DateTime.now();
   final month = now.month.toString().padLeft(2, '0');

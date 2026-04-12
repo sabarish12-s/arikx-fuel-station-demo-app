@@ -251,6 +251,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
         entry.totals.sold.petrol +
         entry.totals.sold.diesel +
         entry.totals.sold.twoT;
+    final weekday = formatWeekdayLabel(entry.date);
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -264,7 +265,9 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      formatDateLabel(entry.date),
+                      weekday.isEmpty
+                          ? formatDateLabel(entry.date)
+                          : '${formatDateLabel(entry.date)} ($weekday)',
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,

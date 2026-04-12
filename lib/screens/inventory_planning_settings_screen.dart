@@ -247,7 +247,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${planning.deliveryLeadDays} day delivery lead',
+                        '${planning.deliveryLeadDays} day purchase lead',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 30,
@@ -316,7 +316,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Separate from pump opening meter readings. Deliveries add to this and saved sales reduce inventory automatically.',
+                        'Separate from pump opening meter readings. Purchases add to this and saved sales reduce inventory automatically.',
                         style: TextStyle(color: kClaySub, height: 1.4),
                       ),
                       const SizedBox(height: 16),
@@ -362,7 +362,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 16),
                       _PlanningNumberField(
-                        label: 'Delivery lead days after ordering',
+                        label: 'Purchase lead days after ordering',
                         controller: _deliveryLeadController,
                         enabled: widget.canEdit && _isEditing && !_saving,
                         decimals: false,

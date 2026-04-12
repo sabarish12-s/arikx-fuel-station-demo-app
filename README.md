@@ -22,7 +22,7 @@ Use your backend URL and Google client IDs:
 
 ```bash
 flutter run \
-  --dart-define=BACKEND_BASE_URL=https://your-vercel-api.vercel.app \
+  --dart-define=BACKEND_BASE_URL=https://your-render-api.onrender.com \
   --dart-define=GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com \
   --dart-define=GOOGLE_CLIENT_ID=your-ios-client-id.apps.googleusercontent.com
 ```

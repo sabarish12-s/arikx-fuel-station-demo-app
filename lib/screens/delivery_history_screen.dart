@@ -61,7 +61,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
       appBar: AppBar(
         backgroundColor: kClayBg,
         title: const Text(
-          'Delivery History',
+          'Purchase History',
           style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
         ),
         iconTheme: const IconThemeData(color: kClayPrimary),
@@ -111,8 +111,8 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                       const SizedBox(width: 12),
                       Text(
                         deliveries.isEmpty
-                            ? 'No delivery receipts recorded yet.'
-                            : '${deliveries.length} delivery event${deliveries.length == 1 ? '' : 's'} recorded.',
+                            ? 'No purchases recorded yet.'
+                            : '${deliveries.length} purchase event${deliveries.length == 1 ? '' : 's'} recorded.',
                         style: const TextStyle(
                           color: kClayPrimary,
                           fontWeight: FontWeight.w700,
@@ -152,10 +152,10 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
     if ((petrol > 0 || diesel > 0) && twoT <= 0) {
-      return 'Petrol + Diesel Delivery';
+      return 'Petrol + Diesel Purchase';
     }
-    if (twoT > 0 && petrol <= 0 && diesel <= 0) return '2T Oil Delivery';
-    return 'Mixed Delivery';
+    if (twoT > 0 && petrol <= 0 && diesel <= 0) return '2T Oil Purchase';
+    return 'Mixed Purchase';
   }
 
   List<_DeliveryQtyItem> _qtyItems() {
@@ -247,7 +247,7 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
                 if (delivery.purchasedByName.trim().isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
-                    'Purchased by ${delivery.purchasedByName}',
+                    'Entered by ${delivery.purchasedByName}',
                     style: const TextStyle(
                       color: kClayPrimary,
                       fontSize: 12,
