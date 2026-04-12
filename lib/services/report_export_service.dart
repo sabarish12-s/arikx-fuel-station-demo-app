@@ -95,6 +95,39 @@ class ReportExportService {
 
   String _row(List<dynamic> cells) => cells.map(_csvVal).join(',');
 
+  Future<String> _saveCsvToDownloads({
+    required String fileName,
+    required String contents,
+    required String notificationTitle,
+    required String notificationBody,
+  }) async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      final savedLocation = await _downloadsChannel
+          .invokeMethod<String>('saveTextFileToDownloads', <String, dynamic>{
+            'fileName': fileName,
+            'mimeType': 'text/csv',
+            'text': contents,
+            'notificationTitle': notificationTitle,
+            'notificationBody': notificationBody,
+          });
+      if (savedLocation != null && savedLocation.isNotEmpty) {
+        return savedLocation;
+      }
+    }
+
+    Directory? downloadsDirectory;
+    try {
+      downloadsDirectory = await getDownloadsDirectory();
+    } catch (_) {
+      downloadsDirectory = null;
+    }
+    final directory =
+        downloadsDirectory ?? await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/$fileName');
+    await file.writeAsString(contents, flush: true);
+    return file.path;
+  }
+
   static const List<String> _colHeaders = [
     'Date',
     'Sales (Rs)',
@@ -141,7 +174,9 @@ class ReportExportService {
 
     final byMonth = <String, List<TrendPointModel>>{};
     for (final point in report.trend) {
-      final key = point.date.length >= 7 ? point.date.substring(0, 7) : point.date;
+      final key = point.date.length >= 7
+          ? point.date.substring(0, 7)
+          : point.date;
       byMonth.putIfAbsent(key, () => []).add(point);
     }
     final sortedKeys = byMonth.keys.toList()..sort();
@@ -297,31 +332,29 @@ class ReportExportService {
       fromLabel: fromLabel,
       toLabel: toLabel,
     );
+    return _saveCsvToDownloads(
+      fileName: fileName,
+      contents: contents,
+      notificationTitle: 'Sales report downloaded',
+      notificationBody: fileName,
+    );
+  }
 
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      final savedLocation = await _downloadsChannel.invokeMethod<String>(
-        'saveTextFileToDownloads',
-        <String, dynamic>{
-          'fileName': fileName,
-          'mimeType': 'text/csv',
-          'text': contents,
-        },
-      );
-      if (savedLocation != null && savedLocation.isNotEmpty) {
-        return savedLocation;
-      }
-    }
-
-    Directory? downloadsDirectory;
-    try {
-      downloadsDirectory = await getDownloadsDirectory();
-    } catch (_) {
-      downloadsDirectory = null;
-    }
-    final directory = downloadsDirectory ?? await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/$fileName');
+  Future<File> exportStockReport({
+    required List<StockReportSection> sections,
+    required String title,
+    String fromLabel = '',
+    String toLabel = '',
+  }) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/${_safeTitle(title)}.csv');
+    final contents = _buildStockReportCsv(
+      sections: sections,
+      fromLabel: fromLabel,
+      toLabel: toLabel,
+    );
     await file.writeAsString(contents, flush: true);
-    return file.path;
+    return file;
   }
 
   Future<String> saveStockReportToDownloads({
@@ -336,32 +369,12 @@ class ReportExportService {
       fromLabel: fromLabel,
       toLabel: toLabel,
     );
-
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      final savedLocation = await _downloadsChannel.invokeMethod<String>(
-        'saveTextFileToDownloads',
-        <String, dynamic>{
-          'fileName': fileName,
-          'mimeType': 'text/csv',
-          'text': contents,
-        },
-      );
-      if (savedLocation != null && savedLocation.isNotEmpty) {
-        return savedLocation;
-      }
-    }
-
-    Directory? downloadsDirectory;
-    try {
-      downloadsDirectory = await getDownloadsDirectory();
-    } catch (_) {
-      downloadsDirectory = null;
-    }
-    final directory =
-        downloadsDirectory ?? await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/$fileName');
-    await file.writeAsString(contents, flush: true);
-    return file.path;
+    return _saveCsvToDownloads(
+      fileName: fileName,
+      contents: contents,
+      notificationTitle: 'Stock report downloaded',
+      notificationBody: fileName,
+    );
   }
 
   Future<File> exportMonthlyReport({

@@ -59,9 +59,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   }
 
   Future<void> _openCreditLedger() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()));
   }
 
   @override
@@ -99,13 +99,13 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           }
 
           final data = snapshot.data!;
-          final approvedEntries =
-              data.todaysEntries
-                  .where((entry) => entry.status == 'approved')
-                  .length;
+          final approvedEntries = data.todaysEntries
+              .where((entry) => entry.isFinalized)
+              .length;
           final pendingEntries = data.todaysEntries.length - approvedEntries;
-          final flaggedEntries =
-              data.todaysEntries.where((entry) => entry.flagged).length;
+          final flaggedEntries = data.todaysEntries
+              .where((entry) => entry.flagged)
+              .length;
 
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -286,24 +286,22 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color:
-                                entry.flagged
-                                    ? const Color(
-                                      0xFFCE5828,
-                                    ).withValues(alpha: 0.14)
-                                    : const Color(
-                                      0xFF1A3A7A,
-                                    ).withValues(alpha: 0.12),
+                            color: entry.flagged
+                                ? const Color(
+                                    0xFFCE5828,
+                                  ).withValues(alpha: 0.14)
+                                : const Color(
+                                    0xFF1A3A7A,
+                                  ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: Icon(
                             entry.flagged
                                 ? Icons.flag_rounded
                                 : Icons.receipt_long_rounded,
-                            color:
-                                entry.flagged
-                                    ? const Color(0xFFCE5828)
-                                    : kClayHeroStart,
+                            color: entry.flagged
+                                ? const Color(0xFFCE5828)
+                                : kClayHeroStart,
                           ),
                         ),
                         const SizedBox(width: 12),

@@ -34,6 +34,8 @@ class _MonthlyReportViewData {
   final Map<String, double> paymentBreakdown;
 }
 
+enum _ExportReportType { sales, stock }
+
 class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final ManagementService _managementService = ManagementService();
   final CreditService _creditService = CreditService();
@@ -100,10 +102,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       report: report,
       creditOutstandingTotal:
           creditSummary?.openBalanceTotal ?? report.creditTotal,
-      paymentBreakdown:
-          _paymentBreakdownTotal(entryPaymentBreakdown) > 0
-              ? entryPaymentBreakdown
-              : report.paymentBreakdown,
+      paymentBreakdown: _paymentBreakdownTotal(entryPaymentBreakdown) > 0
+          ? entryPaymentBreakdown
+          : report.paymentBreakdown,
     );
   }
 
@@ -307,6 +308,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final now = DateTime.now();
     DateTime exportFrom = DateTime(now.year, now.month, 1);
     DateTime exportTo = DateTime(now.year, now.month + 1, 0);
+    _ExportReportType reportType = _ExportReportType.sales;
 
     await showDialog<void>(
       context: context,
@@ -321,8 +323,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 toDate: exportTo,
                 firstDate: DateTime(2024),
                 lastDate: DateTime(2100),
-                helpText:
-                    shareMode ? 'Select share range' : 'Select export range',
+                helpText: shareMode
+                    ? 'Select share range'
+                    : 'Select export range',
               );
               if (picked != null) {
                 setDialogState(() {
@@ -359,6 +362,35 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                       style: TextStyle(color: Color(0xFF55606E)),
                     ),
                     const SizedBox(height: 14),
+                    const Text(
+                      'Report type',
+                      style: TextStyle(
+                        color: Color(0xFF55606E),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SegmentedButton<_ExportReportType>(
+                      segments: const [
+                        ButtonSegment<_ExportReportType>(
+                          value: _ExportReportType.sales,
+                          label: Text('Sales Report'),
+                          icon: Icon(Icons.bar_chart_rounded),
+                        ),
+                        ButtonSegment<_ExportReportType>(
+                          value: _ExportReportType.stock,
+                          label: Text('Stock Report'),
+                          icon: Icon(Icons.inventory_2_rounded),
+                        ),
+                      ],
+                      selected: <_ExportReportType>{reportType},
+                      onSelectionChanged: (selection) {
+                        setDialogState(() {
+                          reportType = selection.first;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 14),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -373,8 +405,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                         ),
                         ActionChip(
                           label: const Text('YTD'),
-                          onPressed:
-                              () => applyPreset(DateTime(now.year, 1, 1), now),
+                          onPressed: () =>
+                              applyPreset(DateTime(now.year, 1, 1), now),
                         ),
                       ],
                     ),
@@ -406,16 +438,34 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                       return;
                     }
                     Navigator.of(dialogContext).pop();
-                    await _runExport(
-                      from: exportFrom,
-                      to: exportTo,
-                      shareMode: shareMode,
-                    );
+                    if (reportType == _ExportReportType.sales) {
+                      await _runExport(
+                        from: exportFrom,
+                        to: exportTo,
+                        shareMode: shareMode,
+                      );
+                    } else {
+                      await _runStockExport(
+                        from: exportFrom,
+                        to: exportTo,
+                        shareMode: shareMode,
+                      );
+                    }
                   },
                   icon: Icon(
-                    shareMode ? Icons.share_rounded : Icons.download_rounded,
+                    shareMode
+                        ? Icons.share_rounded
+                        : (reportType == _ExportReportType.stock
+                              ? Icons.inventory_2_rounded
+                              : Icons.download_rounded),
                   ),
-                  label: Text(shareMode ? 'Share CSV' : 'Export CSV'),
+                  label: Text(
+                    shareMode
+                        ? 'Share CSV'
+                        : (reportType == _ExportReportType.stock
+                              ? 'Download CSV'
+                              : 'Export CSV'),
+                  ),
                 ),
               ],
             );
@@ -462,9 +512,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
           toLabel: _fmtDt(to),
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Report saved to $savedLocation')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Sales report saved to $savedLocation. Open it from the notification.',
+            ),
+          ),
+        );
       }
     } catch (error) {
       if (!mounted) return;
@@ -480,18 +534,35 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   }
 
   String _entryInventoryTimestamp(ShiftEntryModel entry) {
-    final approvedAt = entry.approvedAt.trim();
-    if (approvedAt.isNotEmpty) {
-      return approvedAt;
-    }
-    final updatedAt = entry.updatedAt.trim();
-    if (updatedAt.isNotEmpty) {
-      return updatedAt;
-    }
-    return entry.submittedAt.trim();
+    return entry.latestActivityTimestamp;
   }
 
   double _round2(double value) => double.parse(value.toStringAsFixed(2));
+
+  List<ShiftEntryModel> _normalizeInventoryEntries(
+    List<ShiftEntryModel> entries,
+  ) {
+    final latestByDate = <String, ShiftEntryModel>{};
+    for (final entry in entries) {
+      if (!entry.isFinalized) {
+        continue;
+      }
+      final existing = latestByDate[entry.date];
+      if (existing == null) {
+        latestByDate[entry.date] = entry;
+        continue;
+      }
+      if (entry.latestActivityTimestamp.compareTo(
+            existing.latestActivityTimestamp,
+          ) >=
+          0) {
+        latestByDate[entry.date] = entry;
+      }
+    }
+    final normalized = latestByDate.values.toList()
+      ..sort((left, right) => left.date.compareTo(right.date));
+    return normalized;
+  }
 
   List<StockReportSection> _buildStockReportSections({
     required StationConfigModel station,
@@ -504,28 +575,21 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final toStr = _toApiDate(to);
     final baselineStock = station.inventoryPlanning.openingStock;
     final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
+    final normalizedEntries = _normalizeInventoryEntries(entries);
 
-    final receiptsAfterBaseline =
-        deliveries.where((delivery) {
-            if (baselineUpdatedAt.isEmpty) {
-              return true;
-            }
-            return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
-          }).toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final receiptsAfterBaseline = deliveries.where((delivery) {
+      if (baselineUpdatedAt.isEmpty) {
+        return true;
+      }
+      return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
+    }).toList()..sort((left, right) => left.date.compareTo(right.date));
 
-    final entriesAfterBaseline =
-        entries.where((entry) {
-            if (entry.status == 'preview') {
-              return false;
-            }
-            if (baselineUpdatedAt.isEmpty) {
-              return true;
-            }
-            return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) >
-                0;
-          }).toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final entriesAfterBaseline = normalizedEntries.where((entry) {
+      if (baselineUpdatedAt.isEmpty) {
+        return true;
+      }
+      return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) > 0;
+    }).toList()..sort((left, right) => left.date.compareTo(right.date));
 
     final startingStock = <String, double>{
       'petrol': _round2(baselineStock['petrol'] ?? 0),
@@ -560,7 +624,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
     final inwardsByDate = <String, Map<String, double>>{};
     for (final delivery in receiptsAfterBaseline.where(
-      (item) => item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
+      (item) =>
+          item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
     )) {
       final bucket = inwardsByDate.putIfAbsent(
         delivery.date,
@@ -575,7 +640,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
     final salesByDate = <String, Map<String, double>>{};
     for (final entry in entriesAfterBaseline.where(
-      (item) => item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
+      (item) =>
+          item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
     )) {
       final bucket = salesByDate.putIfAbsent(
         entry.date,
@@ -592,10 +658,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       );
     }
 
-    final allDates = {
-      ...inwardsByDate.keys,
-      ...salesByDate.keys,
-    }.toList()
+    final allDates = {...inwardsByDate.keys, ...salesByDate.keys}.toList()
       ..sort();
 
     List<StockReportSection> buildSections() {
@@ -642,124 +705,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     return buildSections();
   }
 
-  Future<void> _openStockExportDialog() async {
-    final now = DateTime.now();
-    DateTime exportFrom = DateTime(now.year, now.month, 1);
-    DateTime exportTo = DateTime(now.year, now.month + 1, 0);
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (dialogContext, setDialogState) {
-            Future<void> pickRange() async {
-              final picked = await showAppDateRangePicker(
-                context: dialogContext,
-                fromDate: exportFrom,
-                toDate: exportTo,
-                firstDate: DateTime(2024),
-                lastDate: DateTime(2100),
-                helpText: 'Select stock export range',
-              );
-              if (picked != null) {
-                setDialogState(() {
-                  exportFrom = picked.start;
-                  exportTo = picked.end;
-                });
-              }
-            }
-
-            void applyPreset(DateTime from, DateTime to) => setDialogState(() {
-              exportFrom = from;
-              exportTo = to;
-            });
-
-            final tMF = DateTime(now.year, now.month, 1);
-            final tMT = DateTime(now.year, now.month + 1, 0);
-            final lMF = DateTime(now.year, now.month - 1, 1);
-            final lMT = DateTime(now.year, now.month, 0);
-
-            return AlertDialog(
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: 18,
-                vertical: 24,
-              ),
-              title: const Text('Export Stock Report'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Choose a date range for the stock export.',
-                      style: TextStyle(color: Color(0xFF55606E)),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ActionChip(
-                          label: const Text('This Month'),
-                          onPressed: () => applyPreset(tMF, tMT),
-                        ),
-                        ActionChip(
-                          label: const Text('Last Month'),
-                          onPressed: () => applyPreset(lMF, lMT),
-                        ),
-                        ActionChip(
-                          label: const Text('YTD'),
-                          onPressed:
-                              () => applyPreset(DateTime(now.year, 1, 1), now),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    _ExportDateTile(
-                      label: 'DATE RANGE',
-                      value: '${_fmtDt(exportFrom)} to ${_fmtDt(exportTo)}',
-                      onTap: pickRange,
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: () async {
-                    if (exportTo.isBefore(exportFrom)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          backgroundColor: Color(0xFFB91C1C),
-                          content: Text(
-                            '"To" date must be on or after "From" date.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    Navigator.of(dialogContext).pop();
-                    await _runStockExport(from: exportFrom, to: exportTo);
-                  },
-                  icon: const Icon(Icons.inventory_2_rounded),
-                  label: const Text('Export Stock CSV'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   Future<void> _runStockExport({
     required DateTime from,
     required DateTime to,
+    bool shareMode = false,
   }) async {
     setState(() => _exporting = true);
     try {
@@ -769,8 +718,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
       final baselineDate =
           baselineUpdatedAt.isNotEmpty && baselineUpdatedAt.length >= 10
-              ? baselineUpdatedAt.substring(0, 10)
-              : fromStr;
+          ? baselineUpdatedAt.substring(0, 10)
+          : fromStr;
       final entries = await _managementService.fetchEntries(
         fromDate: baselineDate.compareTo(fromStr) <= 0 ? baselineDate : fromStr,
         toDate: toStr,
@@ -787,18 +736,36 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       final safeFrom = fromStr.replaceAll('-', '');
       final safeTo = toStr.replaceAll('-', '');
       final title = 'rk_fuels_stock_report_${safeFrom}_$safeTo';
-      final savedLocation = await _reportExportService.saveStockReportToDownloads(
-        sections: sections,
-        title: title,
-        fromLabel: _fmtDt(from),
-        toLabel: _fmtDt(to),
-      );
-      if (!mounted) {
-        return;
+      if (shareMode) {
+        final file = await _reportExportService.exportStockReport(
+          sections: sections,
+          title: title,
+          fromLabel: _fmtDt(from),
+          toLabel: _fmtDt(to),
+        );
+        await _reportExportService.shareFile(
+          file,
+          text: 'RK Fuels stock report ${_fmtDt(from)} to ${_fmtDt(to)}',
+        );
+      } else {
+        final savedLocation = await _reportExportService
+            .saveStockReportToDownloads(
+              sections: sections,
+              title: title,
+              fromLabel: _fmtDt(from),
+              toLabel: _fmtDt(to),
+            );
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Stock report saved to $savedLocation. Open it from the notification.',
+            ),
+          ),
+        );
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Stock report saved to $savedLocation')),
-      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -909,10 +876,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                           Expanded(
                             child: _ReportDateTile(
                               label: 'DATE RANGE',
-                              value:
-                                  _fromDate != null && _toDate != null
-                                      ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
-                                      : '—',
+                              value: _fromDate != null && _toDate != null
+                                  ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
+                                  : '—',
                               onTap: _pickDateRange,
                             ),
                           ),
@@ -963,10 +929,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       (max, item) => item.revenue > max ? item.revenue : max,
     );
 
-    final rangeLabel =
-        (_fromDate != null && _toDate != null)
-            ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
-            : 'Month ${report.month}';
+    final rangeLabel = (_fromDate != null && _toDate != null)
+        ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
+        : 'Month ${report.month}';
 
     return [
       // ── Summary hero card ─────────────────────────────────────
@@ -1057,17 +1022,15 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            // Action buttons row
             Row(
               children: [
                 Expanded(
                   child: _HeroActionBtn(
                     icon: Icons.download_rounded,
                     label: _exporting ? 'Preparing...' : 'Download',
-                    onTap:
-                        _exporting
-                            ? null
-                            : () => _openExportDialog(shareMode: false),
+                    onTap: _exporting
+                        ? null
+                        : () => _openExportDialog(shareMode: false),
                     filled: true,
                   ),
                 ),
@@ -1076,10 +1039,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.share_rounded,
                     label: 'Share',
-                    onTap:
-                        _exporting
-                            ? null
-                            : () => _openExportDialog(shareMode: true),
+                    onTap: _exporting
+                        ? null
+                        : () => _openExportDialog(shareMode: true),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1087,25 +1049,14 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'Credits',
-                    onTap:
-                        () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const CreditLedgerScreen(),
-                          ),
-                        ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const CreditLedgerScreen(),
+                      ),
+                    ),
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: _HeroActionBtn(
-                icon: Icons.inventory_2_rounded,
-                label: _exporting ? 'Preparing...' : 'Stock Download',
-                onTap:
-                    _exporting ? null : () => _openStockExportDialog(),
-              ),
             ),
           ],
         ),
@@ -1129,126 +1080,121 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 220,
-              child:
-                  report.trend.isEmpty
-                      ? const Center(
-                        child: Text(
-                          'No trend data for this filter.',
-                          style: TextStyle(color: Color(0xFF8A93B8)),
-                        ),
-                      )
-                      : LineChart(
-                        LineChartData(
-                          minY: 0,
-                          maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval:
-                                maxRevenue <= 0 ? 5 : (maxRevenue * 1.2) / 4,
-                            getDrawingHorizontalLine:
-                                (_) => FlLine(
-                                  color: const Color(0xFFD8DCF0),
-                                  strokeWidth: 1,
-                                  dashArray: [4, 4],
-                                ),
-                          ),
-                          titlesData: FlTitlesData(
-                            topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 52,
-                                interval:
-                                    maxRevenue <= 0
-                                        ? 5
-                                        : (maxRevenue * 1.2) / 4,
-                                getTitlesWidget:
-                                    (value, meta) => Padding(
-                                      padding: const EdgeInsets.only(right: 6),
-                                      child: Text(
-                                        _compactK(value),
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          color: Color(0xFF8A93B8),
-                                        ),
-                                      ),
-                                    ),
-                              ),
-                            ),
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 26,
-                                interval: 1,
-                                getTitlesWidget: (value, meta) {
-                                  final idx = value.toInt();
-                                  if (idx < 0 || idx >= report.trend.length) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  if (report.trend.length > 6 &&
-                                      idx.isOdd &&
-                                      idx != report.trend.length - 1) {
-                                    return const SizedBox.shrink();
-                                  }
-                                  final dt = DateTime.tryParse(
-                                    report.trend[idx].date,
-                                  );
-                                  final lbl =
-                                      dt == null
-                                          ? report.trend[idx].date
-                                          : '${dt.day}/${dt.month}';
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top: 6),
-                                    child: Text(
-                                      lbl,
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Color(0xFF8A93B8),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          borderData: FlBorderData(show: false),
-                          lineTouchData: LineTouchData(enabled: true),
-                          lineBarsData: [
-                            LineChartBarData(
-                              isCurved: true,
-                              color: const Color(0xFF1A3A7A),
-                              barWidth: 2.5,
-                              dotData: FlDotData(
-                                show: report.trend.length <= 8,
-                                getDotPainter:
-                                    (spot, percent, bar, index) =>
-                                        FlDotCirclePainter(
-                                          radius: 4,
-                                          color: const Color(0xFF1A3A7A),
-                                          strokeWidth: 2,
-                                          strokeColor: Colors.white,
-                                        ),
-                              ),
-                              belowBarData: BarAreaData(
-                                show: true,
-                                color: const Color(
-                                  0xFF1A3A7A,
-                                ).withValues(alpha: 0.10),
-                              ),
-                              spots: [
-                                for (var i = 0; i < report.trend.length; i++)
-                                  FlSpot(i.toDouble(), report.trend[i].revenue),
-                              ],
-                            ),
-                          ],
-                        ),
+              child: report.trend.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No trend data for this filter.',
+                        style: TextStyle(color: Color(0xFF8A93B8)),
                       ),
+                    )
+                  : LineChart(
+                      LineChartData(
+                        minY: 0,
+                        maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: maxRevenue <= 0
+                              ? 5
+                              : (maxRevenue * 1.2) / 4,
+                          getDrawingHorizontalLine: (_) => FlLine(
+                            color: const Color(0xFFD8DCF0),
+                            strokeWidth: 1,
+                            dashArray: [4, 4],
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 52,
+                              interval: maxRevenue <= 0
+                                  ? 5
+                                  : (maxRevenue * 1.2) / 4,
+                              getTitlesWidget: (value, meta) => Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Text(
+                                  _compactK(value),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF8A93B8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 26,
+                              interval: 1,
+                              getTitlesWidget: (value, meta) {
+                                final idx = value.toInt();
+                                if (idx < 0 || idx >= report.trend.length) {
+                                  return const SizedBox.shrink();
+                                }
+                                if (report.trend.length > 6 &&
+                                    idx.isOdd &&
+                                    idx != report.trend.length - 1) {
+                                  return const SizedBox.shrink();
+                                }
+                                final dt = DateTime.tryParse(
+                                  report.trend[idx].date,
+                                );
+                                final lbl = dt == null
+                                    ? report.trend[idx].date
+                                    : '${dt.day}/${dt.month}';
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: Text(
+                                    lbl,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF8A93B8),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        lineTouchData: LineTouchData(enabled: true),
+                        lineBarsData: [
+                          LineChartBarData(
+                            isCurved: true,
+                            color: const Color(0xFF1A3A7A),
+                            barWidth: 2.5,
+                            dotData: FlDotData(
+                              show: report.trend.length <= 8,
+                              getDotPainter: (spot, percent, bar, index) =>
+                                  FlDotCirclePainter(
+                                    radius: 4,
+                                    color: const Color(0xFF1A3A7A),
+                                    strokeWidth: 2,
+                                    strokeColor: Colors.white,
+                                  ),
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: const Color(
+                                0xFF1A3A7A,
+                              ).withValues(alpha: 0.10),
+                            ),
+                            spots: [
+                              for (var i = 0; i < report.trend.length; i++)
+                                FlSpot(i.toDouble(), report.trend[i].revenue),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -1272,98 +1218,96 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
-              child:
-                  totalFuel <= 0
-                      ? const Center(
-                        child: Text(
-                          'No fuel data for this filter.',
-                          style: TextStyle(color: Color(0xFF8A93B8)),
-                        ),
-                      )
-                      : Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: PieChart(
-                              PieChartData(
-                                centerSpaceRadius: 0,
-                                sectionsSpace: 2,
-                                startDegreeOffset: -90,
-                                sections: [
-                                  PieChartSectionData(
-                                    value: petrol,
-                                    color: const Color(0xFF1A3A7A),
-                                    title:
-                                        '${((petrol / totalFuel) * 100).round()}%',
-                                    radius: 80,
-                                    titleStyle: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  PieChartSectionData(
-                                    value: diesel,
-                                    color: const Color(0xFF2AA878),
-                                    title:
-                                        '${((diesel / totalFuel) * 100).round()}%',
-                                    radius: 80,
-                                    titleStyle: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  if (twoT > 0)
-                                    PieChartSectionData(
-                                      value: twoT,
-                                      color: const Color(0xFFCE5828),
-                                      title:
-                                          twoT / totalFuel >= 0.05
-                                              ? '${((twoT / totalFuel) * 100).round()}%'
-                                              : '',
-                                      radius: 80,
-                                      titleStyle: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _FuelLegend(
-                                  label: 'Petrol',
-                                  value: formatLiters(petrol),
+              child: totalFuel <= 0
+                  ? const Center(
+                      child: Text(
+                        'No fuel data for this filter.',
+                        style: TextStyle(color: Color(0xFF8A93B8)),
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: PieChart(
+                            PieChartData(
+                              centerSpaceRadius: 0,
+                              sectionsSpace: 2,
+                              startDegreeOffset: -90,
+                              sections: [
+                                PieChartSectionData(
+                                  value: petrol,
                                   color: const Color(0xFF1A3A7A),
-                                ),
-                                const SizedBox(height: 14),
-                                _FuelLegend(
-                                  label: 'Diesel',
-                                  value: formatLiters(diesel),
-                                  color: const Color(0xFF2AA878),
-                                ),
-                                if (twoT > 0) ...[
-                                  const SizedBox(height: 14),
-                                  _FuelLegend(
-                                    label: '2T Oil',
-                                    value: formatLiters(twoT),
-                                    color: const Color(0xFFCE5828),
+                                  title:
+                                      '${((petrol / totalFuel) * 100).round()}%',
+                                  radius: 80,
+                                  titleStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
                                   ),
-                                ],
+                                ),
+                                PieChartSectionData(
+                                  value: diesel,
+                                  color: const Color(0xFF2AA878),
+                                  title:
+                                      '${((diesel / totalFuel) * 100).round()}%',
+                                  radius: 80,
+                                  titleStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                if (twoT > 0)
+                                  PieChartSectionData(
+                                    value: twoT,
+                                    color: const Color(0xFFCE5828),
+                                    title: twoT / totalFuel >= 0.05
+                                        ? '${((twoT / totalFuel) * 100).round()}%'
+                                        : '',
+                                    radius: 80,
+                                    titleStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _FuelLegend(
+                                label: 'Petrol',
+                                value: formatLiters(petrol),
+                                color: const Color(0xFF1A3A7A),
+                              ),
+                              const SizedBox(height: 14),
+                              _FuelLegend(
+                                label: 'Diesel',
+                                value: formatLiters(diesel),
+                                color: const Color(0xFF2AA878),
+                              ),
+                              if (twoT > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: '2T Oil',
+                                  value: formatLiters(twoT),
+                                  color: const Color(0xFFCE5828),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -1458,94 +1402,93 @@ class _PaymentMixCard extends StatelessWidget {
           const SizedBox(height: 16),
           SizedBox(
             height: 200,
-            child:
-                total <= 0
-                    ? const Center(
-                      child: Text(
-                        'No payment data for this filter.',
-                        style: TextStyle(color: Color(0xFF8A93B8)),
-                      ),
-                    )
-                    : Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: PieChart(
-                            PieChartData(
-                              centerSpaceRadius: 0,
-                              sectionsSpace: 2,
-                              startDegreeOffset: -90,
-                              sections: [
-                                if (cash > 0)
-                                  _paymentPieSection(
-                                    cash,
-                                    total,
-                                    const Color(0xFF1A3A7A),
-                                  ),
-                                if (hpPay > 0)
-                                  _paymentPieSection(
-                                    hpPay,
-                                    total,
-                                    const Color(0xFF6B7280),
-                                  ),
-                                if (upi > 0)
-                                  _paymentPieSection(
-                                    upi,
-                                    total,
-                                    const Color(0xFF7C3AED),
-                                  ),
-                                if (credit > 0)
-                                  _paymentPieSection(
-                                    credit,
-                                    total,
-                                    const Color(0xFFCE5828),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+            child: total <= 0
+                ? const Center(
+                    child: Text(
+                      'No payment data for this filter.',
+                      style: TextStyle(color: Color(0xFF8A93B8)),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: PieChart(
+                          PieChartData(
+                            centerSpaceRadius: 0,
+                            sectionsSpace: 2,
+                            startDegreeOffset: -90,
+                            sections: [
                               if (cash > 0)
-                                _FuelLegend(
-                                  label: 'Cash',
-                                  value: formatCurrency(cash),
-                                  color: const Color(0xFF1A3A7A),
+                                _paymentPieSection(
+                                  cash,
+                                  total,
+                                  const Color(0xFF1A3A7A),
                                 ),
-                              if (hpPay > 0) ...[
-                                const SizedBox(height: 14),
-                                _FuelLegend(
-                                  label: 'HP Pay',
-                                  value: formatCurrency(hpPay),
-                                  color: const Color(0xFF6B7280),
+                              if (hpPay > 0)
+                                _paymentPieSection(
+                                  hpPay,
+                                  total,
+                                  const Color(0xFF6B7280),
                                 ),
-                              ],
-                              if (upi > 0) ...[
-                                const SizedBox(height: 14),
-                                _FuelLegend(
-                                  label: 'UPI',
-                                  value: formatCurrency(upi),
-                                  color: const Color(0xFF7C3AED),
+                              if (upi > 0)
+                                _paymentPieSection(
+                                  upi,
+                                  total,
+                                  const Color(0xFF7C3AED),
                                 ),
-                              ],
-                              if (credit > 0) ...[
-                                const SizedBox(height: 14),
-                                _FuelLegend(
-                                  label: 'Credit',
-                                  value: formatCurrency(credit),
-                                  color: const Color(0xFFCE5828),
+                              if (credit > 0)
+                                _paymentPieSection(
+                                  credit,
+                                  total,
+                                  const Color(0xFFCE5828),
                                 ),
-                              ],
                             ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (cash > 0)
+                              _FuelLegend(
+                                label: 'Cash',
+                                value: formatCurrency(cash),
+                                color: const Color(0xFF1A3A7A),
+                              ),
+                            if (hpPay > 0) ...[
+                              const SizedBox(height: 14),
+                              _FuelLegend(
+                                label: 'HP Pay',
+                                value: formatCurrency(hpPay),
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ],
+                            if (upi > 0) ...[
+                              const SizedBox(height: 14),
+                              _FuelLegend(
+                                label: 'UPI',
+                                value: formatCurrency(upi),
+                                color: const Color(0xFF7C3AED),
+                              ),
+                            ],
+                            if (credit > 0) ...[
+                              const SizedBox(height: 14),
+                              _FuelLegend(
+                                label: 'Credit',
+                                value: formatCurrency(credit),
+                                color: const Color(0xFFCE5828),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -1604,27 +1547,26 @@ class _PresetPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF1A3A7A) : const Color(0xFFECEFF8),
           borderRadius: BorderRadius.circular(999),
-          boxShadow:
-              selected
-                  ? [
-                    BoxShadow(
-                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                      offset: const Offset(0, 4),
-                      blurRadius: 10,
-                    ),
-                  ]
-                  : [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
-                      offset: const Offset(3, 3),
-                      blurRadius: 7,
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      offset: Offset(-2, -2),
-                      blurRadius: 5,
-                    ),
-                  ],
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                    offset: const Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
+                    offset: const Offset(3, 3),
+                    blurRadius: 7,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-2, -2),
+                    blurRadius: 5,
+                  ),
+                ],
         ),
         child: Text(
           label,
@@ -1793,12 +1735,11 @@ class _HeroActionBtn extends StatelessWidget {
             Icon(
               icon,
               size: 14,
-              color:
-                  filled
-                      ? (disabled
-                          ? const Color(0xFF8A93B8)
-                          : const Color(0xFF1A3A7A))
-                      : (disabled ? Colors.white30 : Colors.white),
+              color: filled
+                  ? (disabled
+                        ? const Color(0xFF8A93B8)
+                        : const Color(0xFF1A3A7A))
+                  : (disabled ? Colors.white30 : Colors.white),
             ),
             const SizedBox(width: 5),
             Text(
@@ -1806,12 +1747,11 @@ class _HeroActionBtn extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color:
-                    filled
-                        ? (disabled
-                            ? const Color(0xFF8A93B8)
-                            : const Color(0xFF1A3A7A))
-                        : (disabled ? Colors.white30 : Colors.white),
+                color: filled
+                    ? (disabled
+                          ? const Color(0xFF8A93B8)
+                          : const Color(0xFF1A3A7A))
+                    : (disabled ? Colors.white30 : Colors.white),
               ),
             ),
           ],

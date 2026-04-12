@@ -220,11 +220,7 @@ class InventoryService {
   }) async {
     final response = await _apiClient.post(
       '/inventory/deliveries',
-      body: jsonEncode({
-        'date': date,
-        'quantities': quantities,
-        'note': note,
-      }),
+      body: jsonEncode({'date': date, 'quantities': quantities, 'note': note}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (_isMissingRoute(response.body)) {
@@ -238,10 +234,7 @@ class InventoryService {
         );
       }
       throw Exception(
-        _apiClient.errorMessage(
-          response,
-          fallback: 'Failed to save purchase.',
-        ),
+        _apiClient.errorMessage(response, fallback: 'Failed to save purchase.'),
       );
     }
     return DeliveryReceiptModel.fromJson(
@@ -340,30 +333,21 @@ class InventoryService {
       'diesel': _roundNumber(baselineStock['diesel'] ?? 0),
       'two_t_oil': _roundNumber(baselineStock['two_t_oil'] ?? 0),
     };
+    final normalizedEntries = _normalizeInventoryEntries(entries);
 
-    final receiptsAfterBaseline =
-        deliveries.where((delivery) {
-            if (baselineUpdatedAt.isEmpty) {
-              return true;
-            }
-            return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
-          }).toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final receiptsAfterBaseline = deliveries.where((delivery) {
+      if (baselineUpdatedAt.isEmpty) {
+        return true;
+      }
+      return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
+    }).toList()..sort((left, right) => left.date.compareTo(right.date));
 
-    final entriesAfterBaseline =
-        entries.where((entry) {
-            if (entry.status == 'preview') {
-              return false;
-            }
-            if (baselineUpdatedAt.isEmpty) {
-              return true;
-            }
-            return _entryInventoryTimestamp(
-                  entry,
-                ).compareTo(baselineUpdatedAt) >
-                0;
-          }).toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final entriesAfterBaseline = normalizedEntries.where((entry) {
+      if (baselineUpdatedAt.isEmpty) {
+        return true;
+      }
+      return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) > 0;
+    }).toList()..sort((left, right) => left.date.compareTo(right.date));
 
     for (final receipt in receiptsAfterBaseline) {
       for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
@@ -402,21 +386,21 @@ class InventoryService {
           fuelTypeId: 'petrol',
           label: 'Petrol',
           currentStock: currentStock['petrol'] ?? 0,
-          averageDailySales: _averageDailySales(entries, 'petrol'),
+          averageDailySales: _averageDailySales(normalizedEntries, 'petrol'),
           planning: planning,
         ),
         _buildLegacyForecast(
           fuelTypeId: 'diesel',
           label: 'Diesel',
           currentStock: currentStock['diesel'] ?? 0,
-          averageDailySales: _averageDailySales(entries, 'diesel'),
+          averageDailySales: _averageDailySales(normalizedEntries, 'diesel'),
           planning: planning,
         ),
         _buildLegacyForecast(
           fuelTypeId: 'two_t_oil',
           label: '2T Oil',
           currentStock: currentStock['two_t_oil'] ?? 0,
-          averageDailySales: _averageDailySales(entries, 'twoT'),
+          averageDailySales: _averageDailySales(normalizedEntries, 'twoT'),
           planning: planning,
         ),
       ],
@@ -508,10 +492,9 @@ class InventoryService {
       final sold = _inventoryFuelTotal(entry, fuelKey);
       totalsByDate[entry.date] = (totalsByDate[entry.date] ?? 0) + sold;
     }
-    final recent =
-        totalsByDate.entries.toList()
-          ..removeWhere((item) => item.value <= 0)
-          ..sort((a, b) => b.key.compareTo(a.key));
+    final recent = totalsByDate.entries.toList()
+      ..removeWhere((item) => item.value <= 0)
+      ..sort((a, b) => b.key.compareTo(a.key));
     final selected = recent.take(7).toList();
     if (selected.isEmpty) {
       return 0;
@@ -529,19 +512,18 @@ class InventoryService {
   }) {
     final totalLeadWindow =
         planning.deliveryLeadDays + planning.alertBeforeDays;
-    final daysRemaining =
-        averageDailySales > 0 ? currentStock / averageDailySales : null;
-    final projectedRunoutDate =
-        daysRemaining == null
-            ? ''
-            : _shiftIsoDate(
-              DateTime.now().toIso8601String().split('T').first,
-              daysRemaining.floor(),
-            );
-    final recommendedOrderDate =
-        projectedRunoutDate.isEmpty
-            ? ''
-            : _shiftIsoDate(projectedRunoutDate, -totalLeadWindow);
+    final daysRemaining = averageDailySales > 0
+        ? currentStock / averageDailySales
+        : null;
+    final projectedRunoutDate = daysRemaining == null
+        ? ''
+        : _shiftIsoDate(
+            DateTime.now().toIso8601String().split('T').first,
+            daysRemaining.floor(),
+          );
+    final recommendedOrderDate = projectedRunoutDate.isEmpty
+        ? ''
+        : _shiftIsoDate(projectedRunoutDate, -totalLeadWindow);
     final shouldAlert =
         averageDailySales > 0 &&
         currentStock <= averageDailySales * totalLeadWindow;
@@ -555,10 +537,9 @@ class InventoryService {
       projectedRunoutDate: projectedRunoutDate,
       recommendedOrderDate: recommendedOrderDate,
       shouldAlert: shouldAlert,
-      alertMessage:
-          shouldAlert
-              ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
-              : '',
+      alertMessage: shouldAlert
+          ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
+          : '',
     );
   }
 
@@ -581,15 +562,31 @@ class InventoryService {
   }
 
   String _entryInventoryTimestamp(ShiftEntryModel entry) {
-    final approvedAt = entry.approvedAt.trim();
-    if (approvedAt.isNotEmpty) {
-      return approvedAt;
+    return entry.latestActivityTimestamp;
+  }
+
+  List<ShiftEntryModel> _normalizeInventoryEntries(
+    List<ShiftEntryModel> entries,
+  ) {
+    final latestByDate = <String, ShiftEntryModel>{};
+    for (final entry in entries) {
+      if (!entry.isFinalized) {
+        continue;
+      }
+      final existing = latestByDate[entry.date];
+      if (existing == null) {
+        latestByDate[entry.date] = entry;
+        continue;
+      }
+      final nextTimestamp = entry.latestActivityTimestamp;
+      final existingTimestamp = existing.latestActivityTimestamp;
+      if (nextTimestamp.compareTo(existingTimestamp) >= 0) {
+        latestByDate[entry.date] = entry;
+      }
     }
-    final updatedAt = entry.updatedAt.trim();
-    if (updatedAt.isNotEmpty) {
-      return updatedAt;
-    }
-    return entry.submittedAt.trim();
+    final normalized = latestByDate.values.toList()
+      ..sort((left, right) => left.date.compareTo(right.date));
+    return normalized;
   }
 
   String _shiftIsoDate(String date, int offsetDays) {
