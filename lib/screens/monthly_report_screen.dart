@@ -36,6 +36,22 @@ class _MonthlyReportViewData {
 
 enum _ExportReportType { sales, stock }
 
+class _StockTimelineEvent {
+  const _StockTimelineEvent({
+    required this.date,
+    required this.type,
+    required this.eventAt,
+    required this.values,
+    required this.details,
+  });
+
+  final String date;
+  final String type;
+  final String eventAt;
+  final Map<String, double> values;
+  final String details;
+}
+
 class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final ManagementService _managementService = ManagementService();
   final CreditService _creditService = CreditService();
@@ -75,6 +91,38 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     super.dispose();
   }
 
+  void _showDownloadSuccess(String label) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          backgroundColor: const Color(0xFF17326B),
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '$label downloaded',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+  }
+
   Future<_MonthlyReportViewData> _fetchReport({
     bool forceRefresh = false,
   }) async {
@@ -102,9 +150,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       report: report,
       creditOutstandingTotal:
           creditSummary?.openBalanceTotal ?? report.creditTotal,
-      paymentBreakdown: _paymentBreakdownTotal(entryPaymentBreakdown) > 0
-          ? entryPaymentBreakdown
-          : report.paymentBreakdown,
+      paymentBreakdown:
+          _paymentBreakdownTotal(entryPaymentBreakdown) > 0
+              ? entryPaymentBreakdown
+              : report.paymentBreakdown,
     );
   }
 
@@ -323,9 +372,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 toDate: exportTo,
                 firstDate: DateTime(2024),
                 lastDate: DateTime(2100),
-                helpText: shareMode
-                    ? 'Select share range'
-                    : 'Select export range',
+                helpText:
+                    shareMode ? 'Select share range' : 'Select export range',
               );
               if (picked != null) {
                 setDialogState(() {
@@ -405,8 +453,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                         ),
                         ActionChip(
                           label: const Text('YTD'),
-                          onPressed: () =>
-                              applyPreset(DateTime(now.year, 1, 1), now),
+                          onPressed:
+                              () => applyPreset(DateTime(now.year, 1, 1), now),
                         ),
                       ],
                     ),
@@ -456,15 +504,15 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                     shareMode
                         ? Icons.share_rounded
                         : (reportType == _ExportReportType.stock
-                              ? Icons.inventory_2_rounded
-                              : Icons.download_rounded),
+                            ? Icons.inventory_2_rounded
+                            : Icons.download_rounded),
                   ),
                   label: Text(
                     shareMode
                         ? 'Share CSV'
                         : (reportType == _ExportReportType.stock
-                              ? 'Download CSV'
-                              : 'Export CSV'),
+                            ? 'Download CSV'
+                            : 'Export CSV'),
                   ),
                 ),
               ],
@@ -505,20 +553,14 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
           text: 'RK Fuels report ${_fmtDt(from)} to ${_fmtDt(to)}',
         );
       } else {
-        final savedLocation = await _reportExportService.saveReportToDownloads(
+        await _reportExportService.saveReportToDownloads(
           report: report,
           title: title,
           fromLabel: _fmtDt(from),
           toLabel: _fmtDt(to),
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Sales report saved to $savedLocation. Open it from the notification.',
-            ),
-          ),
-        );
+        _showDownloadSuccess('Sales report');
       }
     } catch (error) {
       if (!mounted) return;
@@ -531,10 +573,6 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
-  }
-
-  String _entryInventoryTimestamp(ShiftEntryModel entry) {
-    return entry.latestActivityTimestamp;
   }
 
   double _round2(double value) => double.parse(value.toStringAsFixed(2));
@@ -559,13 +597,14 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         latestByDate[entry.date] = entry;
       }
     }
-    final normalized = latestByDate.values.toList()
-      ..sort((left, right) => left.date.compareTo(right.date));
+    final normalized =
+        latestByDate.values.toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
     return normalized;
   }
 
   List<StockReportSection> _buildStockReportSections({
-    required StationConfigModel station,
+    required List<InventoryStockSnapshotModel> snapshots,
     required List<ShiftEntryModel> entries,
     required List<DeliveryReceiptModel> deliveries,
     required DateTime from,
@@ -573,43 +612,45 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   }) {
     final fromStr = _toApiDate(from);
     final toStr = _toApiDate(to);
-    final baselineStock = station.inventoryPlanning.openingStock;
-    final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
     final normalizedEntries = _normalizeInventoryEntries(entries);
-
-    final receiptsAfterBaseline = deliveries.where((delivery) {
-      if (baselineUpdatedAt.isEmpty) {
-        return true;
-      }
-      return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
-    }).toList()..sort((left, right) => left.date.compareTo(right.date));
-
-    final entriesAfterBaseline = normalizedEntries.where((entry) {
-      if (baselineUpdatedAt.isEmpty) {
-        return true;
-      }
-      return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) > 0;
-    }).toList()..sort((left, right) => left.date.compareTo(right.date));
-
+    final carrySnapshot =
+        snapshots
+            .where((snapshot) => snapshot.effectiveDate.compareTo(fromStr) < 0)
+            .toList()
+          ..sort((left, right) {
+            final byDate = left.effectiveDate.compareTo(right.effectiveDate);
+            if (byDate != 0) return byDate;
+            final byCreatedAt = left.createdAt.compareTo(right.createdAt);
+            if (byCreatedAt != 0) return byCreatedAt;
+            return left.id.compareTo(right.id);
+          });
+    final startingSnapshot = carrySnapshot.isEmpty ? null : carrySnapshot.last;
     final startingStock = <String, double>{
-      'petrol': _round2(baselineStock['petrol'] ?? 0),
-      'diesel': _round2(baselineStock['diesel'] ?? 0),
-      'two_t_oil': _round2(baselineStock['two_t_oil'] ?? 0),
+      'petrol': _round2(startingSnapshot?.stock['petrol'] ?? 0),
+      'diesel': _round2(startingSnapshot?.stock['diesel'] ?? 0),
+      'two_t_oil': _round2(startingSnapshot?.stock['two_t_oil'] ?? 0),
     };
+    final carryStartDate = startingSnapshot?.effectiveDate ?? '';
 
-    for (final receipt in receiptsAfterBaseline.where(
-      (item) => item.date.compareTo(fromStr) < 0,
+    for (final delivery in deliveries.where(
+      (item) =>
+          (carryStartDate.isEmpty ||
+              item.date.compareTo(carryStartDate) >= 0) &&
+          item.date.compareTo(fromStr) < 0,
     )) {
       for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
         startingStock[fuelTypeId] = _round2(
           (startingStock[fuelTypeId] ?? 0) +
-              (receipt.quantities[fuelTypeId] ?? 0),
+              (delivery.quantities[fuelTypeId] ?? 0),
         );
       }
     }
 
-    for (final entry in entriesAfterBaseline.where(
-      (item) => item.date.compareTo(fromStr) < 0,
+    for (final entry in normalizedEntries.where(
+      (item) =>
+          (carryStartDate.isEmpty ||
+              item.date.compareTo(carryStartDate) >= 0) &&
+          item.date.compareTo(fromStr) < 0,
     )) {
       startingStock['petrol'] = _round2(
         (startingStock['petrol'] ?? 0) - entry.inventoryTotals.petrol,
@@ -622,44 +663,76 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       );
     }
 
-    final inwardsByDate = <String, Map<String, double>>{};
-    for (final delivery in receiptsAfterBaseline.where(
-      (item) =>
-          item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
-    )) {
-      final bucket = inwardsByDate.putIfAbsent(
-        delivery.date,
-        () => {'petrol': 0, 'diesel': 0, 'two_t_oil': 0},
-      );
-      for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
-        bucket[fuelTypeId] = _round2(
-          (bucket[fuelTypeId] ?? 0) + (delivery.quantities[fuelTypeId] ?? 0),
-        );
-      }
-    }
-
-    final salesByDate = <String, Map<String, double>>{};
-    for (final entry in entriesAfterBaseline.where(
-      (item) =>
-          item.date.compareTo(fromStr) >= 0 && item.date.compareTo(toStr) <= 0,
-    )) {
-      final bucket = salesByDate.putIfAbsent(
-        entry.date,
-        () => {'petrol': 0, 'diesel': 0, 'two_t_oil': 0},
-      );
-      bucket['petrol'] = _round2(
-        (bucket['petrol'] ?? 0) + entry.inventoryTotals.petrol,
-      );
-      bucket['diesel'] = _round2(
-        (bucket['diesel'] ?? 0) + entry.inventoryTotals.diesel,
-      );
-      bucket['two_t_oil'] = _round2(
-        (bucket['two_t_oil'] ?? 0) + entry.inventoryTotals.twoT,
-      );
-    }
-
-    final allDates = {...inwardsByDate.keys, ...salesByDate.keys}.toList()
-      ..sort();
+    final events = <_StockTimelineEvent>[
+      ...snapshots
+          .where(
+            (snapshot) =>
+                snapshot.effectiveDate.compareTo(fromStr) >= 0 &&
+                snapshot.effectiveDate.compareTo(toStr) <= 0,
+          )
+          .map(
+            (snapshot) => _StockTimelineEvent(
+              date: snapshot.effectiveDate,
+              type: 'snapshot',
+              eventAt: snapshot.createdAt,
+              values: snapshot.stock,
+              details: [
+                if (snapshot.createdByName.trim().isNotEmpty)
+                  'Set by ${snapshot.createdByName.trim()}',
+                if (snapshot.note.trim().isNotEmpty) snapshot.note.trim(),
+              ].join(' - '),
+            ),
+          ),
+      ...deliveries
+          .where(
+            (delivery) =>
+                delivery.date.compareTo(fromStr) >= 0 &&
+                delivery.date.compareTo(toStr) <= 0,
+          )
+          .map(
+            (delivery) => _StockTimelineEvent(
+              date: delivery.date,
+              type: 'delivery',
+              eventAt: delivery.createdAt,
+              values: delivery.quantities,
+              details: [
+                if (delivery.purchasedByName.trim().isNotEmpty)
+                  'Purchased by ${delivery.purchasedByName.trim()}',
+                if (delivery.note.trim().isNotEmpty) delivery.note.trim(),
+              ].join(' - '),
+            ),
+          ),
+      ...normalizedEntries
+          .where(
+            (entry) =>
+                entry.date.compareTo(fromStr) >= 0 &&
+                entry.date.compareTo(toStr) <= 0,
+          )
+          .map(
+            (entry) => _StockTimelineEvent(
+              date: entry.date,
+              type: 'sale',
+              eventAt: entry.latestActivityTimestamp,
+              values: {
+                'petrol': entry.inventoryTotals.petrol,
+                'diesel': entry.inventoryTotals.diesel,
+                'two_t_oil': entry.inventoryTotals.twoT,
+              },
+              details:
+                  entry.varianceNote.trim().isEmpty
+                      ? 'Approved sales entry'
+                      : 'Approved sales entry - ${entry.varianceNote.trim()}',
+            ),
+          ),
+    ]..sort((left, right) {
+      final byDate = left.date.compareTo(right.date);
+      if (byDate != 0) return byDate;
+      const eventOrder = {'snapshot': 0, 'delivery': 1, 'sale': 2};
+      final byType =
+          (eventOrder[left.type] ?? 99) - (eventOrder[right.type] ?? 99);
+      if (byType != 0) return byType;
+      return left.eventAt.compareTo(right.eventAt);
+    });
 
     List<StockReportSection> buildSections() {
       final configs = [
@@ -671,23 +744,55 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       return configs.map((config) {
         final fuelKey = config['key']!;
         final label = config['label']!;
-        var cumulative = _round2(startingStock[fuelKey] ?? 0);
+        var runningBalance = _round2(startingStock[fuelKey] ?? 0);
         var totalInwards = 0.0;
         var totalSales = 0.0;
         final rows = <StockReportRow>[];
 
-        for (final date in allDates) {
-          final inwards = _round2(inwardsByDate[date]?[fuelKey] ?? 0);
-          final sales = _round2(salesByDate[date]?[fuelKey] ?? 0);
-          cumulative = _round2(cumulative + inwards - sales);
-          totalInwards = _round2(totalInwards + inwards);
-          totalSales = _round2(totalSales + sales);
+        for (final event in events) {
+          final value = _round2(event.values[fuelKey] ?? 0);
+          if (event.type == 'snapshot') {
+            runningBalance = value;
+            rows.add(
+              StockReportRow(
+                date: event.date,
+                eventType: 'Manual Stock Set',
+                stockInwards: 0,
+                sales: 0,
+                manualStock: value,
+                runningBalance: runningBalance,
+                details: event.details,
+              ),
+            );
+            continue;
+          }
+          if (event.type == 'delivery') {
+            runningBalance = _round2(runningBalance + value);
+            totalInwards = _round2(totalInwards + value);
+            rows.add(
+              StockReportRow(
+                date: event.date,
+                eventType: 'Delivery',
+                stockInwards: value,
+                sales: 0,
+                manualStock: null,
+                runningBalance: runningBalance,
+                details: event.details,
+              ),
+            );
+            continue;
+          }
+          totalSales = _round2(totalSales + value);
+          runningBalance = _round2(runningBalance - value);
           rows.add(
             StockReportRow(
-              date: date,
-              stockInwards: inwards,
-              sales: sales,
-              cumulative: cumulative,
+              date: event.date,
+              eventType: 'Sale',
+              stockInwards: 0,
+              sales: value,
+              manualStock: null,
+              runningBalance: runningBalance,
+              details: event.details,
             ),
           );
         }
@@ -697,7 +802,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
           rows: rows,
           totalInwards: totalInwards,
           totalSales: totalSales,
-          closingCumulative: cumulative,
+          closingBalance: runningBalance,
         );
       }).toList();
     }
@@ -714,20 +819,33 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     try {
       final fromStr = _toApiDate(from);
       final toStr = _toApiDate(to);
-      final station = await _inventoryService.fetchStationConfig();
-      final baselineUpdatedAt = station.inventoryPlanning.updatedAt.trim();
-      final baselineDate =
-          baselineUpdatedAt.isNotEmpty && baselineUpdatedAt.length >= 10
-          ? baselineUpdatedAt.substring(0, 10)
-          : fromStr;
+      final snapshots = await _inventoryService.fetchStockSnapshots(
+        toDate: toStr,
+      );
+      final carrySnapshot =
+          snapshots
+              .where(
+                (snapshot) => snapshot.effectiveDate.compareTo(fromStr) < 0,
+              )
+              .toList()
+            ..sort((left, right) {
+              final byDate = left.effectiveDate.compareTo(right.effectiveDate);
+              if (byDate != 0) return byDate;
+              return left.createdAt.compareTo(right.createdAt);
+            });
+      final historyStartDate =
+          carrySnapshot.isEmpty ? fromStr : carrySnapshot.last.effectiveDate;
       final entries = await _managementService.fetchEntries(
-        fromDate: baselineDate.compareTo(fromStr) <= 0 ? baselineDate : fromStr,
+        fromDate:
+            historyStartDate.compareTo(fromStr) <= 0
+                ? historyStartDate
+                : fromStr,
         toDate: toStr,
         summary: true,
       );
       final deliveries = await _inventoryService.fetchDeliveries();
       final sections = _buildStockReportSections(
-        station: station,
+        snapshots: snapshots,
         entries: entries,
         deliveries: deliveries,
         from: from,
@@ -748,23 +866,16 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
           text: 'RK Fuels stock report ${_fmtDt(from)} to ${_fmtDt(to)}',
         );
       } else {
-        final savedLocation = await _reportExportService
-            .saveStockReportToDownloads(
-              sections: sections,
-              title: title,
-              fromLabel: _fmtDt(from),
-              toLabel: _fmtDt(to),
-            );
+        await _reportExportService.saveStockReportToDownloads(
+          sections: sections,
+          title: title,
+          fromLabel: _fmtDt(from),
+          toLabel: _fmtDt(to),
+        );
         if (!mounted) {
           return;
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Stock report saved to $savedLocation. Open it from the notification.',
-            ),
-          ),
-        );
+        _showDownloadSuccess('Stock report');
       }
     } catch (error) {
       if (!mounted) return;
@@ -876,9 +987,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                           Expanded(
                             child: _ReportDateTile(
                               label: 'DATE RANGE',
-                              value: _fromDate != null && _toDate != null
-                                  ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
-                                  : '—',
+                              value:
+                                  _fromDate != null && _toDate != null
+                                      ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
+                                      : '—',
                               onTap: _pickDateRange,
                             ),
                           ),
@@ -929,9 +1041,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       (max, item) => item.revenue > max ? item.revenue : max,
     );
 
-    final rangeLabel = (_fromDate != null && _toDate != null)
-        ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
-        : 'Month ${report.month}';
+    final rangeLabel =
+        (_fromDate != null && _toDate != null)
+            ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
+            : 'Month ${report.month}';
 
     return [
       // ── Summary hero card ─────────────────────────────────────
@@ -1028,9 +1141,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.download_rounded,
                     label: _exporting ? 'Preparing...' : 'Download',
-                    onTap: _exporting
-                        ? null
-                        : () => _openExportDialog(shareMode: false),
+                    onTap:
+                        _exporting
+                            ? null
+                            : () => _openExportDialog(shareMode: false),
                     filled: true,
                   ),
                 ),
@@ -1039,9 +1153,10 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.share_rounded,
                     label: 'Share',
-                    onTap: _exporting
-                        ? null
-                        : () => _openExportDialog(shareMode: true),
+                    onTap:
+                        _exporting
+                            ? null
+                            : () => _openExportDialog(shareMode: true),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1049,11 +1164,12 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   child: _HeroActionBtn(
                     icon: Icons.account_balance_wallet_outlined,
                     label: 'Credits',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const CreditLedgerScreen(),
-                      ),
-                    ),
+                    onTap:
+                        () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const CreditLedgerScreen(),
+                          ),
+                        ),
                   ),
                 ),
               ],
@@ -1080,121 +1196,126 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 220,
-              child: report.trend.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'No trend data for this filter.',
-                        style: TextStyle(color: Color(0xFF8A93B8)),
-                      ),
-                    )
-                  : LineChart(
-                      LineChartData(
-                        minY: 0,
-                        maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
-                        gridData: FlGridData(
-                          show: true,
-                          drawVerticalLine: false,
-                          horizontalInterval: maxRevenue <= 0
-                              ? 5
-                              : (maxRevenue * 1.2) / 4,
-                          getDrawingHorizontalLine: (_) => FlLine(
-                            color: const Color(0xFFD8DCF0),
-                            strokeWidth: 1,
-                            dashArray: [4, 4],
-                          ),
+              child:
+                  report.trend.isEmpty
+                      ? const Center(
+                        child: Text(
+                          'No trend data for this filter.',
+                          style: TextStyle(color: Color(0xFF8A93B8)),
                         ),
-                        titlesData: FlTitlesData(
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 52,
-                              interval: maxRevenue <= 0
-                                  ? 5
-                                  : (maxRevenue * 1.2) / 4,
-                              getTitlesWidget: (value, meta) => Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Text(
-                                  _compactK(value),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF8A93B8),
-                                  ),
+                      )
+                      : LineChart(
+                        LineChartData(
+                          minY: 0,
+                          maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
+                          gridData: FlGridData(
+                            show: true,
+                            drawVerticalLine: false,
+                            horizontalInterval:
+                                maxRevenue <= 0 ? 5 : (maxRevenue * 1.2) / 4,
+                            getDrawingHorizontalLine:
+                                (_) => FlLine(
+                                  color: const Color(0xFFD8DCF0),
+                                  strokeWidth: 1,
+                                  dashArray: [4, 4],
                                 ),
+                          ),
+                          titlesData: FlTitlesData(
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 52,
+                                interval:
+                                    maxRevenue <= 0
+                                        ? 5
+                                        : (maxRevenue * 1.2) / 4,
+                                getTitlesWidget:
+                                    (value, meta) => Padding(
+                                      padding: const EdgeInsets.only(right: 6),
+                                      child: Text(
+                                        _compactK(value),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF8A93B8),
+                                        ),
+                                      ),
+                                    ),
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 26,
+                                interval: 1,
+                                getTitlesWidget: (value, meta) {
+                                  final idx = value.toInt();
+                                  if (idx < 0 || idx >= report.trend.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  if (report.trend.length > 6 &&
+                                      idx.isOdd &&
+                                      idx != report.trend.length - 1) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final dt = DateTime.tryParse(
+                                    report.trend[idx].date,
+                                  );
+                                  final lbl =
+                                      dt == null
+                                          ? report.trend[idx].date
+                                          : '${dt.day}/${dt.month}';
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      lbl,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF8A93B8),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 26,
-                              interval: 1,
-                              getTitlesWidget: (value, meta) {
-                                final idx = value.toInt();
-                                if (idx < 0 || idx >= report.trend.length) {
-                                  return const SizedBox.shrink();
-                                }
-                                if (report.trend.length > 6 &&
-                                    idx.isOdd &&
-                                    idx != report.trend.length - 1) {
-                                  return const SizedBox.shrink();
-                                }
-                                final dt = DateTime.tryParse(
-                                  report.trend[idx].date,
-                                );
-                                final lbl = dt == null
-                                    ? report.trend[idx].date
-                                    : '${dt.day}/${dt.month}';
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    lbl,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF8A93B8),
-                                    ),
-                                  ),
-                                );
-                              },
+                          borderData: FlBorderData(show: false),
+                          lineTouchData: LineTouchData(enabled: true),
+                          lineBarsData: [
+                            LineChartBarData(
+                              isCurved: true,
+                              color: const Color(0xFF1A3A7A),
+                              barWidth: 2.5,
+                              dotData: FlDotData(
+                                show: report.trend.length <= 8,
+                                getDotPainter:
+                                    (spot, percent, bar, index) =>
+                                        FlDotCirclePainter(
+                                          radius: 4,
+                                          color: const Color(0xFF1A3A7A),
+                                          strokeWidth: 2,
+                                          strokeColor: Colors.white,
+                                        ),
+                              ),
+                              belowBarData: BarAreaData(
+                                show: true,
+                                color: const Color(
+                                  0xFF1A3A7A,
+                                ).withValues(alpha: 0.10),
+                              ),
+                              spots: [
+                                for (var i = 0; i < report.trend.length; i++)
+                                  FlSpot(i.toDouble(), report.trend[i].revenue),
+                              ],
                             ),
-                          ),
+                          ],
                         ),
-                        borderData: FlBorderData(show: false),
-                        lineTouchData: LineTouchData(enabled: true),
-                        lineBarsData: [
-                          LineChartBarData(
-                            isCurved: true,
-                            color: const Color(0xFF1A3A7A),
-                            barWidth: 2.5,
-                            dotData: FlDotData(
-                              show: report.trend.length <= 8,
-                              getDotPainter: (spot, percent, bar, index) =>
-                                  FlDotCirclePainter(
-                                    radius: 4,
-                                    color: const Color(0xFF1A3A7A),
-                                    strokeWidth: 2,
-                                    strokeColor: Colors.white,
-                                  ),
-                            ),
-                            belowBarData: BarAreaData(
-                              show: true,
-                              color: const Color(
-                                0xFF1A3A7A,
-                              ).withValues(alpha: 0.10),
-                            ),
-                            spots: [
-                              for (var i = 0; i < report.trend.length; i++)
-                                FlSpot(i.toDouble(), report.trend[i].revenue),
-                            ],
-                          ),
-                        ],
                       ),
-                    ),
             ),
           ],
         ),
@@ -1218,54 +1339,29 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
             const SizedBox(height: 16),
             SizedBox(
               height: 200,
-              child: totalFuel <= 0
-                  ? const Center(
-                      child: Text(
-                        'No fuel data for this filter.',
-                        style: TextStyle(color: Color(0xFF8A93B8)),
-                      ),
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          flex: 3,
-                          child: PieChart(
-                            PieChartData(
-                              centerSpaceRadius: 0,
-                              sectionsSpace: 2,
-                              startDegreeOffset: -90,
-                              sections: [
-                                PieChartSectionData(
-                                  value: petrol,
-                                  color: const Color(0xFF1A3A7A),
-                                  title:
-                                      '${((petrol / totalFuel) * 100).round()}%',
-                                  radius: 80,
-                                  titleStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                PieChartSectionData(
-                                  value: diesel,
-                                  color: const Color(0xFF2AA878),
-                                  title:
-                                      '${((diesel / totalFuel) * 100).round()}%',
-                                  radius: 80,
-                                  titleStyle: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                if (twoT > 0)
+              child:
+                  totalFuel <= 0
+                      ? const Center(
+                        child: Text(
+                          'No fuel data for this filter.',
+                          style: TextStyle(color: Color(0xFF8A93B8)),
+                        ),
+                      )
+                      : Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: PieChart(
+                              PieChartData(
+                                centerSpaceRadius: 0,
+                                sectionsSpace: 2,
+                                startDegreeOffset: -90,
+                                sections: [
                                   PieChartSectionData(
-                                    value: twoT,
-                                    color: const Color(0xFFCE5828),
-                                    title: twoT / totalFuel >= 0.05
-                                        ? '${((twoT / totalFuel) * 100).round()}%'
-                                        : '',
+                                    value: petrol,
+                                    color: const Color(0xFF1A3A7A),
+                                    title:
+                                        '${((petrol / totalFuel) * 100).round()}%',
                                     radius: 80,
                                     titleStyle: const TextStyle(
                                       color: Colors.white,
@@ -1273,41 +1369,68 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                                       fontSize: 13,
                                     ),
                                   ),
+                                  PieChartSectionData(
+                                    value: diesel,
+                                    color: const Color(0xFF2AA878),
+                                    title:
+                                        '${((diesel / totalFuel) * 100).round()}%',
+                                    radius: 80,
+                                    titleStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (twoT > 0)
+                                    PieChartSectionData(
+                                      value: twoT,
+                                      color: const Color(0xFFCE5828),
+                                      title:
+                                          twoT / totalFuel >= 0.05
+                                              ? '${((twoT / totalFuel) * 100).round()}%'
+                                              : '',
+                                      radius: 80,
+                                      titleStyle: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _FuelLegend(
+                                  label: 'Petrol',
+                                  value: formatLiters(petrol),
+                                  color: const Color(0xFF1A3A7A),
+                                ),
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'Diesel',
+                                  value: formatLiters(diesel),
+                                  color: const Color(0xFF2AA878),
+                                ),
+                                if (twoT > 0) ...[
+                                  const SizedBox(height: 14),
+                                  _FuelLegend(
+                                    label: '2T Oil',
+                                    value: formatLiters(twoT),
+                                    color: const Color(0xFFCE5828),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _FuelLegend(
-                                label: 'Petrol',
-                                value: formatLiters(petrol),
-                                color: const Color(0xFF1A3A7A),
-                              ),
-                              const SizedBox(height: 14),
-                              _FuelLegend(
-                                label: 'Diesel',
-                                value: formatLiters(diesel),
-                                color: const Color(0xFF2AA878),
-                              ),
-                              if (twoT > 0) ...[
-                                const SizedBox(height: 14),
-                                _FuelLegend(
-                                  label: '2T Oil',
-                                  value: formatLiters(twoT),
-                                  color: const Color(0xFFCE5828),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
             ),
           ],
         ),
@@ -1402,93 +1525,94 @@ class _PaymentMixCard extends StatelessWidget {
           const SizedBox(height: 16),
           SizedBox(
             height: 200,
-            child: total <= 0
-                ? const Center(
-                    child: Text(
-                      'No payment data for this filter.',
-                      style: TextStyle(color: Color(0xFF8A93B8)),
-                    ),
-                  )
-                : Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: PieChart(
-                          PieChartData(
-                            centerSpaceRadius: 0,
-                            sectionsSpace: 2,
-                            startDegreeOffset: -90,
-                            sections: [
+            child:
+                total <= 0
+                    ? const Center(
+                      child: Text(
+                        'No payment data for this filter.',
+                        style: TextStyle(color: Color(0xFF8A93B8)),
+                      ),
+                    )
+                    : Row(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: PieChart(
+                            PieChartData(
+                              centerSpaceRadius: 0,
+                              sectionsSpace: 2,
+                              startDegreeOffset: -90,
+                              sections: [
+                                if (cash > 0)
+                                  _paymentPieSection(
+                                    cash,
+                                    total,
+                                    const Color(0xFF1A3A7A),
+                                  ),
+                                if (hpPay > 0)
+                                  _paymentPieSection(
+                                    hpPay,
+                                    total,
+                                    const Color(0xFF6B7280),
+                                  ),
+                                if (upi > 0)
+                                  _paymentPieSection(
+                                    upi,
+                                    total,
+                                    const Color(0xFF7C3AED),
+                                  ),
+                                if (credit > 0)
+                                  _paymentPieSection(
+                                    credit,
+                                    total,
+                                    const Color(0xFFCE5828),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
                               if (cash > 0)
-                                _paymentPieSection(
-                                  cash,
-                                  total,
-                                  const Color(0xFF1A3A7A),
+                                _FuelLegend(
+                                  label: 'Cash',
+                                  value: formatCurrency(cash),
+                                  color: const Color(0xFF1A3A7A),
                                 ),
-                              if (hpPay > 0)
-                                _paymentPieSection(
-                                  hpPay,
-                                  total,
-                                  const Color(0xFF6B7280),
+                              if (hpPay > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'HP Pay',
+                                  value: formatCurrency(hpPay),
+                                  color: const Color(0xFF6B7280),
                                 ),
-                              if (upi > 0)
-                                _paymentPieSection(
-                                  upi,
-                                  total,
-                                  const Color(0xFF7C3AED),
+                              ],
+                              if (upi > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'UPI',
+                                  value: formatCurrency(upi),
+                                  color: const Color(0xFF7C3AED),
                                 ),
-                              if (credit > 0)
-                                _paymentPieSection(
-                                  credit,
-                                  total,
-                                  const Color(0xFFCE5828),
+                              ],
+                              if (credit > 0) ...[
+                                const SizedBox(height: 14),
+                                _FuelLegend(
+                                  label: 'Credit',
+                                  value: formatCurrency(credit),
+                                  color: const Color(0xFFCE5828),
                                 ),
+                              ],
                             ],
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        flex: 2,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (cash > 0)
-                              _FuelLegend(
-                                label: 'Cash',
-                                value: formatCurrency(cash),
-                                color: const Color(0xFF1A3A7A),
-                              ),
-                            if (hpPay > 0) ...[
-                              const SizedBox(height: 14),
-                              _FuelLegend(
-                                label: 'HP Pay',
-                                value: formatCurrency(hpPay),
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ],
-                            if (upi > 0) ...[
-                              const SizedBox(height: 14),
-                              _FuelLegend(
-                                label: 'UPI',
-                                value: formatCurrency(upi),
-                                color: const Color(0xFF7C3AED),
-                              ),
-                            ],
-                            if (credit > 0) ...[
-                              const SizedBox(height: 14),
-                              _FuelLegend(
-                                label: 'Credit',
-                                value: formatCurrency(credit),
-                                color: const Color(0xFFCE5828),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
           ),
         ],
       ),
@@ -1547,26 +1671,27 @@ class _PresetPill extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF1A3A7A) : const Color(0xFFECEFF8),
           borderRadius: BorderRadius.circular(999),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                    offset: const Offset(0, 4),
-                    blurRadius: 10,
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
-                    offset: const Offset(3, 3),
-                    blurRadius: 7,
-                  ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    offset: Offset(-2, -2),
-                    blurRadius: 5,
-                  ),
-                ],
+          boxShadow:
+              selected
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                      offset: const Offset(0, 4),
+                      blurRadius: 10,
+                    ),
+                  ]
+                  : [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
+                      offset: const Offset(3, 3),
+                      blurRadius: 7,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-2, -2),
+                      blurRadius: 5,
+                    ),
+                  ],
         ),
         child: Text(
           label,
@@ -1735,11 +1860,12 @@ class _HeroActionBtn extends StatelessWidget {
             Icon(
               icon,
               size: 14,
-              color: filled
-                  ? (disabled
-                        ? const Color(0xFF8A93B8)
-                        : const Color(0xFF1A3A7A))
-                  : (disabled ? Colors.white30 : Colors.white),
+              color:
+                  filled
+                      ? (disabled
+                          ? const Color(0xFF8A93B8)
+                          : const Color(0xFF1A3A7A))
+                      : (disabled ? Colors.white30 : Colors.white),
             ),
             const SizedBox(width: 5),
             Text(
@@ -1747,11 +1873,12 @@ class _HeroActionBtn extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: filled
-                    ? (disabled
-                          ? const Color(0xFF8A93B8)
-                          : const Color(0xFF1A3A7A))
-                    : (disabled ? Colors.white30 : Colors.white),
+                color:
+                    filled
+                        ? (disabled
+                            ? const Color(0xFF8A93B8)
+                            : const Color(0xFF1A3A7A))
+                        : (disabled ? Colors.white30 : Colors.white),
               ),
             ),
           ],

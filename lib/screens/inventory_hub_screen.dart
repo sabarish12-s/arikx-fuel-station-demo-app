@@ -10,7 +10,6 @@ import '../utils/user_facing_errors.dart';
 import '../widgets/responsive_text.dart';
 import 'delivery_history_screen.dart';
 import 'delivery_receipt_screen.dart';
-import 'inventory_planning_settings_screen.dart';
 
 class InventoryHubScreen extends StatefulWidget {
   const InventoryHubScreen({super.key, this.canManagePlanning = false});
@@ -21,10 +20,25 @@ class InventoryHubScreen extends StatefulWidget {
   State<InventoryHubScreen> createState() => _InventoryHubScreenState();
 }
 
+class _InventoryHubData {
+  const _InventoryHubData({required this.dashboard, required this.snapshots});
+
+  final InventoryDashboardModel dashboard;
+  final List<InventoryStockSnapshotModel> snapshots;
+}
+
 class _InventoryHubScreenState extends State<InventoryHubScreen> {
   final InventoryService _inventoryService = InventoryService();
-  late Future<InventoryDashboardModel> _future;
+  final TextEditingController _effectiveDateController =
+      TextEditingController();
+  final TextEditingController _petrolController = TextEditingController();
+  final TextEditingController _dieselController = TextEditingController();
+  final TextEditingController _twoTController = TextEditingController();
+  final TextEditingController _noteController = TextEditingController();
+  late Future<_InventoryHubData> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
+  bool _snapshotSeeded = false;
+  bool _savingSnapshot = false;
 
   @override
   void initState() {
@@ -33,7 +47,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted ||
           !update.background ||
-          !update.path.startsWith('/inventory/dashboard')) {
+          !update.path.startsWith('/inventory/')) {
         return;
       }
       setState(() => _future = _load());
@@ -43,18 +57,45 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   @override
   void dispose() {
     _cacheSubscription.cancel();
+    _effectiveDateController.dispose();
+    _petrolController.dispose();
+    _dieselController.dispose();
+    _twoTController.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
-  Future<InventoryDashboardModel> _load({bool forceRefresh = false}) {
-    return _inventoryService.fetchInventoryDashboard(
-      forceRefresh: forceRefresh,
+  Future<_InventoryHubData> _load({bool forceRefresh = false}) async {
+    final results = await Future.wait<dynamic>([
+      _inventoryService.fetchInventoryDashboard(forceRefresh: forceRefresh),
+      _inventoryService.fetchStockSnapshots(forceRefresh: forceRefresh),
+    ]);
+    return _InventoryHubData(
+      dashboard: results[0] as InventoryDashboardModel,
+      snapshots: results[1] as List<InventoryStockSnapshotModel>,
     );
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load(forceRefresh: true));
+    setState(() {
+      _snapshotSeeded = false;
+      _future = _load(forceRefresh: true);
+    });
     await _future;
+  }
+
+  void _seedSnapshotForm(_InventoryHubData data) {
+    if (_snapshotSeeded) return;
+    final activeSnapshot = data.dashboard.activeStockSnapshot;
+    final stock =
+        activeSnapshot?.stock ?? data.dashboard.inventoryPlanning.currentStock;
+    _effectiveDateController.text =
+        DateTime.now().toIso8601String().split('T').first;
+    _petrolController.text = (stock['petrol'] ?? 0).toStringAsFixed(2);
+    _dieselController.text = (stock['diesel'] ?? 0).toStringAsFixed(2);
+    _twoTController.text = (stock['two_t_oil'] ?? 0).toStringAsFixed(2);
+    _noteController.clear();
+    _snapshotSeeded = true;
   }
 
   Future<void> _openDeliveryReceipt(
@@ -68,18 +109,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     if (saved == true && mounted) await _refresh();
   }
 
-  Future<void> _openPlanningSettings() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder:
-            (_) => InventoryPlanningSettingsScreen(
-              canEdit: widget.canManagePlanning,
-            ),
-      ),
-    );
-    if (mounted) await _refresh();
-  }
-
   Future<void> _openDeliveryHistory() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => const DeliveryHistoryScreen()),
@@ -87,11 +116,101 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     if (mounted) await _refresh();
   }
 
+  Future<void> _pickEffectiveDate() async {
+    final initialDate =
+        DateTime.tryParse(_effectiveDateController.text.trim()) ??
+        DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    _effectiveDateController.text = picked.toIso8601String().split('T').first;
+  }
+
+  Future<void> _saveSnapshot() async {
+    final effectiveDate = _effectiveDateController.text.trim();
+    final petrol = double.tryParse(_petrolController.text.trim());
+    final diesel = double.tryParse(_dieselController.text.trim());
+    final twoT = double.tryParse(_twoTController.text.trim());
+
+    if (effectiveDate.isEmpty ||
+        petrol == null ||
+        petrol < 0 ||
+        diesel == null ||
+        diesel < 0 ||
+        twoT == null ||
+        twoT < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFB91C1C),
+          content: Text('Enter a valid date and non-negative stock values.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _savingSnapshot = true);
+    try {
+      await _inventoryService.createStockSnapshot(
+        effectiveDate: effectiveDate,
+        stock: {'petrol': petrol, 'diesel': diesel, 'two_t_oil': twoT},
+        note: _noteController.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Stock snapshot saved.')));
+      setState(() {
+        _snapshotSeeded = false;
+        _future = _load(forceRefresh: true);
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _savingSnapshot = false);
+      }
+    }
+  }
+
   String _displayDate(String raw) =>
       raw.trim().isEmpty ? 'Not available' : formatDateLabel(raw);
 
-  String _daysLabel(double? v) =>
-      v == null ? 'Not enough data' : '${v.toStringAsFixed(1)} day(s)';
+  String _displayTimestamp(String raw) {
+    final value = DateTime.tryParse(raw);
+    if (value == null) {
+      return raw.trim().isEmpty ? 'Unknown time' : raw;
+    }
+    final local = value.toLocal();
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour24 = local.hour;
+    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final suffix = hour24 >= 12 ? 'PM' : 'AM';
+    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
+  }
 
   Color _fuelColor(String id) {
     switch (id) {
@@ -112,7 +231,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
       color: const Color(0xFFECEFF8),
       child: RefreshIndicator(
         onRefresh: _refresh,
-        child: FutureBuilder<InventoryDashboardModel>(
+        child: FutureBuilder<_InventoryHubData>(
           future: _future,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
@@ -127,14 +246,16 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             }
 
             final data = snapshot.data!;
-            final planning = data.inventoryPlanning;
-            final alertCount = data.forecast.where((f) => f.shouldAlert).length;
+            final dashboard = data.dashboard;
+            final planning = dashboard.inventoryPlanning;
+            final activeSnapshot = dashboard.activeStockSnapshot;
+            final history = data.snapshots.reversed.toList(growable: false);
+            _seedSnapshotForm(data);
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                // ── Hero header ─────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
                   decoration: BoxDecoration(
@@ -155,78 +276,41 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  data.station.name,
-                                  style: const TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                const Text(
-                                  'Inventory',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (alertCount > 0)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFFB91C1C,
-                                ).withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFFFF6B6B,
-                                  ).withValues(alpha: 0.4),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Color(0xFFFF9999),
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    '$alertCount alert${alertCount > 1 ? 's' : ''}',
-                                    style: const TextStyle(
-                                      color: Color(0xFFFF9999),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
+                      Text(
+                        dashboard.station.name,
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      const Text(
+                        'Inventory Stock',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        activeSnapshot == null
+                            ? 'No stock snapshot available'
+                            : 'Stock as of ${_displayDate(activeSnapshot.effectiveDate)}',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children:
-                            data.forecast.map((item) {
-                              final isLast = item == data.forecast.last;
+                            dashboard.forecast.map((item) {
+                              final isLast = item == dashboard.forecast.last;
                               return Expanded(
                                 child: Row(
                                   children: [
@@ -246,11 +330,8 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                                           const SizedBox(height: 3),
                                           Text(
                                             formatLiters(item.currentStock),
-                                            style: TextStyle(
-                                              color:
-                                                  item.shouldAlert
-                                                      ? const Color(0xFFFF9999)
-                                                      : Colors.white,
+                                            style: const TextStyle(
+                                              color: Colors.white,
                                               fontSize: 14,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -277,122 +358,272 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 14),
-
-                // ── Action buttons ───────────────────────────────────
                 Row(
                   children: [
                     Expanded(
-                      flex: 3,
                       child: _InvActionBtn(
                         icon: Icons.local_shipping_outlined,
                         label: 'Record Purchase',
-                        onTap: () => _openDeliveryReceipt(data.forecast),
+                        onTap: () => _openDeliveryReceipt(dashboard.forecast),
                         filled: true,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      flex: 2,
                       child: _InvActionBtn(
-                        icon: Icons.tune_rounded,
-                        label: 'Planning Settings',
-                        onTap: _openPlanningSettings,
+                        icon: Icons.history_rounded,
+                        label: 'Purchase History',
+                        onTap: _openDeliveryHistory,
                       ),
                     ),
                     const SizedBox(width: 8),
                     _InvIconBtn(icon: Icons.refresh_rounded, onTap: _refresh),
                   ],
                 ),
-
                 const SizedBox(height: 18),
-
-                // ── Planning snapshot ────────────────────────────────
+                _ClayCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Active Stock Snapshot',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1A2561),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        activeSnapshot == null
+                            ? 'No manual stock snapshot found.'
+                            : 'Latest applicable manual stock set for inventory calculations and reports.',
+                        style: const TextStyle(
+                          color: Color(0xFF8A93B8),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          _SnapshotPill(
+                            label: 'Effective date',
+                            value:
+                                activeSnapshot == null
+                                    ? 'Not set'
+                                    : _displayDate(
+                                      activeSnapshot.effectiveDate,
+                                    ),
+                          ),
+                          const SizedBox(width: 8),
+                          _SnapshotPill(
+                            label: 'Set by',
+                            value:
+                                activeSnapshot?.createdByName
+                                            .trim()
+                                            .isNotEmpty ==
+                                        true
+                                    ? activeSnapshot!.createdByName
+                                    : 'System',
+                          ),
+                          const SizedBox(width: 8),
+                          _SnapshotPill(
+                            label: 'Lead / alert',
+                            value:
+                                '${planning.deliveryLeadDays}d / ${planning.alertBeforeDays}d',
+                          ),
+                        ],
+                      ),
+                      if (activeSnapshot != null &&
+                          activeSnapshot.note.trim().isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFECEFF8),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            activeSnapshot.note,
+                            style: const TextStyle(
+                              color: Color(0xFF4A5598),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (widget.canManagePlanning)
+                  _ClayCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Set Manual Stock Snapshot',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A2561),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Save a full dated stock snapshot. The latest snapshot on or before a day becomes the active baseline for that date.',
+                          style: TextStyle(
+                            color: Color(0xFF8A93B8),
+                            height: 1.35,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        GestureDetector(
+                          onTap: _savingSnapshot ? null : _pickEffectiveDate,
+                          child: AbsorbPointer(
+                            child: TextField(
+                              controller: _effectiveDateController,
+                              decoration: InputDecoration(
+                                labelText: 'Effective date',
+                                suffixIcon: const Icon(Icons.calendar_today),
+                                filled: true,
+                                fillColor: const Color(0xFFECEFF8),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _StockNumberField(
+                          label: 'Petrol stock liters',
+                          controller: _petrolController,
+                          enabled: !_savingSnapshot,
+                        ),
+                        const SizedBox(height: 12),
+                        _StockNumberField(
+                          label: 'Diesel stock liters',
+                          controller: _dieselController,
+                          enabled: !_savingSnapshot,
+                        ),
+                        const SizedBox(height: 12),
+                        _StockNumberField(
+                          label: '2T oil stock liters',
+                          controller: _twoTController,
+                          enabled: !_savingSnapshot,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _noteController,
+                          enabled: !_savingSnapshot,
+                          minLines: 2,
+                          maxLines: 3,
+                          decoration: InputDecoration(
+                            labelText: 'Reason / note (optional)',
+                            filled: true,
+                            fillColor: const Color(0xFFECEFF8),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        FilledButton.icon(
+                          onPressed: _savingSnapshot ? null : _saveSnapshot,
+                          icon:
+                              _savingSnapshot
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                  : const Icon(Icons.save_outlined),
+                          label: Text(
+                            _savingSnapshot
+                                ? 'Saving...'
+                                : 'Save Stock Snapshot',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 _ClayCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
+                          const Expanded(
+                            child: Text(
+                              'Stock Snapshot History',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1A2561),
+                              ),
+                            ),
+                          ),
                           Container(
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFECEFF8),
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(
-                                    0xFFB8C0DC,
-                                  ).withValues(alpha: 0.5),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: 5,
-                                ),
-                                const BoxShadow(
-                                  color: Colors.white,
-                                  offset: Offset(-2, -2),
-                                  blurRadius: 4,
-                                ),
-                              ],
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                            child: const Icon(
-                              Icons.analytics_outlined,
-                              color: Color(0xFF1A3A7A),
-                              size: 18,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Planning Snapshot',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1A2561),
+                            child: Text(
+                              '${history.length} saved',
+                              style: const TextStyle(
+                                color: Color(0xFF4A5598),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Every manual stock save is kept in history. If the same date is saved again, the newest save for that date becomes the active one.',
+                        style: TextStyle(
+                          color: Color(0xFF8A93B8),
+                          height: 1.35,
+                        ),
                       ),
                       const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          _SnapshotPill(
-                            label: 'Lead time',
-                            value: '${planning.deliveryLeadDays}d',
+                      if (history.isEmpty)
+                        const Text(
+                          'No stock snapshots recorded yet.',
+                          style: TextStyle(
+                            color: Color(0xFF8A93B8),
+                            fontSize: 13,
                           ),
-                          const SizedBox(width: 8),
-                          _SnapshotPill(
-                            label: 'Alert before',
-                            value: '${planning.alertBeforeDays}d',
+                        )
+                      else
+                        ...history.map(
+                          (item) => _SnapshotHistoryRow(
+                            snapshot: item,
+                            displayDate: _displayDate,
+                            displayTimestamp: _displayTimestamp,
                           ),
-                          const SizedBox(width: 8),
-                          _SnapshotPill(
-                            label: 'Updated',
-                            value:
-                                planning.updatedAt.trim().isEmpty
-                                    ? '—'
-                                    : formatDateLabel(
-                                      planning.updatedAt.split('T').first,
-                                    ),
-                          ),
-                        ],
-                      ),
+                        ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 14),
-
-                // ── Fuel detail cards ────────────────────────────────
-                ...data.forecast.map(
+                ...dashboard.forecast.map(
                   (item) => _FuelForecastCard(
                     item: item,
                     accentColor: _fuelColor(item.fuelTypeId),
                     displayDate: _displayDate,
-                    daysLabel: _daysLabel,
                   ),
                 ),
-
-                // ── Recent purchase ──────────────────────────────────
                 _ClayCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -458,7 +689,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      if (data.deliveries.isEmpty)
+                      if (dashboard.deliveries.isEmpty)
                         const Text(
                           'No purchases recorded yet.',
                           style: TextStyle(
@@ -468,7 +699,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                         )
                       else
                         DeliveryReceiptSummaryCard(
-                          delivery: data.deliveries.first,
+                          delivery: dashboard.deliveries.first,
                           margin: EdgeInsets.zero,
                         ),
                     ],
@@ -483,19 +714,21 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   }
 }
 
-// ─── Fuel forecast card ────────────────────────────────────────────────────────
 class _FuelForecastCard extends StatelessWidget {
   const _FuelForecastCard({
     required this.item,
     required this.accentColor,
     required this.displayDate,
-    required this.daysLabel,
   });
 
   final FuelInventoryForecastModel item;
   final Color accentColor;
   final String Function(String) displayDate;
-  final String Function(double?) daysLabel;
+
+  String _daysLabel(double? value) {
+    if (value == null) return 'Not enough data';
+    return '${value.toStringAsFixed(1)} day(s)';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -543,46 +776,6 @@ class _FuelForecastCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color:
-                      item.shouldAlert
-                          ? const Color(0xFFFEF2F2)
-                          : const Color(0xFFE8F8EF),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      item.shouldAlert
-                          ? Icons.warning_amber_rounded
-                          : Icons.check_circle_outline_rounded,
-                      size: 12,
-                      color:
-                          item.shouldAlert
-                              ? const Color(0xFFB91C1C)
-                              : const Color(0xFF0A7A4A),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      item.shouldAlert ? 'Order now' : 'On track',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color:
-                            item.shouldAlert
-                                ? const Color(0xFFB91C1C)
-                                : const Color(0xFF0A7A4A),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 14),
@@ -612,7 +805,7 @@ class _FuelForecastCard extends StatelessWidget {
                   children: [
                     _MetricCell(
                       label: 'Days remaining',
-                      value: daysLabel(item.daysRemaining),
+                      value: _daysLabel(item.daysRemaining),
                     ),
                     const _MDivider(),
                     _MetricCell(
@@ -630,26 +823,97 @@ class _FuelForecastCard extends StatelessWidget {
               ],
             ),
           ),
-          if (item.alertMessage.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF7ED),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFFCE5828).withValues(alpha: 0.2),
+        ],
+      ),
+    );
+  }
+}
+
+class _SnapshotHistoryRow extends StatelessWidget {
+  const _SnapshotHistoryRow({
+    required this.snapshot,
+    required this.displayDate,
+    required this.displayTimestamp,
+  });
+
+  final InventoryStockSnapshotModel snapshot;
+  final String Function(String) displayDate;
+  final String Function(String) displayTimestamp;
+
+  @override
+  Widget build(BuildContext context) {
+    final actor =
+        snapshot.createdByName.trim().isEmpty
+            ? 'System'
+            : snapshot.createdByName;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  displayDate(snapshot.effectiveDate),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A2561),
+                  ),
                 ),
               ),
-              child: Text(
-                item.alertMessage,
+              Text(
+                displayTimestamp(snapshot.createdAt),
                 style: const TextStyle(
-                  color: Color(0xFF9A3412),
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                  height: 1.35,
+                  color: Color(0xFF8A93B8),
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HistoryChip(
+                label: 'Petrol',
+                value: formatLiters(snapshot.stock['petrol'] ?? 0),
+              ),
+              _HistoryChip(
+                label: 'Diesel',
+                value: formatLiters(snapshot.stock['diesel'] ?? 0),
+              ),
+              _HistoryChip(
+                label: '2T Oil',
+                value: formatLiters(snapshot.stock['two_t_oil'] ?? 0),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Saved by $actor',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF4A5598),
+            ),
+          ),
+          if (snapshot.note.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              snapshot.note,
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.35,
+                color: Color(0xFF5B6487),
               ),
             ),
           ],
@@ -659,13 +923,83 @@ class _FuelForecastCard extends StatelessWidget {
   }
 }
 
-// ─── Metric helpers ────────────────────────────────────────────────────────────
+class _HistoryChip extends StatelessWidget {
+  const _HistoryChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF8A93B8),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A2561),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockNumberField extends StatelessWidget {
+  const _StockNumberField({
+    required this.label,
+    required this.controller,
+    required this.enabled,
+  });
+
+  final String label;
+  final TextEditingController controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: const Color(0xFFECEFF8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
 class _MetricCell extends StatelessWidget {
   const _MetricCell({
     required this.label,
     required this.value,
     this.full = false,
   });
+
   final String label;
   final String value;
   final bool full;
@@ -702,6 +1036,7 @@ class _MetricCell extends StatelessWidget {
 
 class _MDivider extends StatelessWidget {
   const _MDivider();
+
   @override
   Widget build(BuildContext context) => Container(
     width: 1,
@@ -713,6 +1048,7 @@ class _MDivider extends StatelessWidget {
 
 class _MRowDivider extends StatelessWidget {
   const _MRowDivider();
+
   @override
   Widget build(BuildContext context) => Container(
     height: 1,
@@ -721,9 +1057,9 @@ class _MRowDivider extends StatelessWidget {
   );
 }
 
-// ─── Clay card ─────────────────────────────────────────────────────────────────
 class _ClayCard extends StatelessWidget {
   const _ClayCard({required this.child});
+
   final Widget child;
 
   @override
@@ -753,9 +1089,9 @@ class _ClayCard extends StatelessWidget {
   }
 }
 
-// ─── Snapshot pill ─────────────────────────────────────────────────────────────
 class _SnapshotPill extends StatelessWidget {
   const _SnapshotPill({required this.label, required this.value});
+
   final String label;
   final String value;
 
@@ -807,7 +1143,6 @@ class _SnapshotPill extends StatelessWidget {
   }
 }
 
-// ─── Action button ─────────────────────────────────────────────────────────────
 class _InvActionBtn extends StatefulWidget {
   const _InvActionBtn({
     required this.icon,
@@ -815,6 +1150,7 @@ class _InvActionBtn extends StatefulWidget {
     required this.onTap,
     this.filled = false,
   });
+
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -892,6 +1228,7 @@ class _InvActionBtnState extends State<_InvActionBtn> {
 
 class _InvIconBtn extends StatefulWidget {
   const _InvIconBtn({required this.icon, required this.onTap});
+
   final IconData icon;
   final VoidCallback onTap;
 
@@ -934,11 +1271,7 @@ class _InvIconBtnState extends State<_InvIconBtn> {
                     ),
                   ],
         ),
-        child: const Icon(
-          Icons.refresh_rounded,
-          size: 18,
-          color: Color(0xFF4A5598),
-        ),
+        child: Icon(widget.icon, size: 18, color: const Color(0xFF4A5598)),
       ),
     );
   }

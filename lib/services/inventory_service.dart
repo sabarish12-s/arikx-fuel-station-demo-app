@@ -242,6 +242,66 @@ class InventoryService {
     );
   }
 
+  Future<List<InventoryStockSnapshotModel>> fetchStockSnapshots({
+    String? fromDate,
+    String? toDate,
+    bool forceRefresh = false,
+  }) async {
+    final params = <String, String>{
+      if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'to': toDate,
+    };
+    final suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final response = await _apiClient.get(
+      '/inventory/stock-snapshots$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load stock snapshot history.',
+        ),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return (json['snapshots'] as List<dynamic>? ?? const [])
+        .map(
+          (item) => InventoryStockSnapshotModel.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  Future<InventoryStockSnapshotModel> createStockSnapshot({
+    required String effectiveDate,
+    required Map<String, double> stock,
+    String note = '',
+  }) async {
+    final response = await _apiClient.post(
+      '/inventory/stock-snapshots',
+      body: jsonEncode({
+        'effectiveDate': effectiveDate,
+        'stock': stock,
+        'note': note,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to save stock snapshot.',
+        ),
+      );
+    }
+    return InventoryStockSnapshotModel.fromJson(
+      _apiClient.decodeObject(response)['snapshot'] as Map<String, dynamic>,
+    );
+  }
+
   Future<StationConfigModel> saveStationConfig(
     StationConfigModel station,
   ) async {
@@ -335,19 +395,26 @@ class InventoryService {
     };
     final normalizedEntries = _normalizeInventoryEntries(entries);
 
-    final receiptsAfterBaseline = deliveries.where((delivery) {
-      if (baselineUpdatedAt.isEmpty) {
-        return true;
-      }
-      return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
-    }).toList()..sort((left, right) => left.date.compareTo(right.date));
+    final receiptsAfterBaseline =
+        deliveries.where((delivery) {
+            if (baselineUpdatedAt.isEmpty) {
+              return true;
+            }
+            return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
+          }).toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
 
-    final entriesAfterBaseline = normalizedEntries.where((entry) {
-      if (baselineUpdatedAt.isEmpty) {
-        return true;
-      }
-      return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) > 0;
-    }).toList()..sort((left, right) => left.date.compareTo(right.date));
+    final entriesAfterBaseline =
+        normalizedEntries.where((entry) {
+            if (baselineUpdatedAt.isEmpty) {
+              return true;
+            }
+            return _entryInventoryTimestamp(
+                  entry,
+                ).compareTo(baselineUpdatedAt) >
+                0;
+          }).toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
 
     for (final receipt in receiptsAfterBaseline) {
       for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
@@ -405,6 +472,19 @@ class InventoryService {
         ),
       ],
       deliveries: deliveries,
+      activeStockSnapshot: InventoryStockSnapshotModel(
+        id: 'fallback-active-stock',
+        stationId: station.id,
+        effectiveDate:
+            baselineUpdatedAt.isEmpty
+                ? DateTime.now().toIso8601String().split('T').first
+                : baselineUpdatedAt.split('T').first,
+        stock: baselineStock,
+        note: '',
+        createdAt: baselineUpdatedAt,
+        createdBy: '',
+        createdByName: '',
+      ),
     );
   }
 
@@ -498,10 +578,11 @@ class InventoryService {
     }
     final resolvedEndDate =
         endDate ?? DateTime.now().toIso8601String().split('T').first;
-    final windowDates = List<String>.generate(
-      7,
-      (index) => _shiftIsoDate(resolvedEndDate, -index),
-    ).reversed.toList();
+    final windowDates =
+        List<String>.generate(
+          7,
+          (index) => _shiftIsoDate(resolvedEndDate, -index),
+        ).reversed.toList();
     final enteredDates = windowDates
         .where((date) => totalsByDate.containsKey(date))
         .toList(growable: false);
@@ -524,18 +605,19 @@ class InventoryService {
   }) {
     final totalLeadWindow =
         planning.deliveryLeadDays + planning.alertBeforeDays;
-    final daysRemaining = averageDailySales > 0
-        ? currentStock / averageDailySales
-        : null;
-    final projectedRunoutDate = daysRemaining == null
-        ? ''
-        : _shiftIsoDate(
-            DateTime.now().toIso8601String().split('T').first,
-            daysRemaining.floor(),
-          );
-    final recommendedOrderDate = projectedRunoutDate.isEmpty
-        ? ''
-        : _shiftIsoDate(projectedRunoutDate, -totalLeadWindow);
+    final daysRemaining =
+        averageDailySales > 0 ? currentStock / averageDailySales : null;
+    final projectedRunoutDate =
+        daysRemaining == null
+            ? ''
+            : _shiftIsoDate(
+              DateTime.now().toIso8601String().split('T').first,
+              daysRemaining.floor(),
+            );
+    final recommendedOrderDate =
+        projectedRunoutDate.isEmpty
+            ? ''
+            : _shiftIsoDate(projectedRunoutDate, -totalLeadWindow);
     final shouldAlert =
         averageDailySales > 0 &&
         currentStock <= averageDailySales * totalLeadWindow;
@@ -549,9 +631,10 @@ class InventoryService {
       projectedRunoutDate: projectedRunoutDate,
       recommendedOrderDate: recommendedOrderDate,
       shouldAlert: shouldAlert,
-      alertMessage: shouldAlert
-          ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
-          : '',
+      alertMessage:
+          shouldAlert
+              ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
+              : '',
     );
   }
 
@@ -596,8 +679,9 @@ class InventoryService {
         latestByDate[entry.date] = entry;
       }
     }
-    final normalized = latestByDate.values.toList()
-      ..sort((left, right) => left.date.compareTo(right.date));
+    final normalized =
+        latestByDate.values.toList()
+          ..sort((left, right) => left.date.compareTo(right.date));
     return normalized;
   }
 

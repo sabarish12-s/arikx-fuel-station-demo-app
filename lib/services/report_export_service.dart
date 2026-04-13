@@ -10,15 +10,21 @@ import '../models/domain_models.dart';
 class StockReportRow {
   const StockReportRow({
     required this.date,
+    required this.eventType,
     required this.stockInwards,
     required this.sales,
-    required this.cumulative,
+    required this.manualStock,
+    required this.runningBalance,
+    required this.details,
   });
 
   final String date;
+  final String eventType;
   final double stockInwards;
   final double sales;
-  final double cumulative;
+  final double? manualStock;
+  final double runningBalance;
+  final String details;
 }
 
 class StockReportSection {
@@ -27,14 +33,14 @@ class StockReportSection {
     required this.rows,
     required this.totalInwards,
     required this.totalSales,
-    required this.closingCumulative,
+    required this.closingBalance,
   });
 
   final String label;
   final List<StockReportRow> rows;
   final double totalInwards;
   final double totalSales;
-  final double closingCumulative;
+  final double closingBalance;
 }
 
 class ReportExportService {
@@ -174,9 +180,8 @@ class ReportExportService {
 
     final byMonth = <String, List<TrendPointModel>>{};
     for (final point in report.trend) {
-      final key = point.date.length >= 7
-          ? point.date.substring(0, 7)
-          : point.date;
+      final key =
+          point.date.length >= 7 ? point.date.substring(0, 7) : point.date;
       byMonth.putIfAbsent(key, () => []).add(point);
     }
     final sortedKeys = byMonth.keys.toList()..sort();
@@ -276,16 +281,27 @@ class ReportExportService {
       buffer.writeln();
       buffer.writeln('=== ${section.label.toUpperCase()} ===');
       buffer.writeln(
-        _row(['Date', 'Stock Inwards (L)', 'Sales (L)', 'Cumulative (L)']),
+        _row([
+          'Date',
+          'Event',
+          'Stock Inwards (L)',
+          'Sales (L)',
+          'Manual Stock (L)',
+          'Running Balance (L)',
+          'Details',
+        ]),
       );
 
       for (final row in section.rows) {
         buffer.writeln(
           _row([
             _formatRowDate(row.date),
+            row.eventType,
             row.stockInwards.toStringAsFixed(2),
             row.sales.toStringAsFixed(2),
-            row.cumulative.toStringAsFixed(2),
+            row.manualStock?.toStringAsFixed(2) ?? '',
+            row.runningBalance.toStringAsFixed(2),
+            row.details,
           ]),
         );
       }
@@ -293,9 +309,12 @@ class ReportExportService {
       buffer.writeln(
         _row([
           '${section.label.toUpperCase()} TOTAL',
+          '',
           section.totalInwards.toStringAsFixed(2),
           section.totalSales.toStringAsFixed(2),
-          section.closingCumulative.toStringAsFixed(2),
+          '',
+          section.closingBalance.toStringAsFixed(2),
+          '',
         ]),
       );
     }

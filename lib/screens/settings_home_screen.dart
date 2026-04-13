@@ -250,8 +250,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           const _SectionLabel(label: 'INVENTORY'),
           const SizedBox(height: 10),
           _SettingsTile(
-            title: 'Tank Stock & Reorder Planning',
-            subtitle: 'Tank stock baseline and reorder rules',
+            title: 'Reorder Alert Rules',
+            subtitle: 'Lead time and alert timing for inventory',
             icon: Icons.inventory_2_rounded,
             iconColor: const Color(0xFF1298B8),
             onTap:

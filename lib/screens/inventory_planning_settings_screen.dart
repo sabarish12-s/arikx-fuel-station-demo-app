@@ -4,9 +4,8 @@ import 'package:flutter/services.dart';
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
 import '../utils/user_facing_errors.dart';
-import '../widgets/responsive_text.dart';
-import '../utils/formatters.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class InventoryPlanningSettingsScreen extends StatefulWidget {
   const InventoryPlanningSettingsScreen({
@@ -29,18 +28,11 @@ class _InventoryPlanningSettingsScreenState
     extends State<InventoryPlanningSettingsScreen> {
   final InventoryService _inventoryService = InventoryService();
   late Future<StationConfigModel> _future;
-  final TextEditingController _petrolController = TextEditingController();
-  final TextEditingController _dieselController = TextEditingController();
-  final TextEditingController _twoTController = TextEditingController();
   final TextEditingController _deliveryLeadController = TextEditingController();
   final TextEditingController _alertBeforeController = TextEditingController();
   bool _seeded = false;
   bool _isEditing = false;
   bool _saving = false;
-
-  String _errorText(Object? error) {
-    return userFacingErrorMessage(error);
-  }
 
   @override
   void initState() {
@@ -50,9 +42,6 @@ class _InventoryPlanningSettingsScreenState
 
   @override
   void dispose() {
-    _petrolController.dispose();
-    _dieselController.dispose();
-    _twoTController.dispose();
     _deliveryLeadController.dispose();
     _alertBeforeController.dispose();
     super.dispose();
@@ -61,12 +50,6 @@ class _InventoryPlanningSettingsScreenState
   void _seedControllers(StationConfigModel station) {
     if (_seeded) return;
     final planning = station.inventoryPlanning;
-    _petrolController.text = (planning.openingStock['petrol'] ?? 0)
-        .toStringAsFixed(2);
-    _dieselController.text = (planning.openingStock['diesel'] ?? 0)
-        .toStringAsFixed(2);
-    _twoTController.text = (planning.openingStock['two_t_oil'] ?? 0)
-        .toStringAsFixed(2);
     _deliveryLeadController.text = planning.deliveryLeadDays.toString();
     _alertBeforeController.text = planning.alertBeforeDays.toString();
     _seeded = true;
@@ -86,29 +69,21 @@ class _InventoryPlanningSettingsScreenState
   }
 
   Future<void> _save(StationConfigModel station) async {
-    final petrol = double.tryParse(_petrolController.text.trim());
-    final diesel = double.tryParse(_dieselController.text.trim());
-    final twoT = double.tryParse(_twoTController.text.trim());
     final deliveryLead = int.tryParse(_deliveryLeadController.text.trim());
     final alertBefore = int.tryParse(_alertBeforeController.text.trim());
 
-    if ([petrol, diesel, twoT].any((value) => value == null || value < 0) ||
-        deliveryLead == null ||
+    if (deliveryLead == null ||
         deliveryLead < 0 ||
         alertBefore == null ||
         alertBefore < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFB91C1C),
-          content: Text('Enter valid non-negative stock and alert values.'),
+          content: Text('Enter valid non-negative alert values.'),
         ),
       );
       return;
     }
-
-    final petrolValue = petrol ?? 0;
-    final dieselValue = diesel ?? 0;
-    final twoTValue = twoT ?? 0;
 
     setState(() => _saving = true);
     try {
@@ -122,16 +97,8 @@ class _InventoryPlanningSettingsScreenState
         baseReadings: station.baseReadings,
         meterLimits: station.meterLimits,
         inventoryPlanning: InventoryPlanningModel(
-          openingStock: {
-            'petrol': petrolValue,
-            'diesel': dieselValue,
-            'two_t_oil': twoTValue,
-          },
-          currentStock: {
-            'petrol': petrolValue,
-            'diesel': dieselValue,
-            'two_t_oil': twoTValue,
-          },
+          openingStock: station.inventoryPlanning.openingStock,
+          currentStock: station.inventoryPlanning.currentStock,
           deliveryLeadDays: deliveryLead,
           alertBeforeDays: alertBefore,
           updatedAt: station.inventoryPlanning.updatedAt,
@@ -147,7 +114,7 @@ class _InventoryPlanningSettingsScreenState
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Planning rules saved.')));
+      ).showSnackBar(const SnackBar(content: Text('Alert rules saved.')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -177,14 +144,18 @@ class _InventoryPlanningSettingsScreenState
             color: kClayBg,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              children: [Text('Failed to load: ${_errorText(snapshot.error)}')],
+              children: [
+                Text(
+                  'Failed to load: ${userFacingErrorMessage(snapshot.error)}',
+                ),
+              ],
             ),
           );
         }
 
         final station = snapshot.data!;
-        _seedControllers(station);
         final planning = station.inventoryPlanning;
+        _seedControllers(station);
 
         return RefreshIndicator(
           onRefresh: _reload,
@@ -195,7 +166,7 @@ class _InventoryPlanningSettingsScreenState
               children: [
                 if (widget.embedded)
                   ClaySubHeader(
-                    title: 'Tank Stock & Reorder Planning',
+                    title: 'Reorder Alert Rules',
                     onBack: widget.onBack,
                     trailing:
                         widget.canEdit
@@ -214,8 +185,6 @@ class _InventoryPlanningSettingsScreenState
                             )
                             : null,
                   ),
-
-                // ── Hero ───────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   decoration: BoxDecoration(
@@ -237,7 +206,7 @@ class _InventoryPlanningSettingsScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'REORDER PLANNING',
+                        'REORDER ALERTS',
                         style: TextStyle(
                           color: Colors.white70,
                           fontSize: 11,
@@ -247,7 +216,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${planning.deliveryLeadDays} day purchase lead',
+                        '${planning.deliveryLeadDays} day lead time',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 30,
@@ -256,92 +225,16 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Alerts start ${planning.alertBeforeDays} day(s) before projected order date.',
+                        'Alerts begin ${planning.alertBeforeDays} day(s) before the recommended order date.',
                         style: const TextStyle(
                           color: Colors.white70,
                           height: 1.4,
                         ),
                       ),
-                      if (planning.updatedAt.trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Baseline updated ${formatDateLabel(planning.updatedAt.split('T').first)}',
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ],
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 14),
-
-                // ── Tank stock baseline ────────────────────────────
-                ClayCard(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Tank Stock Baseline',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: kClayPrimary,
-                              ),
-                            ),
-                          ),
-                          if (!widget.canEdit)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: kClayBg,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: const Text(
-                                'View only',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: kClaySub,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Separate from pump opening meter readings. Purchases add to this and saved sales reduce inventory automatically.',
-                        style: TextStyle(color: kClaySub, height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
-                      _PlanningNumberField(
-                        label: 'Petrol stock liters',
-                        controller: _petrolController,
-                        enabled: widget.canEdit && _isEditing && !_saving,
-                      ),
-                      const SizedBox(height: 12),
-                      _PlanningNumberField(
-                        label: 'Diesel stock liters',
-                        controller: _dieselController,
-                        enabled: widget.canEdit && _isEditing && !_saving,
-                      ),
-                      const SizedBox(height: 12),
-                      _PlanningNumberField(
-                        label: '2T oil stock liters',
-                        controller: _twoTController,
-                        enabled: widget.canEdit && _isEditing && !_saving,
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ── Alert timing ───────────────────────────────────
                 ClayCard(
                   margin: const EdgeInsets.only(bottom: 14),
                   child: Column(
@@ -357,7 +250,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Shared for petrol, diesel, and 2T oil reorder prediction.',
+                        'These values control reorder warnings. Manual stock history is managed from the Inventory page.',
                         style: TextStyle(color: kClaySub, height: 1.4),
                       ),
                       const SizedBox(height: 16),
@@ -377,8 +270,7 @@ class _InventoryPlanningSettingsScreenState
                     ],
                   ),
                 ),
-
-                if (widget.canEdit) ...[
+                if (widget.canEdit)
                   FilledButton.icon(
                     onPressed:
                         _isEditing && !_saving ? () => _save(station) : null,
@@ -389,10 +281,9 @@ class _InventoryPlanningSettingsScreenState
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                            : const Icon(Icons.save_outlined),
-                    label: Text(_saving ? 'Saving...' : 'Save Planning Rules'),
+                            : const Icon(Icons.notifications_active_outlined),
+                    label: Text(_saving ? 'Saving...' : 'Save Alert Rules'),
                   ),
-                ],
               ],
             ),
           ),
@@ -406,7 +297,7 @@ class _InventoryPlanningSettingsScreenState
       backgroundColor: kClayBg,
       appBar: AppBar(
         backgroundColor: kClayBg,
-        title: const Text('Tank Stock & Reorder Planning'),
+        title: const Text('Reorder Alert Rules'),
         actions: [
           if (widget.canEdit)
             FutureBuilder<StationConfigModel>(
@@ -438,9 +329,9 @@ class _InventoryPlanningSettingsScreenState
   }
 }
 
-// ─── Edit toggle pill ────────────────────────────────────────────────────────
 class _EditTogglePill extends StatelessWidget {
   const _EditTogglePill({required this.isEditing, required this.onTap});
+
   final bool isEditing;
   final VoidCallback onTap;
 
