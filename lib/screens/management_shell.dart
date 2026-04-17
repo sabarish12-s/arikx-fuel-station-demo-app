@@ -34,7 +34,10 @@ class _ManagementShellState extends State<ManagementShell> {
       ManagementDashboardScreen(user: widget.user),
       const EntryManagementScreen(),
       const MonthlyReportScreen(),
-      const InventoryHubScreen(canManagePlanning: true),
+      const InventoryHubScreen(
+        canManagePlanning: true,
+        showStockManagement: false,
+      ),
       SettingsHomeScreen(key: _settingsKey, user: widget.user),
     ];
   }

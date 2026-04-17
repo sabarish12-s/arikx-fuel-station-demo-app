@@ -250,7 +250,7 @@ class _InventoryPlanningSettingsScreenState
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'These values control reorder warnings. Manual stock history is managed from the Inventory page.',
+                        'These values control reorder warnings. Manual stock history is managed from Stock Management.',
                         style: TextStyle(color: kClaySub, height: 1.4),
                       ),
                       const SizedBox(height: 16),

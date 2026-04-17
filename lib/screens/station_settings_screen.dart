@@ -33,6 +33,9 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
   final Map<String, TextEditingController> _controllers = {};
   bool _seeded = false;
   bool _isEditing = false;
+  bool _meterLimitsEnabled = false;
+  bool _meterLimitsEditing = false;
+  bool _savingMeterLimits = false;
 
   String _limitKey(String pumpId, String fuelKey) =>
       '${pumpId}_${fuelKey}_limit';
@@ -61,6 +64,12 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
 
   void _seedControllers(StationConfigModel station) {
     if (_seeded) return;
+    _resetProfileControllers(station);
+    _resetMeterLimitControllers(station);
+    _seeded = true;
+  }
+
+  void _resetProfileControllers(StationConfigModel station) {
     _nameController.text = station.name;
     _codeController.text = station.code;
     _cityController.text = station.city;
@@ -71,6 +80,11 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
           _controllers[labelKey] ?? TextEditingController(text: pump.label);
       labelController.text = pump.label;
       _controllers[labelKey] = labelController;
+    }
+  }
+
+  void _resetMeterLimitControllers(StationConfigModel station) {
+    for (final pump in station.pumps) {
       final limits =
           station.meterLimits[pump.id] ??
           const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
@@ -93,12 +107,56 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       twoTController.text = limits.twoT.toStringAsFixed(2);
       _controllers[twoTKey] = twoTController;
     }
-    _seeded = true;
+    _meterLimitsEnabled = _hasMeterLimits(station);
+    _meterLimitsEditing = false;
   }
 
-  void _resetFromStation(StationConfigModel station) {
-    _seeded = false;
-    _seedControllers(station);
+  bool _hasMeterLimits(StationConfigModel station) {
+    for (final pump in station.pumps) {
+      final limits = station.meterLimits[pump.id];
+      if ((limits?.petrol ?? 0) > 0 ||
+          (limits?.diesel ?? 0) > 0 ||
+          (limits?.twoT ?? 0) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  PumpReadings _limitsFromControllers(String pumpId) {
+    return PumpReadings(
+      petrol:
+          double.tryParse(
+            _controllers[_limitKey(pumpId, 'petrol')]?.text ?? '',
+          ) ??
+          0,
+      diesel:
+          double.tryParse(
+            _controllers[_limitKey(pumpId, 'diesel')]?.text ?? '',
+          ) ??
+          0,
+      twoT:
+          double.tryParse(
+            _controllers[_limitKey(pumpId, 'twoT')]?.text ?? '',
+          ) ??
+          0,
+    );
+  }
+
+  Map<String, PumpReadings> _meterLimitsFromControllers(
+    StationConfigModel station,
+  ) {
+    return {
+      for (final pump in station.pumps)
+        pump.id: _limitsFromControllers(pump.id),
+    };
+  }
+
+  Map<String, PumpReadings> _disabledMeterLimits(StationConfigModel station) {
+    return {
+      for (final pump in station.pumps)
+        pump.id: const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
+    };
   }
 
   Future<void> _reload() async {
@@ -115,42 +173,20 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       name: _nameController.text.trim(),
       code: _codeController.text.trim(),
       city: _cityController.text.trim(),
-      shifts:
-          _shiftsController.text.contains('daily')
-              ? const ['daily']
-              : const ['daily'],
-      pumps:
-          station.pumps
-              .map(
-                (pump) => StationPumpModel(
-                  id: pump.id,
-                  label:
-                      _controllers['${pump.id}_label']?.text.trim() ??
-                      pump.label,
-                ),
-              )
-              .toList(),
+      shifts: _shiftsController.text.contains('daily')
+          ? const ['daily']
+          : const ['daily'],
+      pumps: station.pumps
+          .map(
+            (pump) => StationPumpModel(
+              id: pump.id,
+              label:
+                  _controllers['${pump.id}_label']?.text.trim() ?? pump.label,
+            ),
+          )
+          .toList(),
       baseReadings: station.baseReadings,
-      meterLimits: {
-        for (final pump in station.pumps)
-          pump.id: PumpReadings(
-            petrol:
-                double.tryParse(
-                  _controllers[_limitKey(pump.id, 'petrol')]?.text ?? '',
-                ) ??
-                0,
-            diesel:
-                double.tryParse(
-                  _controllers[_limitKey(pump.id, 'diesel')]?.text ?? '',
-                ) ??
-                0,
-            twoT:
-                double.tryParse(
-                  _controllers[_limitKey(pump.id, 'twoT')]?.text ?? '',
-                ) ??
-                0,
-          ),
-      },
+      meterLimits: station.meterLimits,
       inventoryPlanning: station.inventoryPlanning,
       flagThreshold: station.flagThreshold,
     );
@@ -165,6 +201,73 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
       _seeded = false;
       _future = _load(forceRefresh: true);
     });
+  }
+
+  Future<void> _saveMeterLimits(
+    StationConfigModel station, {
+    required bool enabled,
+  }) async {
+    setState(() => _savingMeterLimits = true);
+    try {
+      final updated = StationConfigModel(
+        id: station.id,
+        name: station.name,
+        code: station.code,
+        city: station.city,
+        shifts: station.shifts,
+        pumps: station.pumps,
+        baseReadings: station.baseReadings,
+        meterLimits: enabled
+            ? _meterLimitsFromControllers(station)
+            : _disabledMeterLimits(station),
+        inventoryPlanning: station.inventoryPlanning,
+        flagThreshold: station.flagThreshold,
+      );
+
+      await _inventoryService.saveStationConfig(updated);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enabled
+                ? 'Daily meter limits saved.'
+                : 'Daily meter limits disabled.',
+          ),
+        ),
+      );
+      setState(() {
+        _meterLimitsEnabled = enabled;
+        _meterLimitsEditing = false;
+        _seeded = false;
+        _future = _load(forceRefresh: true);
+      });
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _savingMeterLimits = false);
+      }
+    }
+  }
+
+  Future<void> _setMeterLimitsEnabled(
+    StationConfigModel station,
+    bool enabled,
+  ) async {
+    if (enabled) {
+      setState(() {
+        _meterLimitsEnabled = true;
+        _meterLimitsEditing = false;
+      });
+      return;
+    }
+    await _saveMeterLimits(station, enabled: false);
   }
 
   @override
@@ -198,22 +301,21 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                   ClaySubHeader(
                     title: 'Station Profile & Pumps',
                     onBack: widget.onBack,
-                    trailing:
-                        widget.canEdit
-                            ? _EditTogglePill(
-                              isEditing: _isEditing,
-                              onTap: () {
-                                setState(() {
-                                  if (_isEditing) {
-                                    _isEditing = false;
-                                    _resetFromStation(station);
-                                  } else {
-                                    _isEditing = true;
-                                  }
-                                });
-                              },
-                            )
-                            : null,
+                    trailing: widget.canEdit
+                        ? _EditTogglePill(
+                            isEditing: _isEditing,
+                            onTap: () {
+                              setState(() {
+                                if (_isEditing) {
+                                  _isEditing = false;
+                                  _resetProfileControllers(station);
+                                } else {
+                                  _isEditing = true;
+                                }
+                              });
+                            },
+                          )
+                        : null,
                   ),
 
                 // ── Station overview ───────────────────────────────
@@ -314,73 +416,190 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Daily Meter Limits',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: kClayPrimary,
-                        ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Daily Meter Limits',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: kClayPrimary,
+                                  ),
+                                ),
+                                SizedBox(height: 6),
+                                Text(
+                                  'Enable this only when daily pump sale limits should be checked.',
+                                  style: TextStyle(
+                                    color: kClaySub,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Switch(
+                            value: _meterLimitsEnabled,
+                            onChanged: widget.canEdit && !_savingMeterLimits
+                                ? (value) =>
+                                      _setMeterLimitsEnabled(station, value)
+                                : null,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Set the maximum daily meter sale per pump. Use 0 to disable.',
-                        style: TextStyle(color: kClaySub),
-                      ),
-                      const SizedBox(height: 16),
-                      ...station.pumps.map((pump) {
-                        final supportsTwoT = pump.id == 'pump2';
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
+                      if (_savingMeterLimits) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(minHeight: 2),
+                      ],
+                      if (!_meterLimitsEnabled) ...[
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: kClayBg,
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                formatPumpLabel(pump.id, pump.label),
-                                style: const TextStyle(
+                          child: const Text(
+                            'Daily meter limits are disabled.',
+                            style: TextStyle(
+                              color: kClaySub,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ] else ...[
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Limits per pump',
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                   color: kClayPrimary,
                                 ),
                               ),
-                              const SizedBox(height: 12),
-                              _ClayField(
-                                controller:
-                                    _controllers[_limitKey(pump.id, 'petrol')],
-                                label: 'Petrol daily meter limit',
-                                enabled: widget.canEdit && _isEditing,
-                                prefixIcon: Icons.speed_rounded,
-                                numeric: true,
+                            ),
+                            if (widget.canEdit)
+                              _EditTogglePill(
+                                isEditing: _meterLimitsEditing,
+                                onTap: _savingMeterLimits
+                                    ? () {}
+                                    : () {
+                                        setState(() {
+                                          if (_meterLimitsEditing) {
+                                            _resetMeterLimitControllers(
+                                              station,
+                                            );
+                                          } else {
+                                            _meterLimitsEditing = true;
+                                          }
+                                        });
+                                      },
                               ),
-                              const SizedBox(height: 12),
-                              _ClayField(
-                                controller:
-                                    _controllers[_limitKey(pump.id, 'diesel')],
-                                label: 'Diesel daily meter limit',
-                                enabled: widget.canEdit && _isEditing,
-                                prefixIcon: Icons.speed_rounded,
-                                numeric: true,
-                              ),
-                              if (supportsTwoT) ...[
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ...station.pumps.map((pump) {
+                          final supportsTwoT = pump.id == 'pump2';
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: kClayBg,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  formatPumpLabel(pump.id, pump.label),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: kClayPrimary,
+                                  ),
+                                ),
                                 const SizedBox(height: 12),
                                 _ClayField(
                                   controller:
-                                      _controllers[_limitKey(pump.id, 'twoT')],
-                                  label: '2T oil daily meter limit',
-                                  enabled: widget.canEdit && _isEditing,
+                                      _controllers[_limitKey(
+                                        pump.id,
+                                        'petrol',
+                                      )],
+                                  label: 'Petrol daily meter limit',
+                                  enabled:
+                                      widget.canEdit &&
+                                      _meterLimitsEditing &&
+                                      !_savingMeterLimits,
                                   prefixIcon: Icons.speed_rounded,
                                   numeric: true,
                                 ),
+                                const SizedBox(height: 12),
+                                _ClayField(
+                                  controller:
+                                      _controllers[_limitKey(
+                                        pump.id,
+                                        'diesel',
+                                      )],
+                                  label: 'Diesel daily meter limit',
+                                  enabled:
+                                      widget.canEdit &&
+                                      _meterLimitsEditing &&
+                                      !_savingMeterLimits,
+                                  prefixIcon: Icons.speed_rounded,
+                                  numeric: true,
+                                ),
+                                if (supportsTwoT) ...[
+                                  const SizedBox(height: 12),
+                                  _ClayField(
+                                    controller:
+                                        _controllers[_limitKey(
+                                          pump.id,
+                                          'twoT',
+                                        )],
+                                    label: '2T oil daily meter limit',
+                                    enabled:
+                                        widget.canEdit &&
+                                        _meterLimitsEditing &&
+                                        !_savingMeterLimits,
+                                    prefixIcon: Icons.speed_rounded,
+                                    numeric: true,
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
+                          );
+                        }),
+                        if (widget.canEdit && _meterLimitsEditing)
+                          FilledButton.icon(
+                            onPressed: _savingMeterLimits
+                                ? null
+                                : () =>
+                                      _saveMeterLimits(station, enabled: true),
+                            icon: _savingMeterLimits
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.save_outlined),
+                            label: Text(
+                              _savingMeterLimits
+                                  ? 'Saving...'
+                                  : 'Save Daily Meter Limits',
+                            ),
                           ),
-                        );
-                      }),
+                      ],
                     ],
                   ),
                 ),
@@ -411,19 +630,18 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed:
-                      station == null
-                          ? null
-                          : () {
-                            setState(() {
-                              if (_isEditing) {
-                                _isEditing = false;
-                                _resetFromStation(station);
-                              } else {
-                                _isEditing = true;
-                              }
-                            });
-                          },
+                  onPressed: station == null
+                      ? null
+                      : () {
+                          setState(() {
+                            if (_isEditing) {
+                              _isEditing = false;
+                              _resetProfileControllers(station);
+                            } else {
+                              _isEditing = true;
+                            }
+                          });
+                        },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -498,8 +716,9 @@ class _ClayField extends StatelessWidget {
     return TextField(
       controller: controller,
       enabled: enabled,
-      keyboardType:
-          numeric ? const TextInputType.numberWithOptions(decimal: true) : null,
+      keyboardType: numeric
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : null,
       decoration: InputDecoration(
         labelText: label,
         filled: true,

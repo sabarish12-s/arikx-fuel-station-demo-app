@@ -160,6 +160,25 @@ class ReportExportService {
     return title.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
   }
 
+  Future<String> saveRowsToDownloads({
+    required String title,
+    required List<String> headers,
+    required List<List<dynamic>> rows,
+    required String notificationTitle,
+  }) async {
+    final fileName = '${_safeTitle(title)}.csv';
+    final buffer = StringBuffer()..writeln(_row(headers));
+    for (final row in rows) {
+      buffer.writeln(_row(row));
+    }
+    return _saveCsvToDownloads(
+      fileName: fileName,
+      contents: buffer.toString(),
+      notificationTitle: notificationTitle,
+      notificationBody: fileName,
+    );
+  }
+
   String _buildReportCsv({
     required MonthlyReportModel report,
     String fromLabel = '',
@@ -180,8 +199,9 @@ class ReportExportService {
 
     final byMonth = <String, List<TrendPointModel>>{};
     for (final point in report.trend) {
-      final key =
-          point.date.length >= 7 ? point.date.substring(0, 7) : point.date;
+      final key = point.date.length >= 7
+          ? point.date.substring(0, 7)
+          : point.date;
       byMonth.putIfAbsent(key, () => []).add(point);
     }
     final sortedKeys = byMonth.keys.toList()..sort();

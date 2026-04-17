@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
 import '../services/inventory_service.dart';
+import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
-import '../widgets/app_date_range_picker.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
 
@@ -27,32 +27,76 @@ class FuelPriceSettingsScreen extends StatefulWidget {
 
 class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
   final InventoryService _inventoryService = InventoryService();
+  final ReportExportService _reportExportService = ReportExportService();
+  final TextEditingController _effectiveDateController =
+      TextEditingController();
+  final Map<String, _FuelRateDraft> _drafts = {};
   late Future<List<FuelPriceModel>> _future;
-  List<FuelPriceModel> _draftPrices = const [];
   bool _seeded = false;
   bool _isEditing = false;
   bool _saving = false;
+  bool _showDeletedHistory = false;
+  bool _deletingHistory = false;
+
+  static const List<String> _fuelOrder = ['petrol', 'diesel', 'two_t_oil'];
 
   @override
   void initState() {
     super.initState();
+    _effectiveDateController.text = DateTime.now()
+        .toIso8601String()
+        .split('T')
+        .first;
     _future = _inventoryService.fetchPrices();
   }
 
-  FuelPriceModel _clonePrice(FuelPriceModel price) {
-    return price.copyWith(
-      periods: price.periods.map((period) => period.copyWith()).toList(),
+  @override
+  void dispose() {
+    _effectiveDateController.dispose();
+    for (final draft in _drafts.values) {
+      draft.dispose();
+    }
+    super.dispose();
+  }
+
+  List<FuelPriceModel> _sortPrices(List<FuelPriceModel> prices) {
+    final order = {
+      for (var i = 0; i < _fuelOrder.length; i++) _fuelOrder[i]: i,
+    };
+    return [...prices]..sort(
+      (left, right) => (order[left.fuelTypeId] ?? 99).compareTo(
+        order[right.fuelTypeId] ?? 99,
+      ),
     );
   }
 
-  void _ensureDraft(List<FuelPriceModel> prices) {
-    final shouldReseed =
-        !_seeded ||
-        _draftPrices.length != prices.length ||
-        _draftPrices.map((item) => item.fuelTypeId).join('|') !=
-            prices.map((item) => item.fuelTypeId).join('|');
-    if (!shouldReseed) return;
-    _draftPrices = prices.map(_clonePrice).toList();
+  void _seedDrafts(List<FuelPriceModel> prices) {
+    final sorted = _sortPrices(prices);
+    final key = sorted.map((item) => item.fuelTypeId).join('|');
+    final currentKey = _drafts.keys.join('|');
+    if (_seeded && key == currentKey) return;
+
+    for (final draft in _drafts.values) {
+      draft.dispose();
+    }
+    _drafts.clear();
+
+    for (final price in sorted) {
+      final active =
+          price.activePeriod ??
+          FuelPricePeriodModel(
+            effectiveFrom: price.effectiveFrom,
+            effectiveTo: price.effectiveTo,
+            costPrice: price.costPrice,
+            sellingPrice: price.sellingPrice,
+            updatedAt: price.updatedAt,
+            updatedBy: price.updatedBy,
+          );
+      _drafts[price.fuelTypeId] = _FuelRateDraft(
+        costPrice: active.costPrice,
+        sellingPrice: active.sellingPrice,
+      );
+    }
     _seeded = true;
   }
 
@@ -64,63 +108,335 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
     await _future;
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      await _inventoryService.savePrices(_draftPrices);
-      final saved = await _inventoryService.fetchPrices(forceRefresh: true);
-      if (!mounted) return;
-      setState(() {
-        _draftPrices = saved.map(_clonePrice).toList();
-        _seeded = true;
-        _isEditing = false;
-        _future = Future<List<FuelPriceModel>>.value(saved);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fuel prices and history saved.')),
+  void _cancelEditing() {
+    setState(() {
+      _isEditing = false;
+      _seeded = false;
+      _effectiveDateController.text = DateTime.now()
+          .toIso8601String()
+          .split('T')
+          .first;
+      _future = _inventoryService.fetchPrices();
+    });
+  }
+
+  Future<void> _pickEffectiveDate() async {
+    final initialDate =
+        DateTime.tryParse(_effectiveDateController.text.trim()) ??
+        DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    _effectiveDateController.text = _dateKey(picked);
+  }
+
+  Future<void> _save(List<FuelPriceModel> prices) async {
+    final effectiveDate = _effectiveDateController.text.trim();
+    if (DateTime.tryParse(effectiveDate) == null) {
+      _showError('Select a valid effective date.');
+      return;
+    }
+
+    final updatedPrices = <FuelPriceModel>[];
+    for (final price in _sortPrices(prices)) {
+      final draft = _drafts[price.fuelTypeId];
+      final cost = double.tryParse(draft?.costController.text.trim() ?? '');
+      final selling = double.tryParse(
+        draft?.sellingController.text.trim() ?? '',
       );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB91C1C),
-          content: Text(userFacingErrorMessage(error)),
+      if (cost == null || cost < 0 || selling == null || selling < 0) {
+        _showError('Enter valid non-negative rates for all fuels.');
+        return;
+      }
+      updatedPrices.add(
+        _priceWithNewPeriod(
+          price: price,
+          effectiveDate: effectiveDate,
+          costPrice: cost,
+          sellingPrice: selling,
         ),
       );
+    }
+
+    setState(() => _saving = true);
+    try {
+      final saved = await _inventoryService.savePrices(updatedPrices);
+      if (!mounted) return;
+      setState(() {
+        _isEditing = false;
+        _seeded = false;
+        _future = Future<List<FuelPriceModel>>.value(saved);
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Fuel rates saved.')));
+    } catch (error) {
+      if (!mounted) return;
+      _showError(userFacingErrorMessage(error));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  void _cancelEditing() {
-    setState(() {
-      _isEditing = false;
-      _seeded = false;
-      _future = _inventoryService.fetchPrices();
-    });
-  }
-
-  Future<void> _openPriceHistory(FuelPriceModel price) async {
-    final result = await Navigator.of(context).push<FuelPriceModel>(
-      MaterialPageRoute<FuelPriceModel>(
-        builder:
-            (_) => _FuelPriceHistoryScreen(
-              title: _prettyFuelLabel(price.fuelTypeId),
-              initialPrice: _clonePrice(price),
-              canEdit: widget.canEdit,
-              startInEditMode: _isEditing,
-            ),
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: const Color(0xFFB91C1C),
+        content: Text(message),
       ),
     );
-    if (!mounted || result == null) return;
-    setState(() {
-      _draftPrices =
-          _draftPrices
-              .map(
-                (item) => item.fuelTypeId == result.fuelTypeId ? result : item,
-              )
-              .toList();
-    });
+  }
+
+  FuelPriceModel _priceWithNewPeriod({
+    required FuelPriceModel price,
+    required String effectiveDate,
+    required double costPrice,
+    required double sellingPrice,
+  }) {
+    final basePeriods = price.periods.isEmpty
+        ? [
+            FuelPricePeriodModel(
+              effectiveFrom: price.effectiveFrom.isEmpty
+                  ? effectiveDate
+                  : price.effectiveFrom,
+              effectiveTo: price.effectiveTo,
+              costPrice: price.costPrice,
+              sellingPrice: price.sellingPrice,
+              updatedAt: price.updatedAt,
+              updatedBy: price.updatedBy,
+            ),
+          ]
+        : price.periods.map((item) => item.copyWith()).toList();
+
+    final periods =
+        basePeriods
+            .where(
+              (period) =>
+                  period.isDeleted || period.effectiveFrom != effectiveDate,
+            )
+            .map((period) {
+              if (period.isDeleted) {
+                return period;
+              }
+              if (period.effectiveFrom.compareTo(effectiveDate) < 0 &&
+                  (period.effectiveTo.isEmpty ||
+                      period.effectiveTo.compareTo(effectiveDate) >= 0)) {
+                return period.copyWith(
+                  effectiveTo: _previousDateKey(effectiveDate),
+                );
+              }
+              return period;
+            })
+            .toList()
+          ..sort(
+            (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
+          );
+
+    final nextPeriod = periods
+        .where(
+          (period) =>
+              !period.isDeleted &&
+              period.effectiveFrom.compareTo(effectiveDate) > 0,
+        )
+        .cast<FuelPricePeriodModel?>()
+        .firstWhere((_) => true, orElse: () => null);
+    final newPeriod = FuelPricePeriodModel(
+      effectiveFrom: effectiveDate,
+      effectiveTo: nextPeriod == null
+          ? ''
+          : _previousDateKey(nextPeriod.effectiveFrom),
+      costPrice: costPrice,
+      sellingPrice: sellingPrice,
+      updatedAt: '',
+      updatedBy: '',
+    );
+
+    final nextPeriods = [
+      ...periods,
+      newPeriod,
+    ]..sort((left, right) => left.effectiveFrom.compareTo(right.effectiveFrom));
+    final active = FuelPriceModel(
+      fuelTypeId: price.fuelTypeId,
+      costPrice: price.costPrice,
+      sellingPrice: price.sellingPrice,
+      updatedAt: price.updatedAt,
+      updatedBy: price.updatedBy,
+      periods: nextPeriods,
+    ).activePeriod;
+
+    return price.copyWith(
+      costPrice: active?.costPrice ?? costPrice,
+      sellingPrice: active?.sellingPrice ?? sellingPrice,
+      effectiveFrom: active?.effectiveFrom ?? effectiveDate,
+      effectiveTo: active?.effectiveTo ?? '',
+      periods: nextPeriods,
+    );
+  }
+
+  List<_FuelPriceSet> _buildHistorySets(
+    List<FuelPriceModel> prices, {
+    required bool deleted,
+  }) {
+    final grouped = <String, Map<String, FuelPricePeriodModel>>{};
+    for (final price in prices) {
+      final periods = price.periods.isEmpty
+          ? [
+              FuelPricePeriodModel(
+                effectiveFrom: price.effectiveFrom,
+                effectiveTo: price.effectiveTo,
+                costPrice: price.costPrice,
+                sellingPrice: price.sellingPrice,
+                updatedAt: price.updatedAt,
+                updatedBy: price.updatedBy,
+              ),
+            ]
+          : price.periods;
+      for (final period in periods) {
+        if (period.effectiveFrom.trim().isEmpty) continue;
+        if (period.isDeleted != deleted) continue;
+        grouped.putIfAbsent(period.effectiveFrom, () => {});
+        grouped[period.effectiveFrom]![price.fuelTypeId] = period;
+      }
+    }
+
+    return grouped.entries
+        .map(
+          (entry) =>
+              _FuelPriceSet(effectiveDate: entry.key, prices: entry.value),
+        )
+        .toList()
+      ..sort(
+        (left, right) => right.effectiveDate.compareTo(left.effectiveDate),
+      );
+  }
+
+  Future<void> _downloadHistory(
+    List<_FuelPriceSet> history, {
+    required bool deleted,
+  }) async {
+    final rows = <List<dynamic>>[];
+    for (final set in history) {
+      for (final fuelId in _fuelOrder) {
+        final period = set.prices[fuelId];
+        rows.add([
+          set.effectiveDate,
+          _prettyFuelLabel(fuelId),
+          period?.costPrice.toStringAsFixed(2) ?? '',
+          period?.sellingPrice.toStringAsFixed(2) ?? '',
+          period?.updatedAt ?? '',
+          period?.updatedBy ?? '',
+          period?.deletedAt ?? '',
+          period?.deletedByName ?? '',
+        ]);
+      }
+    }
+    try {
+      final path = await _reportExportService.saveRowsToDownloads(
+        title: deleted ? 'deleted_fuel_rate_history' : 'fuel_rate_history',
+        notificationTitle: 'Fuel rate history downloaded',
+        headers: [
+          'Effective Date',
+          'Fuel',
+          'Cost Price',
+          'Selling Price',
+          'Saved At',
+          'Saved By',
+          'Deleted At',
+          'Deleted By',
+        ],
+        rows: rows,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Fuel rate history downloaded to $path')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      _showError(userFacingErrorMessage(error));
+    }
+  }
+
+  Future<void> _deleteHistorySet(_FuelPriceSet set) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete fuel rate history?'),
+        content: const Text(
+          'This date set will move to Deleted History for 30 days and then be permanently removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deletingHistory = true);
+    try {
+      await _inventoryService.deleteFuelPriceSet(set.effectiveDate);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Fuel rate history deleted.')),
+      );
+      setState(() {
+        _seeded = false;
+        _future = _inventoryService.fetchPrices(forceRefresh: true);
+      });
+    } catch (error) {
+      if (!mounted) return;
+      _showError(userFacingErrorMessage(error));
+    } finally {
+      if (mounted) setState(() => _deletingHistory = false);
+    }
+  }
+
+  String _dateKey(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  String _previousDateKey(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    return _dateKey(parsed.subtract(const Duration(days: 1)));
+  }
+
+  String _displayTimestamp(String raw) {
+    final value = DateTime.tryParse(raw);
+    if (value == null) {
+      return raw.trim().isEmpty ? 'Unknown time' : raw;
+    }
+    final local = value.toLocal();
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour24 = local.hour;
+    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final suffix = hour24 >= 12 ? 'PM' : 'AM';
+    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
   }
 
   String _prettyFuelLabel(String fuelTypeId) {
@@ -135,31 +451,12 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         return fuelTypeId
             .split('_')
             .map(
-              (part) =>
-                  part.isEmpty
-                      ? part
-                      : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+              (part) => part.isEmpty
+                  ? part
+                  : '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
             )
             .join(' ');
     }
-  }
-
-  String _periodLabel(FuelPricePeriodModel period) {
-    final from =
-        period.effectiveFrom.isEmpty
-            ? 'Unknown'
-            : formatDateLabel(period.effectiveFrom);
-    final to =
-        period.effectiveTo.isEmpty
-            ? 'Ongoing'
-            : formatDateLabel(period.effectiveTo);
-    return '$from to $to';
-  }
-
-  String _optionalDateLabel(String raw, {String empty = 'Not set'}) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return empty;
-    return formatDateLabel(trimmed);
   }
 
   Color _fuelColor(String fuelTypeId) {
@@ -175,19 +472,138 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
     }
   }
 
-  Widget _buildPriceCard(FuelPriceModel price) {
-    final activePeriod =
-        price.activePeriod ??
-        FuelPricePeriodModel(
-          effectiveFrom: price.effectiveFrom,
-          effectiveTo: price.effectiveTo,
-          costPrice: price.costPrice,
-          sellingPrice: price.sellingPrice,
-          updatedAt: price.updatedAt,
-          updatedBy: price.updatedBy,
-        );
-    final color = _fuelColor(price.fuelTypeId);
+  Widget _buildCurrentRates(List<FuelPriceModel> prices) {
+    return ClayCard(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Current Fuel Rates',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: kClayPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Active selling and cost rates used for entries.',
+            style: TextStyle(color: kClaySub, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          ..._sortPrices(prices).map((price) {
+            final active = price.activePeriod;
+            return _RateSummaryRow(
+              title: _prettyFuelLabel(price.fuelTypeId),
+              color: _fuelColor(price.fuelTypeId),
+              effectiveDate: active?.effectiveFrom ?? price.effectiveFrom,
+              costPrice: active?.costPrice ?? price.costPrice,
+              sellingPrice: active?.sellingPrice ?? price.sellingPrice,
+            );
+          }),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildEditCard(List<FuelPriceModel> prices) {
+    return ClayCard(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Set Fuel Rates',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: kClayPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'One effective date applies to all fuels saved below.',
+            style: TextStyle(color: kClaySub, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          GestureDetector(
+            onTap: _saving ? null : _pickEffectiveDate,
+            child: AbsorbPointer(
+              child: TextField(
+                controller: _effectiveDateController,
+                enabled: !_saving,
+                decoration: InputDecoration(
+                  labelText: 'Effective date',
+                  suffixIcon: const Icon(Icons.calendar_today),
+                  filled: true,
+                  fillColor: kClayBg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ..._sortPrices(prices).map((price) {
+            final draft = _drafts[price.fuelTypeId];
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: kClayBg,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _prettyFuelLabel(price.fuelTypeId),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: kClayPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _RateField(
+                    label: 'Cost price',
+                    controller: draft?.costController,
+                    enabled: !_saving,
+                  ),
+                  const SizedBox(height: 12),
+                  _RateField(
+                    label: 'Selling price',
+                    controller: draft?.sellingController,
+                    enabled: !_saving,
+                  ),
+                ],
+              ),
+            );
+          }),
+          FilledButton.icon(
+            onPressed: _saving ? null : () => _save(prices),
+            icon: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_outlined),
+            label: Text(_saving ? 'Saving...' : 'Save Fuel Rates'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistory({
+    required List<_FuelPriceSet> activeSets,
+    required List<_FuelPriceSet> deletedSets,
+  }) {
+    final sets = _showDeletedHistory ? deletedSets : activeSets;
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -195,143 +611,77 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         children: [
           Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.local_gas_station_rounded,
-                  color: color,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
+              const Expanded(
                 child: Text(
-                  _prettyFuelLabel(price.fuelTypeId),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
+                  'Fuel Rate History',
+                  style: TextStyle(
                     fontSize: 17,
-                    color: kClayPrimary,
-                  ),
-                ),
-              ),
-              GestureDetector(
-                onTap: _saving ? null : () => _openPriceHistory(price),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kClayBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isEditing && widget.canEdit
-                            ? Icons.edit_calendar_rounded
-                            : Icons.history_rounded,
-                        size: 15,
-                        color: kClaySub,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _isEditing && widget.canEdit
-                            ? 'History & Edit'
-                            : 'View History',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: kClaySub,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: kClayBg,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _periodLabel(activePeriod),
-                  style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: kClayPrimary,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    Text(
-                      'From ${_optionalDateLabel(activePeriod.effectiveFrom)}',
-                      style: const TextStyle(color: kClaySub, fontSize: 12),
-                    ),
-                    Text(
-                      'To ${_optionalDateLabel(activePeriod.effectiveTo, empty: 'Ongoing')}',
-                      style: const TextStyle(color: kClaySub, fontSize: 12),
-                    ),
-                    Text(
-                      'Updated ${_optionalDateLabel(activePeriod.updatedAt)}',
-                      style: const TextStyle(color: kClaySub, fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _PriceMetric(
-                        label: 'Cost price',
-                        value: formatCurrency(activePeriod.costPrice),
-                        accent: const Color(0xFF7C3AED),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _PriceMetric(
-                        label: 'Selling price',
-                        value: formatCurrency(activePeriod.sellingPrice),
-                        accent: const Color(0xFF2AA878),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.history_rounded, size: 14, color: kClaySub),
-              const SizedBox(width: 6),
-              Text(
-                '${price.periods.length} period${price.periods.length == 1 ? '' : 's'} on record',
-                style: const TextStyle(
-                  color: kClaySub,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+              ),
+              IconButton(
+                tooltip: 'Download history',
+                onPressed: sets.isEmpty
+                    ? null
+                    : () =>
+                          _downloadHistory(sets, deleted: _showDeletedHistory),
+                icon: const Icon(Icons.download_rounded),
               ),
             ],
           ),
+          const SizedBox(height: 6),
+          const Text(
+            'Rates are grouped by the date they become effective.',
+            style: TextStyle(color: kClaySub, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _HistoryTabButton(
+                label: 'Active',
+                count: activeSets.length,
+                selected: !_showDeletedHistory,
+                onTap: () => setState(() => _showDeletedHistory = false),
+              ),
+              const SizedBox(width: 8),
+              _HistoryTabButton(
+                label: 'Deleted',
+                count: deletedSets.length,
+                selected: _showDeletedHistory,
+                onTap: () => setState(() => _showDeletedHistory = true),
+              ),
+            ],
+          ),
+          if (_showDeletedHistory) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'Deleted fuel rate sets are kept here for 30 days before permanent removal.',
+              style: TextStyle(color: kClaySub, fontSize: 12, height: 1.4),
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (sets.isEmpty)
+            Text(
+              _showDeletedHistory
+                  ? 'No deleted fuel rate history.'
+                  : 'No fuel rate history yet.',
+              style: const TextStyle(color: kClaySub),
+            )
+          else
+            ...sets.map(
+              (set) => _FuelPriceSetCard(
+                set: set,
+                fuelOrder: _fuelOrder,
+                labelForFuel: _prettyFuelLabel,
+                displayTimestamp: _displayTimestamp,
+                onDelete:
+                    widget.canEdit && !_showDeletedHistory && !_deletingHistory
+                    ? () => _deleteHistorySet(set)
+                    : null,
+              ),
+            ),
         ],
       ),
     );
@@ -354,8 +704,11 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
             child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
           );
         }
+
         final prices = snapshot.data ?? const <FuelPriceModel>[];
-        _ensureDraft(prices);
+        _seedDrafts(prices);
+        final activeHistorySets = _buildHistorySets(prices, deleted: false);
+        final deletedHistorySets = _buildHistorySets(prices, deleted: true);
 
         return RefreshIndicator(
           onRefresh: _reload,
@@ -368,23 +721,20 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                   ClaySubHeader(
                     title: 'Fuel Prices',
                     onBack: widget.onBack,
-                    trailing:
-                        widget.canEdit
-                            ? _EditTogglePill(
-                              isEditing: _isEditing,
-                              disabled: _draftPrices.isEmpty || _saving,
-                              onTap: () {
-                                if (_isEditing) {
-                                  _cancelEditing();
-                                } else {
-                                  setState(() => _isEditing = true);
-                                }
-                              },
-                            )
-                            : null,
+                    trailing: widget.canEdit
+                        ? _EditTogglePill(
+                            isEditing: _isEditing,
+                            disabled: prices.isEmpty || _saving,
+                            onTap: () {
+                              if (_isEditing) {
+                                _cancelEditing();
+                              } else {
+                                setState(() => _isEditing = true);
+                              }
+                            },
+                          )
+                        : null,
                   ),
-
-                // ── Header info ────────────────────────────────────
                 ClayCard(
                   margin: const EdgeInsets.only(bottom: 14),
                   child: Row(
@@ -394,7 +744,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Fuel Price History',
+                              'Fuel Price Sets',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
@@ -403,45 +753,26 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
                             ),
                             SizedBox(height: 5),
                             Text(
-                              'Each fuel supports editable price periods with from and to dates.',
+                              'Set petrol, diesel, and 2T oil rates together for one date.',
                               style: TextStyle(color: kClaySub, height: 1.4),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: kClayBg,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          _isEditing ? 'Editing' : 'View only',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color:
-                                _isEditing
-                                    ? const Color(0xFF1A3A7A)
-                                    : const Color(0xFF2AA878),
-                          ),
-                        ),
+                      _SmallPill(
+                        label: 'Mode',
+                        value: _isEditing ? 'Edit' : 'View',
                       ),
                     ],
                   ),
                 ),
-
-                ..._draftPrices.map(_buildPriceCard),
-
-                if (widget.canEdit && _isEditing)
-                  FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: Text(_saving ? 'Saving...' : 'Save Fuel Prices'),
-                  ),
+                _buildCurrentRates(prices),
+                if (widget.canEdit && _isEditing) _buildEditCard(prices),
+                _buildHistory(
+                  activeSets: activeHistorySets,
+                  deletedSets: deletedHistorySets,
+                ),
               ],
             ),
           ),
@@ -463,16 +794,15 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
               builder: (context, snapshot) {
                 final prices = snapshot.data ?? const <FuelPriceModel>[];
                 return TextButton(
-                  onPressed:
-                      prices.isEmpty || _saving
-                          ? null
-                          : () {
-                            if (_isEditing) {
-                              _cancelEditing();
-                            } else {
-                              setState(() => _isEditing = true);
-                            }
-                          },
+                  onPressed: prices.isEmpty || _saving
+                      ? null
+                      : () {
+                          if (_isEditing) {
+                            _cancelEditing();
+                          } else {
+                            setState(() => _isEditing = true);
+                          }
+                        },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -484,13 +814,350 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
   }
 }
 
-// ─── Edit toggle pill ────────────────────────────────────────────────────────
+class _FuelRateDraft {
+  _FuelRateDraft({required double costPrice, required double sellingPrice})
+    : costController = TextEditingController(
+        text: costPrice.toStringAsFixed(2),
+      ),
+      sellingController = TextEditingController(
+        text: sellingPrice.toStringAsFixed(2),
+      );
+
+  final TextEditingController costController;
+  final TextEditingController sellingController;
+
+  void dispose() {
+    costController.dispose();
+    sellingController.dispose();
+  }
+}
+
+class _FuelPriceSet {
+  const _FuelPriceSet({required this.effectiveDate, required this.prices});
+
+  final String effectiveDate;
+  final Map<String, FuelPricePeriodModel> prices;
+
+  String get updatedAt {
+    final values = prices.values
+        .map((period) => period.updatedAt.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (values.isEmpty) return '';
+    values.sort();
+    return values.last;
+  }
+
+  String get deletedAt {
+    final values = prices.values
+        .map((period) => period.deletedAt.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    if (values.isEmpty) return '';
+    values.sort();
+    return values.last;
+  }
+
+  String get deletedByName {
+    final values = prices.values
+        .map((period) => period.deletedByName.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    return values.isEmpty ? '' : values.first;
+  }
+}
+
+class _RateSummaryRow extends StatelessWidget {
+  const _RateSummaryRow({
+    required this.title,
+    required this.color,
+    required this.effectiveDate,
+    required this.costPrice,
+    required this.sellingPrice,
+  });
+
+  final String title;
+  final Color color;
+  final String effectiveDate;
+  final double costPrice;
+  final double sellingPrice;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kClayBg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OneLineScaleText(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: kClayPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  effectiveDate.isEmpty
+                      ? 'No effective date'
+                      : 'From ${formatDateLabel(effectiveDate)}',
+                  style: const TextStyle(color: kClaySub, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _SmallPill(label: 'Cost', value: formatCurrency(costPrice)),
+          const SizedBox(width: 6),
+          _SmallPill(label: 'Sell', value: formatCurrency(sellingPrice)),
+        ],
+      ),
+    );
+  }
+}
+
+class _FuelPriceSetCard extends StatelessWidget {
+  const _FuelPriceSetCard({
+    required this.set,
+    required this.fuelOrder,
+    required this.labelForFuel,
+    required this.displayTimestamp,
+    this.onDelete,
+  });
+
+  final _FuelPriceSet set;
+  final List<String> fuelOrder;
+  final String Function(String) labelForFuel;
+  final String Function(String) displayTimestamp;
+  final VoidCallback? onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: kClayBg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  formatDateLabel(set.effectiveDate),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: kClayPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                displayTimestamp(set.updatedAt),
+                style: const TextStyle(
+                  color: kClaySub,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              if (onDelete != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Delete history',
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    color: Color(0xFFB91C1C),
+                    size: 20,
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (set.deletedAt.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Deleted by ${set.deletedByName.isEmpty ? 'Unknown' : set.deletedByName} on ${displayTimestamp(set.deletedAt)}',
+              style: const TextStyle(
+                color: Color(0xFFB91C1C),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          ...fuelOrder.map((fuelId) {
+            final period = set.prices[fuelId];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OneLineScaleText(
+                      labelForFuel(fuelId),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: kClayPrimary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _SmallPill(
+                    label: 'Cost',
+                    value: period == null
+                        ? 'Missing'
+                        : formatCurrency(period.costPrice),
+                  ),
+                  const SizedBox(width: 6),
+                  _SmallPill(
+                    label: 'Sell',
+                    value: period == null
+                        ? 'Missing'
+                        : formatCurrency(period.sellingPrice),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryTabButton extends StatelessWidget {
+  const _HistoryTabButton({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? kClayPrimary : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          '$label ($count)',
+          style: TextStyle(
+            color: selected ? Colors.white : kClayPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RateField extends StatelessWidget {
+  const _RateField({
+    required this.label,
+    required this.controller,
+    required this.enabled,
+  });
+
+  final String label;
+  final TextEditingController? controller;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      decoration: InputDecoration(
+        labelText: label,
+        filled: true,
+        fillColor: enabled ? Colors.white : const Color(0xFFE8EBF4),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+class _SmallPill extends StatelessWidget {
+  const _SmallPill({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          OneLineScaleText(
+            value,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EditTogglePill extends StatelessWidget {
   const _EditTogglePill({
     required this.isEditing,
     required this.onTap,
     this.disabled = false,
   });
+
   final bool isEditing;
   final bool disabled;
   final VoidCallback onTap;
@@ -521,708 +1188,16 @@ class _EditTogglePill extends StatelessWidget {
           isEditing ? 'Cancel' : 'Edit',
           alignment: Alignment.center,
           style: TextStyle(
-            color:
-                disabled
-                    ? kClaySub
-                    : isEditing
-                    ? const Color(0xFFCE5828)
-                    : kClayPrimary,
+            color: disabled
+                ? kClaySub
+                : isEditing
+                ? const Color(0xFFCE5828)
+                : kClayPrimary,
             fontWeight: FontWeight.w700,
             fontSize: 13,
           ),
         ),
       ),
     );
-  }
-}
-
-// ─── Price metric box ────────────────────────────────────────────────────────
-class _PriceMetric extends StatelessWidget {
-  const _PriceMetric({
-    required this.label,
-    required this.value,
-    required this.accent,
-  });
-
-  final String label;
-  final String value;
-  final Color accent;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          OneLineScaleText(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-              color: kClaySub,
-            ),
-          ),
-          const SizedBox(height: 4),
-          OneLineScaleText(
-            value,
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-              color: accent,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Price history tile ──────────────────────────────────────────────────────
-class _PriceHistoryTile extends StatelessWidget {
-  const _PriceHistoryTile({
-    required this.title,
-    required this.effectiveFrom,
-    required this.effectiveTo,
-    required this.updatedAt,
-    required this.costPrice,
-    required this.sellingPrice,
-    required this.isCurrent,
-  });
-
-  final String title;
-  final String effectiveFrom;
-  final String effectiveTo;
-  final String updatedAt;
-  final double costPrice;
-  final double sellingPrice;
-  final bool isCurrent;
-
-  String _formatOptionalDate(String raw, {String empty = 'Not set'}) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return empty;
-    return formatDateLabel(trimmed);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color:
-            isCurrent
-                ? const Color(0xFF1A3A7A).withValues(alpha: 0.05)
-                : kClayBg,
-        borderRadius: BorderRadius.circular(16),
-        border:
-            isCurrent
-                ? Border.all(
-                  color: const Color(0xFF1A3A7A).withValues(alpha: 0.20),
-                )
-                : null,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: kClayPrimary,
-                  ),
-                ),
-              ),
-              if (isCurrent)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    'Current',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                      color: Color(0xFF1A3A7A),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: [
-              Text(
-                'From ${_formatOptionalDate(effectiveFrom)}',
-                style: const TextStyle(color: kClaySub, fontSize: 12),
-              ),
-              Text(
-                'To ${_formatOptionalDate(effectiveTo, empty: 'Ongoing')}',
-                style: const TextStyle(color: kClaySub, fontSize: 12),
-              ),
-              Text(
-                'Updated ${_formatOptionalDate(updatedAt)}',
-                style: const TextStyle(color: kClaySub, fontSize: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Cost ${formatCurrency(costPrice)}   Selling ${formatCurrency(sellingPrice)}',
-            style: const TextStyle(
-              color: kClayPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Fuel price history screen (full page) ────────────────────────────────────
-class _FuelPriceHistoryScreen extends StatefulWidget {
-  const _FuelPriceHistoryScreen({
-    required this.title,
-    required this.initialPrice,
-    required this.canEdit,
-    this.startInEditMode = false,
-  });
-
-  final String title;
-  final FuelPriceModel initialPrice;
-  final bool canEdit;
-  final bool startInEditMode;
-
-  @override
-  State<_FuelPriceHistoryScreen> createState() =>
-      _FuelPriceHistoryScreenState();
-}
-
-class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late final List<_EditablePricePeriod> _periods;
-  late bool _isEditing;
-
-  @override
-  void initState() {
-    super.initState();
-    _isEditing = widget.startInEditMode && widget.canEdit;
-    final source =
-        widget.initialPrice.periods.isNotEmpty
-            ? widget.initialPrice.periods
-            : [
-              FuelPricePeriodModel(
-                effectiveFrom: widget.initialPrice.effectiveFrom,
-                effectiveTo: widget.initialPrice.effectiveTo,
-                costPrice: widget.initialPrice.costPrice,
-                sellingPrice: widget.initialPrice.sellingPrice,
-                updatedAt: widget.initialPrice.updatedAt,
-                updatedBy: widget.initialPrice.updatedBy,
-              ),
-            ];
-    _periods =
-        source.map((period) => _EditablePricePeriod.fromModel(period)).toList();
-  }
-
-  @override
-  void dispose() {
-    for (final period in _periods) {
-      period.dispose();
-    }
-    super.dispose();
-  }
-
-  String _todayKey() {
-    final now = DateTime.now();
-    final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-    return '${now.year}-$month-$day';
-  }
-
-  Future<void> _pickDateRange({required _EditablePricePeriod period}) async {
-    final picked = await showAppDateRangePicker(
-      context: context,
-      fromDate: DateTime.tryParse(period.effectiveFrom),
-      toDate: DateTime.tryParse(period.effectiveTo),
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2100),
-      helpText: 'Select price period',
-    );
-    if (picked == null) return;
-    String fmt(DateTime date) {
-      final month = date.month.toString().padLeft(2, '0');
-      final day = date.day.toString().padLeft(2, '0');
-      return '${date.year}-$month-$day';
-    }
-
-    setState(() {
-      period.effectiveFrom = fmt(picked.start);
-      period.effectiveTo = fmt(picked.end);
-    });
-  }
-
-  String? _validatePeriod(_EditablePricePeriod period) {
-    if (period.effectiveFrom.isEmpty) return 'From date is required.';
-    final cost = double.tryParse(period.costController.text.trim());
-    if (cost == null || cost < 0) return 'Enter a valid cost price.';
-    final selling = double.tryParse(period.sellingController.text.trim());
-    if (selling == null || selling < 0) return 'Enter a valid selling price.';
-    if (period.effectiveTo.isNotEmpty &&
-        period.effectiveTo.compareTo(period.effectiveFrom) < 0) {
-      return 'To date cannot be before from date.';
-    }
-    return null;
-  }
-
-  String? _validateAllPeriods() {
-    final normalized =
-        _periods
-            .map(
-              (period) => FuelPricePeriodModel(
-                effectiveFrom: period.effectiveFrom,
-                effectiveTo: period.effectiveTo,
-                costPrice:
-                    double.tryParse(period.costController.text.trim()) ?? 0,
-                sellingPrice:
-                    double.tryParse(period.sellingController.text.trim()) ?? 0,
-                updatedAt: period.updatedAt,
-                updatedBy: period.updatedBy,
-              ),
-            )
-            .toList()
-          ..sort(
-            (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
-          );
-
-    for (var index = 1; index < normalized.length; index += 1) {
-      final previous = normalized[index - 1];
-      final current = normalized[index];
-      if (previous.effectiveTo.isEmpty ||
-          current.effectiveFrom.compareTo(previous.effectiveTo) <= 0) {
-        return 'Price periods cannot overlap. Close the previous period before starting the next one.';
-      }
-    }
-    return null;
-  }
-
-  void _addPeriod() {
-    setState(() {
-      _periods.add(
-        _EditablePricePeriod(
-          effectiveFrom: _todayKey(),
-          effectiveTo: '',
-          costController: TextEditingController(text: '0.00'),
-          sellingController: TextEditingController(text: '0.00'),
-          updatedAt: '',
-          updatedBy: '',
-        ),
-      );
-    });
-  }
-
-  void _removePeriod(int index) {
-    if (_periods.length == 1) return;
-    final removed = _periods.removeAt(index);
-    removed.dispose();
-    setState(() {});
-  }
-
-  void _save() {
-    final formState = _formKey.currentState;
-    if (formState == null || !formState.validate()) return;
-    final overlapError = _validateAllPeriods();
-    if (overlapError != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(overlapError)));
-      return;
-    }
-
-    final nextPeriods =
-        _periods
-            .map(
-              (period) => FuelPricePeriodModel(
-                effectiveFrom: period.effectiveFrom,
-                effectiveTo: period.effectiveTo,
-                costPrice:
-                    double.tryParse(period.costController.text.trim()) ?? 0,
-                sellingPrice:
-                    double.tryParse(period.sellingController.text.trim()) ?? 0,
-                updatedAt: period.updatedAt,
-                updatedBy: period.updatedBy,
-              ),
-            )
-            .toList()
-          ..sort(
-            (left, right) => left.effectiveFrom.compareTo(right.effectiveFrom),
-          );
-
-    final current =
-        FuelPriceModel(
-          fuelTypeId: widget.initialPrice.fuelTypeId,
-          costPrice: widget.initialPrice.costPrice,
-          sellingPrice: widget.initialPrice.sellingPrice,
-          updatedAt: widget.initialPrice.updatedAt,
-          updatedBy: widget.initialPrice.updatedBy,
-          periods: nextPeriods,
-        ).activePeriod ??
-        nextPeriods.last;
-
-    Navigator.of(context).pop(
-      widget.initialPrice.copyWith(
-        costPrice: current.costPrice,
-        sellingPrice: current.sellingPrice,
-        effectiveFrom: current.effectiveFrom,
-        effectiveTo: current.effectiveTo,
-        periods: nextPeriods,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final periods = [
-      ..._periods.map(
-        (period) => FuelPricePeriodModel(
-          effectiveFrom: period.effectiveFrom,
-          effectiveTo: period.effectiveTo,
-          costPrice: double.tryParse(period.costController.text.trim()) ?? 0,
-          sellingPrice:
-              double.tryParse(period.sellingController.text.trim()) ?? 0,
-          updatedAt: period.updatedAt,
-          updatedBy: period.updatedBy,
-        ),
-      ),
-    ]..sort((left, right) => right.effectiveFrom.compareTo(left.effectiveFrom));
-
-    final current =
-        periods.isEmpty
-            ? null
-            : FuelPriceModel(
-              fuelTypeId: widget.initialPrice.fuelTypeId,
-              costPrice: widget.initialPrice.costPrice,
-              sellingPrice: widget.initialPrice.sellingPrice,
-              updatedAt: widget.initialPrice.updatedAt,
-              updatedBy: widget.initialPrice.updatedBy,
-              periods: periods,
-            ).activePeriod;
-
-    return Scaffold(
-      backgroundColor: kClayBg,
-      appBar: AppBar(
-        backgroundColor: kClayBg,
-        title: Text('${widget.title} Price History'),
-        actions: [
-          if (widget.canEdit)
-            TextButton(
-              onPressed: () => setState(() => _isEditing = !_isEditing),
-              child: Text(_isEditing ? 'View' : 'Edit'),
-            ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  24 + MediaQuery.viewInsetsOf(context).bottom,
-                ),
-                child: Column(
-                  children: [
-                    // ── Hero info card ─────────────────────────────
-                    ClayCard(
-                      margin: const EdgeInsets.only(bottom: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.title,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: kClayPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            _isEditing
-                                ? 'Edit each price period below. This keeps long history manageable.'
-                                : 'All saved price periods for this fuel.',
-                            style: const TextStyle(
-                              color: kClaySub,
-                              height: 1.4,
-                            ),
-                          ),
-                          if (current != null) ...[
-                            const SizedBox(height: 14),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _PriceMetric(
-                                    label: 'Current cost',
-                                    value: formatCurrency(current.costPrice),
-                                    accent: const Color(0xFF7C3AED),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _PriceMetric(
-                                    label: 'Current selling',
-                                    value: formatCurrency(current.sellingPrice),
-                                    accent: const Color(0xFF2AA878),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    if (_isEditing)
-                      Form(
-                        key: _formKey,
-                        autovalidateMode: AutovalidateMode.onUserInteraction,
-                        child: Column(
-                          children: [
-                            ..._periods.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final period = entry.value;
-                              return ClayCard(
-                                margin: const EdgeInsets.only(bottom: 14),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            'Period ${index + 1}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              color: kClayPrimary,
-                                            ),
-                                          ),
-                                        ),
-                                        if (_periods.length > 1)
-                                          IconButton(
-                                            onPressed:
-                                                () => _removePeriod(index),
-                                            icon: const Icon(
-                                              Icons.delete_outline_rounded,
-                                              color: Color(0xFFCE5828),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: OutlinedButton.icon(
-                                            onPressed:
-                                                () => _pickDateRange(
-                                                  period: period,
-                                                ),
-                                            icon: const Icon(
-                                              Icons.calendar_month_rounded,
-                                            ),
-                                            label: Text(
-                                              '${period.effectiveFrom.isEmpty ? 'From date' : formatDateLabel(period.effectiveFrom)} to '
-                                              '${period.effectiveTo.isEmpty ? 'Ongoing' : formatDateLabel(period.effectiveTo)}',
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    if (period.effectiveTo.isNotEmpty)
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: TextButton(
-                                          onPressed: () {
-                                            setState(() {
-                                              period.effectiveTo = '';
-                                            });
-                                          },
-                                          child: const Text('Clear end date'),
-                                        ),
-                                      ),
-                                    if (period.updatedAt.trim().isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 8,
-                                        ),
-                                        child: Text(
-                                          'Last updated ${formatDateLabel(period.updatedAt)}',
-                                          style: const TextStyle(
-                                            color: kClaySub,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                    TextFormField(
-                                      controller: period.costController,
-                                      keyboardType:
-                                          const TextInputType.numberWithOptions(
-                                            decimal: true,
-                                          ),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Cost price',
-                                        filled: true,
-                                        fillColor: kClayBg,
-                                      ),
-                                      validator: (_) => _validatePeriod(period),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    TextFormField(
-                                      controller: period.sellingController,
-                                      keyboardType:
-                                          const TextInputType.numberWithOptions(
-                                            decimal: true,
-                                          ),
-                                      decoration: const InputDecoration(
-                                        labelText: 'Selling price',
-                                        filled: true,
-                                        fillColor: kClayBg,
-                                      ),
-                                      validator: (_) => _validatePeriod(period),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: OutlinedButton.icon(
-                                onPressed: _addPeriod,
-                                icon: const Icon(Icons.add_rounded),
-                                label: const Text('Add Price Period'),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      Column(
-                        children:
-                            periods
-                                .map(
-                                  (period) => _PriceHistoryTile(
-                                    title:
-                                        '${_formatHistoryDate(period.effectiveFrom)} to ${_formatHistoryDate(period.effectiveTo, empty: 'Ongoing')}',
-                                    effectiveFrom: period.effectiveFrom,
-                                    effectiveTo: period.effectiveTo,
-                                    updatedAt: period.updatedAt,
-                                    costPrice: period.costPrice,
-                                    sellingPrice: period.sellingPrice,
-                                    isCurrent:
-                                        current != null &&
-                                        period.effectiveFrom ==
-                                            current.effectiveFrom &&
-                                        period.effectiveTo ==
-                                            current.effectiveTo &&
-                                        period.costPrice == current.costPrice &&
-                                        period.sellingPrice ==
-                                            current.sellingPrice,
-                                  ),
-                                )
-                                .toList(),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            if (_isEditing)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: _save,
-                        child: const Text('Save History'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatHistoryDate(String raw, {String empty = 'Not set'}) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) return empty;
-    return formatDateLabel(trimmed);
-  }
-}
-
-class _EditablePricePeriod {
-  _EditablePricePeriod({
-    required this.effectiveFrom,
-    required this.effectiveTo,
-    required this.costController,
-    required this.sellingController,
-    required this.updatedAt,
-    required this.updatedBy,
-  });
-
-  factory _EditablePricePeriod.fromModel(FuelPricePeriodModel period) {
-    return _EditablePricePeriod(
-      effectiveFrom: period.effectiveFrom,
-      effectiveTo: period.effectiveTo,
-      costController: TextEditingController(
-        text: period.costPrice.toStringAsFixed(2),
-      ),
-      sellingController: TextEditingController(
-        text: period.sellingPrice.toStringAsFixed(2),
-      ),
-      updatedAt: period.updatedAt,
-      updatedBy: period.updatedBy,
-    );
-  }
-
-  String effectiveFrom;
-  String effectiveTo;
-  final TextEditingController costController;
-  final TextEditingController sellingController;
-  final String updatedAt;
-  final String updatedBy;
-
-  void dispose() {
-    costController.dispose();
-    sellingController.dispose();
   }
 }

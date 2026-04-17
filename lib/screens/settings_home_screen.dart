@@ -5,6 +5,7 @@ import '../widgets/responsive_text.dart';
 import 'flag_threshold_settings_screen.dart';
 import 'fuel_price_settings_screen.dart';
 import 'fuel_type_manager_screen.dart';
+import 'inventory_hub_screen.dart';
 import 'inventory_planning_settings_screen.dart';
 import 'opening_stock_settings_screen.dart';
 import 'station_settings_screen.dart';
@@ -69,6 +70,13 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
       case _SettingsPanel.inventoryPlanning:
         return InventoryPlanningSettingsScreen(
           canEdit: _canEditInventoryPlanning,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.stockManagement:
+        return InventoryHubScreen(
+          canManagePlanning: _canEditInventoryPlanning,
+          stockManagementOnly: true,
           embedded: true,
           onBack: _showHome,
         );
@@ -250,10 +258,19 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           const _SectionLabel(label: 'INVENTORY'),
           const SizedBox(height: 10),
           _SettingsTile(
+            title: 'Stock Management',
+            subtitle: 'Active stock, manual stock, and stock history',
+            icon: Icons.warehouse_rounded,
+            iconColor: const Color(0xFF1298B8),
+            onTap:
+                () => setState(() => _panel = _SettingsPanel.stockManagement),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
             title: 'Reorder Alert Rules',
             subtitle: 'Lead time and alert timing for inventory',
             icon: Icons.inventory_2_rounded,
-            iconColor: const Color(0xFF1298B8),
+            iconColor: const Color(0xFF4858C8),
             onTap:
                 () => setState(() => _panel = _SettingsPanel.inventoryPlanning),
           ),
@@ -424,6 +441,7 @@ enum _SettingsPanel {
   stationSettings,
   openingStockSettings,
   inventoryPlanning,
+  stockManagement,
   fuelPriceSettings,
   fuelTypeManager,
   flagThreshold,

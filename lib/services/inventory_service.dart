@@ -108,6 +108,19 @@ class InventoryService {
         .toList();
   }
 
+  Future<void> deleteFuelPriceSet(String effectiveDate) async {
+    final encoded = Uri.encodeComponent(effectiveDate);
+    final response = await _apiClient.delete('/inventory/prices/sets/$encoded');
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to delete fuel price history.',
+        ),
+      );
+    }
+  }
+
   Future<List<FuelPriceModel>> savePrices(List<FuelPriceModel> prices) async {
     final response = await _apiClient.put(
       '/inventory/prices',
@@ -245,14 +258,17 @@ class InventoryService {
   Future<List<InventoryStockSnapshotModel>> fetchStockSnapshots({
     String? fromDate,
     String? toDate,
+    bool deletedOnly = false,
     bool forceRefresh = false,
   }) async {
     final params = <String, String>{
       if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
       if (toDate != null && toDate.isNotEmpty) 'to': toDate,
+      if (deletedOnly) 'view': 'deleted',
     };
-    final suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/inventory/stock-snapshots$suffix',
       useCache: true,
@@ -262,7 +278,7 @@ class InventoryService {
       throw Exception(
         _apiClient.errorMessage(
           response,
-          fallback: 'Failed to load stock snapshot history.',
+          fallback: 'Failed to load stock history.',
         ),
       );
     }
@@ -291,15 +307,104 @@ class InventoryService {
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-        _apiClient.errorMessage(
-          response,
-          fallback: 'Failed to save stock snapshot.',
-        ),
+        _apiClient.errorMessage(response, fallback: 'Failed to save stock.'),
       );
     }
     return InventoryStockSnapshotModel.fromJson(
       _apiClient.decodeObject(response)['snapshot'] as Map<String, dynamic>,
     );
+  }
+
+  Future<void> deleteStockSnapshot(String snapshotId) async {
+    final encoded = Uri.encodeComponent(snapshotId);
+    final response = await _apiClient.delete(
+      '/inventory/stock-snapshots/$encoded',
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to delete stock history.',
+        ),
+      );
+    }
+  }
+
+  Future<List<PumpOpeningReadingLogModel>> fetchOpeningReadingLogs({
+    String? fromDate,
+    String? toDate,
+    bool deletedOnly = false,
+    bool forceRefresh = false,
+  }) async {
+    final params = <String, String>{
+      if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'to': toDate,
+      if (deletedOnly) 'view': 'deleted',
+    };
+    final suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
+    final response = await _apiClient.get(
+      '/inventory/opening-readings$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load pump opening reading history.',
+        ),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return (json['logs'] as List<dynamic>? ?? const [])
+        .map(
+          (item) =>
+              PumpOpeningReadingLogModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<PumpOpeningReadingLogModel> createOpeningReadingLog({
+    required String effectiveDate,
+    required Map<String, PumpReadings> readings,
+    String note = '',
+  }) async {
+    final response = await _apiClient.post(
+      '/inventory/opening-readings',
+      body: jsonEncode({
+        'effectiveDate': effectiveDate,
+        'readings': readings.map((key, value) => MapEntry(key, value.toJson())),
+        'note': note,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to save pump opening readings.',
+        ),
+      );
+    }
+    return PumpOpeningReadingLogModel.fromJson(
+      _apiClient.decodeObject(response)['log'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<void> deleteOpeningReadingLog(String logId) async {
+    final encoded = Uri.encodeComponent(logId);
+    final response = await _apiClient.delete(
+      '/inventory/opening-readings/$encoded',
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to delete pump opening reading history.',
+        ),
+      );
+    }
   }
 
   Future<StationConfigModel> saveStationConfig(
@@ -395,26 +500,19 @@ class InventoryService {
     };
     final normalizedEntries = _normalizeInventoryEntries(entries);
 
-    final receiptsAfterBaseline =
-        deliveries.where((delivery) {
-            if (baselineUpdatedAt.isEmpty) {
-              return true;
-            }
-            return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
-          }).toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final receiptsAfterBaseline = deliveries.where((delivery) {
+      if (baselineUpdatedAt.isEmpty) {
+        return true;
+      }
+      return delivery.createdAt.trim().compareTo(baselineUpdatedAt) > 0;
+    }).toList()..sort((left, right) => left.date.compareTo(right.date));
 
-    final entriesAfterBaseline =
-        normalizedEntries.where((entry) {
-            if (baselineUpdatedAt.isEmpty) {
-              return true;
-            }
-            return _entryInventoryTimestamp(
-                  entry,
-                ).compareTo(baselineUpdatedAt) >
-                0;
-          }).toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final entriesAfterBaseline = normalizedEntries.where((entry) {
+      if (baselineUpdatedAt.isEmpty) {
+        return true;
+      }
+      return _entryInventoryTimestamp(entry).compareTo(baselineUpdatedAt) > 0;
+    }).toList()..sort((left, right) => left.date.compareTo(right.date));
 
     for (final receipt in receiptsAfterBaseline) {
       for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
@@ -475,10 +573,9 @@ class InventoryService {
       activeStockSnapshot: InventoryStockSnapshotModel(
         id: 'fallback-active-stock',
         stationId: station.id,
-        effectiveDate:
-            baselineUpdatedAt.isEmpty
-                ? DateTime.now().toIso8601String().split('T').first
-                : baselineUpdatedAt.split('T').first,
+        effectiveDate: baselineUpdatedAt.isEmpty
+            ? DateTime.now().toIso8601String().split('T').first
+            : baselineUpdatedAt.split('T').first,
         stock: baselineStock,
         note: '',
         createdAt: baselineUpdatedAt,
@@ -578,11 +675,10 @@ class InventoryService {
     }
     final resolvedEndDate =
         endDate ?? DateTime.now().toIso8601String().split('T').first;
-    final windowDates =
-        List<String>.generate(
-          7,
-          (index) => _shiftIsoDate(resolvedEndDate, -index),
-        ).reversed.toList();
+    final windowDates = List<String>.generate(
+      7,
+      (index) => _shiftIsoDate(resolvedEndDate, -index),
+    ).reversed.toList();
     final enteredDates = windowDates
         .where((date) => totalsByDate.containsKey(date))
         .toList(growable: false);
@@ -605,19 +701,18 @@ class InventoryService {
   }) {
     final totalLeadWindow =
         planning.deliveryLeadDays + planning.alertBeforeDays;
-    final daysRemaining =
-        averageDailySales > 0 ? currentStock / averageDailySales : null;
-    final projectedRunoutDate =
-        daysRemaining == null
-            ? ''
-            : _shiftIsoDate(
-              DateTime.now().toIso8601String().split('T').first,
-              daysRemaining.floor(),
-            );
-    final recommendedOrderDate =
-        projectedRunoutDate.isEmpty
-            ? ''
-            : _shiftIsoDate(projectedRunoutDate, -totalLeadWindow);
+    final daysRemaining = averageDailySales > 0
+        ? currentStock / averageDailySales
+        : null;
+    final projectedRunoutDate = daysRemaining == null
+        ? ''
+        : _shiftIsoDate(
+            DateTime.now().toIso8601String().split('T').first,
+            daysRemaining.floor(),
+          );
+    final recommendedOrderDate = projectedRunoutDate.isEmpty
+        ? ''
+        : _shiftIsoDate(projectedRunoutDate, -totalLeadWindow);
     final shouldAlert =
         averageDailySales > 0 &&
         currentStock <= averageDailySales * totalLeadWindow;
@@ -631,10 +726,9 @@ class InventoryService {
       projectedRunoutDate: projectedRunoutDate,
       recommendedOrderDate: recommendedOrderDate,
       shouldAlert: shouldAlert,
-      alertMessage:
-          shouldAlert
-              ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
-              : '',
+      alertMessage: shouldAlert
+          ? '$label stock is low for the configured lead time. This screen is using local fallback inventory math because the server inventory dashboard is unavailable.'
+          : '',
     );
   }
 
@@ -679,9 +773,8 @@ class InventoryService {
         latestByDate[entry.date] = entry;
       }
     }
-    final normalized =
-        latestByDate.values.toList()
-          ..sort((left, right) => left.date.compareTo(right.date));
+    final normalized = latestByDate.values.toList()
+      ..sort((left, right) => left.date.compareTo(right.date));
     return normalized;
   }
 
