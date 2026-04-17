@@ -26,35 +26,24 @@ class OpeningStockSettingsScreen extends StatefulWidget {
 }
 
 class _OpeningReadingsData {
-  const _OpeningReadingsData({
-    required this.station,
-    required this.logs,
-    required this.deletedLogs,
-  });
+  const _OpeningReadingsData({required this.station, required this.logs});
 
   final StationConfigModel station;
   final List<PumpOpeningReadingLogModel> logs;
-  final List<PumpOpeningReadingLogModel> deletedLogs;
 }
 
 class _OpeningStockSettingsScreenState
     extends State<OpeningStockSettingsScreen> {
   final InventoryService _inventoryService = InventoryService();
-  final ReportExportService _reportExportService = ReportExportService();
   late Future<_OpeningReadingsData> _future;
   final TextEditingController _effectiveDateController =
       TextEditingController();
   final TextEditingController _noteController = TextEditingController();
   final Map<String, TextEditingController> _controllers = {};
   bool _seeded = false;
-  bool _isEditing = false;
   bool _saving = false;
-  bool _showDeletedHistory = false;
-  bool _deletingHistory = false;
 
   String _readingKey(String pumpId, String fuelKey) => '${pumpId}_$fuelKey';
-
-  bool _supportsTwoT(String pumpId) => pumpId == 'pump2';
 
   @override
   void initState() {
@@ -76,15 +65,10 @@ class _OpeningStockSettingsScreenState
     final results = await Future.wait<dynamic>([
       _inventoryService.fetchStationConfig(forceRefresh: forceRefresh),
       _inventoryService.fetchOpeningReadingLogs(forceRefresh: forceRefresh),
-      _inventoryService.fetchOpeningReadingLogs(
-        deletedOnly: true,
-        forceRefresh: forceRefresh,
-      ),
     ]);
     return _OpeningReadingsData(
       station: results[0] as StationConfigModel,
       logs: results[1] as List<PumpOpeningReadingLogModel>,
-      deletedLogs: results[2] as List<PumpOpeningReadingLogModel>,
     );
   }
 
@@ -99,7 +83,7 @@ class _OpeningStockSettingsScreenState
       final readings =
           station.baseReadings[pump.id] ??
           const PumpReadings(petrol: 0, diesel: 0, twoT: 0);
-      for (final fuelKey in ['petrol', 'diesel', 'twoT']) {
+      for (final fuelKey in ['petrol', 'diesel']) {
         final key = _readingKey(pump.id, fuelKey);
         final controller =
             _controllers[key] ??
@@ -133,16 +117,9 @@ class _OpeningStockSettingsScreenState
         return readings.petrol;
       case 'diesel':
         return readings.diesel;
-      case 'twoT':
-        return readings.twoT;
       default:
         return 0;
     }
-  }
-
-  void _resetFromStation(StationConfigModel station) {
-    _seeded = false;
-    _seedControllers(station);
   }
 
   Future<void> _reload() async {
@@ -153,7 +130,7 @@ class _OpeningStockSettingsScreenState
     await _future;
   }
 
-  Future<void> _save(StationConfigModel station) async {
+  Future<bool> _save(StationConfigModel station) async {
     final effectiveDate = _effectiveDateController.text.trim();
     if (effectiveDate.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +139,7 @@ class _OpeningStockSettingsScreenState
           content: Text('Select an effective date.'),
         ),
       );
-      return;
+      return false;
     }
 
     final readings = <String, PumpReadings>{};
@@ -173,30 +150,16 @@ class _OpeningStockSettingsScreenState
       final diesel = double.tryParse(
         _controllers[_readingKey(pump.id, 'diesel')]?.text ?? '',
       );
-      final twoT = _supportsTwoT(pump.id)
-          ? double.tryParse(
-                  _controllers[_readingKey(pump.id, 'twoT')]?.text ?? '',
-                ) ??
-                0.0
-          : 0.0;
-      if (petrol == null ||
-          petrol < 0 ||
-          diesel == null ||
-          diesel < 0 ||
-          twoT < 0) {
+      if (petrol == null || petrol < 0 || diesel == null || diesel < 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Color(0xFFB91C1C),
             content: Text('Enter valid non-negative opening readings.'),
           ),
         );
-        return;
+        return false;
       }
-      readings[pump.id] = PumpReadings(
-        petrol: petrol,
-        diesel: diesel,
-        twoT: twoT,
-      );
+      readings[pump.id] = PumpReadings(petrol: petrol, diesel: diesel, twoT: 0);
     }
 
     setState(() => _saving = true);
@@ -206,23 +169,24 @@ class _OpeningStockSettingsScreenState
         readings: readings,
         note: _noteController.text.trim(),
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Pump opening readings saved.')),
       );
       setState(() {
-        _isEditing = false;
         _seeded = false;
         _future = _load(forceRefresh: true);
       });
+      return true;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
           content: Text(userFacingErrorMessage(error)),
         ),
       );
+      return false;
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -230,107 +194,140 @@ class _OpeningStockSettingsScreenState
     }
   }
 
-  Future<void> _downloadHistory(
-    List<PumpOpeningReadingLogModel> history,
-    List<StationPumpModel> pumps, {
-    required bool deleted,
-  }) async {
-    final rows = <List<dynamic>>[];
-    for (final log in history) {
-      for (final pump in pumps) {
-        final readings = log.readings[pump.id];
-        rows.add([
-          log.effectiveDate,
-          formatPumpLabel(pump.id, pump.label),
-          (readings?.petrol ?? 0).toStringAsFixed(2),
-          (readings?.diesel ?? 0).toStringAsFixed(2),
-          (readings?.twoT ?? 0).toStringAsFixed(2),
-          log.createdAt,
-          log.createdByName,
-          log.deletedAt,
-          log.deletedByName,
-          log.note,
-        ]);
-      }
-    }
-    try {
-      final path = await _reportExportService.saveRowsToDownloads(
-        title: deleted
-            ? 'deleted_pump_opening_readings'
-            : 'pump_opening_readings',
-        notificationTitle: 'Opening reading history downloaded',
-        headers: [
-          'Effective Date',
-          'Pump',
-          'Petrol',
-          'Diesel',
-          '2T Oil',
-          'Saved At',
-          'Saved By',
-          'Deleted At',
-          'Deleted By',
-          'Note',
-        ],
-        rows: rows,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Opening reading history downloaded to $path')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB91C1C),
-          content: Text(userFacingErrorMessage(error)),
-        ),
-      );
-    }
+  Future<void> _openUpdateDialog(StationConfigModel station) async {
+    _seeded = false;
+    _seedControllers(station);
+    var saving = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Update Opening Readings'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: saving ? null : _pickEffectiveDate,
+                      child: AbsorbPointer(
+                        child: TextField(
+                          controller: _effectiveDateController,
+                          enabled: widget.canEdit && !saving,
+                          decoration: InputDecoration(
+                            labelText: 'Effective date',
+                            suffixIcon: const Icon(Icons.calendar_today),
+                            filled: true,
+                            fillColor: kClayBg,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _noteController,
+                      enabled: widget.canEdit && !saving,
+                      minLines: 2,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Reason / note (optional)',
+                        filled: true,
+                        fillColor: kClayBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...station.pumps.map((pump) {
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: kClayBg,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              formatPumpLabel(pump.id, pump.label),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: kClayPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _NumericField(
+                              controller:
+                                  _controllers[_readingKey(pump.id, 'petrol')],
+                              label: 'Petrol opening reading',
+                              enabled: widget.canEdit && !saving,
+                            ),
+                            const SizedBox(height: 12),
+                            _NumericField(
+                              controller:
+                                  _controllers[_readingKey(pump.id, 'diesel')],
+                              label: 'Diesel opening reading',
+                              enabled: widget.canEdit && !saving,
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setDialogState(() => saving = true);
+                          final saved = await _save(station);
+                          if (!context.mounted) return;
+                          setDialogState(() => saving = false);
+                          if (saved && dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text(saving ? 'Saving...' : 'Save Opening Readings'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
-  Future<void> _deleteHistory(PumpOpeningReadingLogModel log) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete opening reading history?'),
-        content: const Text(
-          'This log will move to Deleted History for 30 days and then be permanently removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
+  Future<void> _openHistoryPage() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _OpeningReadingHistoryScreen(canEdit: widget.canEdit),
       ),
     );
-    if (confirmed != true) return;
-    setState(() => _deletingHistory = true);
-    try {
-      await _inventoryService.deleteOpeningReadingLog(log.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Opening reading history deleted.')),
-      );
-      setState(() {
-        _seeded = false;
-        _future = _load(forceRefresh: true);
-      });
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB91C1C),
-          content: Text(userFacingErrorMessage(error)),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _deletingHistory = false);
-    }
+    if (mounted) await _reload();
   }
 
   String _displayTimestamp(String raw) {
@@ -380,10 +377,6 @@ class _OpeningStockSettingsScreenState
         final data = snapshot.data!;
         final station = data.station;
         final activeHistory = data.logs.reversed.toList(growable: false);
-        final deletedHistory = data.deletedLogs.reversed.toList(
-          growable: false,
-        );
-        final history = _showDeletedHistory ? deletedHistory : activeHistory;
         final activeLog = activeHistory.isEmpty ? null : activeHistory.first;
         _seedControllers(station);
 
@@ -398,67 +391,33 @@ class _OpeningStockSettingsScreenState
                   ClaySubHeader(
                     title: 'Pump Opening Readings',
                     onBack: widget.onBack,
-                    trailing: widget.canEdit
-                        ? _EditTogglePill(
-                            isEditing: _isEditing,
-                            onTap: () {
-                              setState(() {
-                                if (_isEditing) {
-                                  _isEditing = false;
-                                  _resetFromStation(station);
-                                } else {
-                                  _isEditing = true;
-                                }
-                              });
-                            },
-                          )
-                        : null,
                   ),
-
-                // ── Info card ──────────────────────────────────────
-                ClayCard(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Opening Meter Readings',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: kClayPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'These values are used whenever a day has no previous entry to carry forward.',
-                        style: TextStyle(color: kClaySub, height: 1.4),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Station: ${station.name}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: kClayPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
                 // ── Per-pump cards ─────────────────────────────────
                 ClayCard(
                   margin: const EdgeInsets.only(bottom: 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Active Opening Reading',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: kClayPrimary,
-                        ),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Active Opening Reading',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: kClayPrimary,
+                              ),
+                            ),
+                          ),
+                          if (widget.canEdit)
+                            FilledButton(
+                              onPressed: _saving
+                                  ? null
+                                  : () => _openUpdateDialog(station),
+                              child: const Text('Update Opening Readings'),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -485,6 +444,43 @@ class _OpeningStockSettingsScreenState
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        ...station.pumps.map((pump) {
+                          final readings = activeLog.readings[pump.id];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  formatPumpLabel(pump.id, pump.label),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: kClayPrimary,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    _InfoChip(
+                                      label: 'Petrol',
+                                      value: (readings?.petrol ?? 0)
+                                          .toStringAsFixed(2),
+                                    ),
+                                    _InfoChip(
+                                      label: 'Diesel',
+                                      value: (readings?.diesel ?? 0)
+                                          .toStringAsFixed(2),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                         if (activeLog.note.trim().isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Text(
@@ -501,127 +497,6 @@ class _OpeningStockSettingsScreenState
                   ),
                 ),
 
-                if (_isEditing)
-                  ClayCard(
-                    margin: const EdgeInsets.only(bottom: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Change Details',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: kClayPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Choose the date these readings become the opening baseline.',
-                          style: TextStyle(color: kClaySub, height: 1.4),
-                        ),
-                        const SizedBox(height: 16),
-                        GestureDetector(
-                          onTap: _saving ? null : _pickEffectiveDate,
-                          child: AbsorbPointer(
-                            child: TextField(
-                              controller: _effectiveDateController,
-                              enabled: widget.canEdit && !_saving,
-                              decoration: InputDecoration(
-                                labelText: 'Effective date',
-                                suffixIcon: const Icon(Icons.calendar_today),
-                                filled: true,
-                                fillColor: kClayBg,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: _noteController,
-                          enabled: widget.canEdit && !_saving,
-                          minLines: 2,
-                          maxLines: 3,
-                          decoration: InputDecoration(
-                            labelText: 'Reason / note (optional)',
-                            filled: true,
-                            fillColor: kClayBg,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                ...station.pumps.map((pump) {
-                  return ClayCard(
-                    margin: const EdgeInsets.only(bottom: 14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF1A3A7A,
-                                ).withValues(alpha: 0.10),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(
-                                Icons.speed_rounded,
-                                color: Color(0xFF1A3A7A),
-                                size: 18,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              formatPumpLabel(pump.id, pump.label),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: kClayPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        _NumericField(
-                          controller:
-                              _controllers[_readingKey(pump.id, 'petrol')],
-                          label: 'Petrol opening reading',
-                          enabled: widget.canEdit && _isEditing && !_saving,
-                        ),
-                        const SizedBox(height: 12),
-                        _NumericField(
-                          controller:
-                              _controllers[_readingKey(pump.id, 'diesel')],
-                          label: 'Diesel opening reading',
-                          enabled: widget.canEdit && _isEditing && !_saving,
-                        ),
-                        if (_supportsTwoT(pump.id)) ...[
-                          const SizedBox(height: 12),
-                          _NumericField(
-                            controller:
-                                _controllers[_readingKey(pump.id, 'twoT')],
-                            label: '2T oil opening reading',
-                            enabled: widget.canEdit && _isEditing && !_saving,
-                          ),
-                        ],
-                      ],
-                    ),
-                  );
-                }),
-
                 ClayCard(
                   margin: const EdgeInsets.only(bottom: 14),
                   child: Column(
@@ -631,7 +506,7 @@ class _OpeningStockSettingsScreenState
                         children: [
                           const Expanded(
                             child: Text(
-                              'Opening Reading Logs',
+                              'Latest Opening Reading Log',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w800,
@@ -639,95 +514,33 @@ class _OpeningStockSettingsScreenState
                               ),
                             ),
                           ),
-                          IconButton(
-                            tooltip: 'Download history',
-                            onPressed: history.isEmpty
-                                ? null
-                                : () => _downloadHistory(
-                                    history,
-                                    station.pumps,
-                                    deleted: _showDeletedHistory,
-                                  ),
-                            icon: const Icon(Icons.download_rounded),
+                          TextButton.icon(
+                            onPressed: _openHistoryPage,
+                            icon: const Icon(Icons.history_rounded),
+                            label: const Text('View All'),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Each save is logged with its effective date, saved time, user, readings, and note.',
+                        'Showing the newest opening reading log here. Open all history for filters, sorting, downloads, and deleted records.',
                         style: TextStyle(color: kClaySub, height: 1.4),
                       ),
                       const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          _HistoryTabButton(
-                            label: 'Active',
-                            count: activeHistory.length,
-                            selected: !_showDeletedHistory,
-                            onTap: () =>
-                                setState(() => _showDeletedHistory = false),
-                          ),
-                          const SizedBox(width: 8),
-                          _HistoryTabButton(
-                            label: 'Deleted',
-                            count: deletedHistory.length,
-                            selected: _showDeletedHistory,
-                            onTap: () =>
-                                setState(() => _showDeletedHistory = true),
-                          ),
-                        ],
-                      ),
-                      if (_showDeletedHistory) ...[
-                        const SizedBox(height: 10),
-                        const Text(
-                          'Deleted logs are kept here for 30 days before permanent removal.',
-                          style: TextStyle(
-                            color: kClaySub,
-                            fontSize: 12,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      if (history.isEmpty)
+                      if (activeLog == null)
                         Text(
-                          _showDeletedHistory
-                              ? 'No deleted opening reading logs.'
-                              : 'No opening reading logs yet.',
-                          style: const TextStyle(color: kClaySub),
+                          'No opening reading logs yet.',
+                          style: TextStyle(color: kClaySub),
                         )
                       else
-                        ...history.map(
-                          (item) => _OpeningReadingLogRow(
-                            log: item,
-                            pumps: station.pumps,
-                            displayTimestamp: _displayTimestamp,
-                            onDelete:
-                                widget.canEdit &&
-                                    !_showDeletedHistory &&
-                                    !_deletingHistory
-                                ? () => _deleteHistory(item)
-                                : null,
-                          ),
+                        _OpeningReadingLogRow(
+                          log: activeLog,
+                          pumps: station.pumps,
+                          displayTimestamp: _displayTimestamp,
                         ),
                     ],
                   ),
                 ),
-
-                if (widget.canEdit && _isEditing)
-                  FilledButton.icon(
-                    onPressed: _saving ? null : () => _save(station),
-                    icon: _saving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: Text(
-                      _saving ? 'Saving...' : 'Save Opening Readings',
-                    ),
-                  ),
               ],
             ),
           ),
@@ -746,30 +559,6 @@ class _OpeningStockSettingsScreenState
       appBar: AppBar(
         backgroundColor: kClayBg,
         title: const Text('Pump Opening Readings'),
-        actions: [
-          if (widget.canEdit)
-            FutureBuilder<_OpeningReadingsData>(
-              future: _future,
-              builder: (context, snapshot) {
-                final station = snapshot.data?.station;
-                return TextButton(
-                  onPressed: station == null
-                      ? null
-                      : () {
-                          setState(() {
-                            if (_isEditing) {
-                              _isEditing = false;
-                              _resetFromStation(station);
-                            } else {
-                              _isEditing = true;
-                            }
-                          });
-                        },
-                  child: Text(_isEditing ? 'Cancel' : 'Edit'),
-                );
-              },
-            ),
-        ],
       ),
       body: content,
     );
@@ -777,6 +566,420 @@ class _OpeningStockSettingsScreenState
 }
 
 // ─── Edit toggle pill ────────────────────────────────────────────────────────
+enum _OpeningHistorySort {
+  savedNewest,
+  savedOldest,
+  effectiveNewest,
+  effectiveOldest,
+}
+
+class _OpeningHistoryData {
+  const _OpeningHistoryData({
+    required this.station,
+    required this.active,
+    required this.deleted,
+  });
+
+  final StationConfigModel station;
+  final List<PumpOpeningReadingLogModel> active;
+  final List<PumpOpeningReadingLogModel> deleted;
+}
+
+class _OpeningReadingHistoryScreen extends StatefulWidget {
+  const _OpeningReadingHistoryScreen({required this.canEdit});
+
+  final bool canEdit;
+
+  @override
+  State<_OpeningReadingHistoryScreen> createState() =>
+      _OpeningReadingHistoryScreenState();
+}
+
+class _OpeningReadingHistoryScreenState
+    extends State<_OpeningReadingHistoryScreen> {
+  final InventoryService _inventoryService = InventoryService();
+  final ReportExportService _reportExportService = ReportExportService();
+  late Future<_OpeningHistoryData> _future;
+  bool _showDeleted = false;
+  bool _deleting = false;
+  String _fromDate = '';
+  String _toDate = '';
+  _OpeningHistorySort _sort = _OpeningHistorySort.savedNewest;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<_OpeningHistoryData> _load({bool forceRefresh = false}) async {
+    final results = await Future.wait<dynamic>([
+      _inventoryService.fetchStationConfig(forceRefresh: forceRefresh),
+      _inventoryService.fetchOpeningReadingLogs(
+        fromDate: _fromDate,
+        toDate: _toDate,
+        forceRefresh: forceRefresh,
+      ),
+      _inventoryService.fetchOpeningReadingLogs(
+        fromDate: _fromDate,
+        toDate: _toDate,
+        deletedOnly: true,
+        forceRefresh: forceRefresh,
+      ),
+    ]);
+    return _OpeningHistoryData(
+      station: results[0] as StationConfigModel,
+      active: results[1] as List<PumpOpeningReadingLogModel>,
+      deleted: results[2] as List<PumpOpeningReadingLogModel>,
+    );
+  }
+
+  Future<void> _reload({bool forceRefresh = true}) async {
+    setState(() => _future = _load(forceRefresh: forceRefresh));
+    await _future;
+  }
+
+  List<PumpOpeningReadingLogModel> _sorted(
+    List<PumpOpeningReadingLogModel> items,
+  ) {
+    final sorted = [...items];
+    sorted.sort((left, right) {
+      switch (_sort) {
+        case _OpeningHistorySort.savedNewest:
+          return right.createdAt.compareTo(left.createdAt);
+        case _OpeningHistorySort.savedOldest:
+          return left.createdAt.compareTo(right.createdAt);
+        case _OpeningHistorySort.effectiveNewest:
+          return right.effectiveDate.compareTo(left.effectiveDate);
+        case _OpeningHistorySort.effectiveOldest:
+          return left.effectiveDate.compareTo(right.effectiveDate);
+      }
+    });
+    return sorted;
+  }
+
+  String _sortLabel(_OpeningHistorySort sort) {
+    switch (sort) {
+      case _OpeningHistorySort.savedNewest:
+        return 'Saved newest';
+      case _OpeningHistorySort.savedOldest:
+        return 'Saved oldest';
+      case _OpeningHistorySort.effectiveNewest:
+        return 'Effective newest';
+      case _OpeningHistorySort.effectiveOldest:
+        return 'Effective oldest';
+    }
+  }
+
+  Future<void> _pickDate({required bool from}) async {
+    final current = DateTime.tryParse(from ? _fromDate : _toDate);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    final value = picked.toIso8601String().split('T').first;
+    setState(() {
+      if (from) {
+        _fromDate = value;
+      } else {
+        _toDate = value;
+      }
+      _future = _load(forceRefresh: true);
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _fromDate = '';
+      _toDate = '';
+      _future = _load(forceRefresh: true);
+    });
+  }
+
+  String _displayTimestamp(String raw) {
+    final value = DateTime.tryParse(raw);
+    if (value == null) {
+      return raw.trim().isEmpty ? 'Unknown time' : raw;
+    }
+    final local = value.toLocal();
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour24 = local.hour;
+    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final suffix = hour24 >= 12 ? 'PM' : 'AM';
+    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
+  }
+
+  Future<void> _downloadHistory(
+    List<PumpOpeningReadingLogModel> history,
+    List<StationPumpModel> pumps, {
+    required bool deleted,
+  }) async {
+    final rows = <List<dynamic>>[];
+    for (final log in history) {
+      for (final pump in pumps) {
+        final readings = log.readings[pump.id];
+        rows.add([
+          log.effectiveDate,
+          formatPumpLabel(pump.id, pump.label),
+          (readings?.petrol ?? 0).toStringAsFixed(2),
+          (readings?.diesel ?? 0).toStringAsFixed(2),
+          log.createdAt,
+          log.createdByName,
+          log.deletedAt,
+          log.deletedByName,
+          log.note,
+        ]);
+      }
+    }
+    try {
+      final path = await _reportExportService.saveRowsToDownloads(
+        title: deleted
+            ? 'deleted_pump_opening_readings'
+            : 'pump_opening_readings',
+        notificationTitle: 'Opening reading history downloaded',
+        headers: [
+          'Effective Date',
+          'Pump',
+          'Petrol',
+          'Diesel',
+          'Saved At',
+          'Saved By',
+          'Deleted At',
+          'Deleted By',
+          'Note',
+        ],
+        rows: rows,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Opening reading history downloaded to $path')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteHistory(PumpOpeningReadingLogModel log) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete opening reading history?'),
+        content: const Text(
+          'This log will move to Deleted History for 30 days and then be permanently removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deleting = true);
+    try {
+      await _inventoryService.deleteOpeningReadingLog(log.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Opening reading history deleted.')),
+      );
+      await _reload(forceRefresh: true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  Widget _filterButton({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onTap,
+        child: OneLineScaleText(
+          value.isEmpty ? label : '$label: ${formatDateLabel(value)}',
+          alignment: Alignment.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kClayBg,
+      appBar: AppBar(
+        backgroundColor: kClayBg,
+        title: const Text('Opening Reading History'),
+      ),
+      body: FutureBuilder<_OpeningHistoryData>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+          }
+          final data = snapshot.data!;
+          final source = _showDeleted ? data.deleted : data.active;
+          final history = _sorted(source);
+          return RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                ClayCard(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _HistoryTabButton(
+                            label: 'Active',
+                            count: data.active.length,
+                            selected: !_showDeleted,
+                            onTap: () => setState(() => _showDeleted = false),
+                          ),
+                          const SizedBox(width: 8),
+                          _HistoryTabButton(
+                            label: 'Deleted',
+                            count: data.deleted.length,
+                            selected: _showDeleted,
+                            onTap: () => setState(() => _showDeleted = true),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'Download history',
+                            onPressed: history.isEmpty
+                                ? null
+                                : () => _downloadHistory(
+                                    history,
+                                    data.station.pumps,
+                                    deleted: _showDeleted,
+                                  ),
+                            icon: const Icon(Icons.download_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _filterButton(
+                            label: 'From',
+                            value: _fromDate,
+                            onTap: () => _pickDate(from: true),
+                          ),
+                          const SizedBox(width: 8),
+                          _filterButton(
+                            label: 'To',
+                            value: _toDate,
+                            onTap: () => _pickDate(from: false),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<_OpeningHistorySort>(
+                        initialValue: _sort,
+                        decoration: InputDecoration(
+                          labelText: 'Sort by',
+                          filled: true,
+                          fillColor: kClayBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        items: _OpeningHistorySort.values
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(_sortLabel(item)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _sort = value);
+                        },
+                      ),
+                      if (_fromDate.isNotEmpty || _toDate.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: _clearFilters,
+                          icon: const Icon(Icons.filter_alt_off_rounded),
+                          label: const Text('Clear filters'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (history.isEmpty)
+                  const ClayCard(
+                    margin: EdgeInsets.only(bottom: 14),
+                    child: Text(
+                      'No opening reading history for this filter.',
+                      style: TextStyle(color: kClaySub),
+                    ),
+                  )
+                else
+                  ...history.map(
+                    (item) => _OpeningReadingLogRow(
+                      log: item,
+                      pumps: data.station.pumps,
+                      displayTimestamp: _displayTimestamp,
+                      onDelete: widget.canEdit && !_showDeleted && !_deleting
+                          ? () => _deleteHistory(item)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
 class _OpeningReadingLogRow extends StatelessWidget {
   const _OpeningReadingLogRow({
     required this.log,
@@ -796,8 +999,6 @@ class _OpeningReadingLogRow extends StatelessWidget {
         return (readings?.petrol ?? 0).toStringAsFixed(2);
       case 'diesel':
         return (readings?.diesel ?? 0).toStringAsFixed(2);
-      case 'twoT':
-        return (readings?.twoT ?? 0).toStringAsFixed(2);
       default:
         return '0.00';
     }
@@ -876,7 +1077,6 @@ class _OpeningReadingLogRow extends StatelessWidget {
           const SizedBox(height: 10),
           ...pumps.map((pump) {
             final readings = log.readings[pump.id];
-            final supportsTwoT = pump.id == 'pump2';
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Column(
@@ -903,11 +1103,6 @@ class _OpeningReadingLogRow extends StatelessWidget {
                         label: 'Diesel',
                         value: _value(readings, 'diesel'),
                       ),
-                      if (supportsTwoT)
-                        _InfoChip(
-                          label: '2T Oil',
-                          value: _value(readings, 'twoT'),
-                        ),
                     ],
                   ),
                 ],
@@ -1002,47 +1197,6 @@ class _InfoChip extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EditTogglePill extends StatelessWidget {
-  const _EditTogglePill({required this.isEditing, required this.onTap});
-  final bool isEditing;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-              offset: const Offset(4, 4),
-              blurRadius: 10,
-            ),
-            const BoxShadow(
-              color: Colors.white,
-              offset: Offset(-3, -3),
-              blurRadius: 8,
-            ),
-          ],
-        ),
-        child: OneLineScaleText(
-          isEditing ? 'Cancel' : 'Edit',
-          alignment: Alignment.center,
-          style: TextStyle(
-            color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
       ),
     );
   }

@@ -24,6 +24,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   late DateTime _fromDate;
   late DateTime _toDate;
+  _EntryHistorySort _sort = _EntryHistorySort.dateNewest;
 
   @override
   void initState() {
@@ -97,6 +98,89 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     });
   }
 
+  double _entryLiters(ShiftEntryModel entry) {
+    return entry.totals.sold.petrol +
+        entry.totals.sold.diesel +
+        entry.totals.sold.twoT;
+  }
+
+  double _entryVariance(ShiftEntryModel entry) {
+    return entry.paymentTotal - entry.computedRevenue;
+  }
+
+  int _compareDateValues(String left, String right) {
+    final leftDate = DateTime.tryParse(left);
+    final rightDate = DateTime.tryParse(right);
+    if (leftDate != null && rightDate != null) {
+      return leftDate.compareTo(rightDate);
+    }
+    return left.compareTo(right);
+  }
+
+  List<ShiftEntryModel> _sortedEntries(List<ShiftEntryModel> entries) {
+    final sorted = [...entries];
+    sorted.sort((left, right) {
+      switch (_sort) {
+        case _EntryHistorySort.dateNewest:
+          return _compareDateValues(right.date, left.date);
+        case _EntryHistorySort.dateOldest:
+          return _compareDateValues(left.date, right.date);
+        case _EntryHistorySort.submittedNewest:
+          return _compareDateValues(
+            right.latestActivityTimestamp,
+            left.latestActivityTimestamp,
+          );
+        case _EntryHistorySort.submittedOldest:
+          return _compareDateValues(
+            left.latestActivityTimestamp,
+            right.latestActivityTimestamp,
+          );
+        case _EntryHistorySort.salesHigh:
+          return right.revenue.compareTo(left.revenue);
+        case _EntryHistorySort.salesLow:
+          return left.revenue.compareTo(right.revenue);
+        case _EntryHistorySort.litersHigh:
+          return _entryLiters(right).compareTo(_entryLiters(left));
+        case _EntryHistorySort.litersLow:
+          return _entryLiters(left).compareTo(_entryLiters(right));
+        case _EntryHistorySort.varianceHigh:
+          return _entryVariance(
+            right,
+          ).abs().compareTo(_entryVariance(left).abs());
+        case _EntryHistorySort.varianceLow:
+          return _entryVariance(
+            left,
+          ).abs().compareTo(_entryVariance(right).abs());
+      }
+    });
+    return sorted;
+  }
+
+  String _sortLabel(_EntryHistorySort sort) {
+    switch (sort) {
+      case _EntryHistorySort.dateNewest:
+        return 'Entry date - newest';
+      case _EntryHistorySort.dateOldest:
+        return 'Entry date - oldest';
+      case _EntryHistorySort.submittedNewest:
+        return 'Submitted - newest';
+      case _EntryHistorySort.submittedOldest:
+        return 'Submitted - oldest';
+      case _EntryHistorySort.salesHigh:
+        return 'Sales - high to low';
+      case _EntryHistorySort.salesLow:
+        return 'Sales - low to high';
+      case _EntryHistorySort.litersHigh:
+        return 'Liters - high to low';
+      case _EntryHistorySort.litersLow:
+        return 'Liters - low to high';
+      case _EntryHistorySort.varianceHigh:
+        return 'Variance - high to low';
+      case _EntryHistorySort.varianceLow:
+        return 'Variance - low to high';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -126,7 +210,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                 );
               }
 
-              final entries = snapshot.data ?? [];
+              final entries = _sortedEntries(snapshot.data ?? []);
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -237,6 +321,53 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                   ),
                 ),
                 child: const Text('Last 30 days'),
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.sizeOf(context).width - 32,
+                ),
+                child: SizedBox(
+                  width: 260,
+                  child: DropdownButtonFormField<_EntryHistorySort>(
+                    initialValue: _sort,
+                    decoration: InputDecoration(
+                      labelText: 'Sort by',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.08),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.28),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.50),
+                        ),
+                      ),
+                    ),
+                    dropdownColor: kClayPrimary,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    iconEnabledColor: Colors.white,
+                    items: _EntryHistorySort.values
+                        .map(
+                          (item) => DropdownMenuItem(
+                            value: item,
+                            child: Text(_sortLabel(item)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _sort = value);
+                    },
+                  ),
+                ),
               ),
             ],
           ),
@@ -352,6 +483,19 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
       ),
     );
   }
+}
+
+enum _EntryHistorySort {
+  dateNewest,
+  dateOldest,
+  submittedNewest,
+  submittedOldest,
+  salesHigh,
+  salesLow,
+  litersHigh,
+  litersLow,
+  varianceHigh,
+  varianceLow,
 }
 
 ButtonStyle _historyFilterButtonStyle() {

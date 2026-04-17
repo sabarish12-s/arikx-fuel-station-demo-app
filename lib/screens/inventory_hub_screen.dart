@@ -34,20 +34,14 @@ class InventoryHubScreen extends StatefulWidget {
 }
 
 class _InventoryHubData {
-  const _InventoryHubData({
-    required this.dashboard,
-    required this.snapshots,
-    required this.deletedSnapshots,
-  });
+  const _InventoryHubData({required this.dashboard, required this.snapshots});
 
   final InventoryDashboardModel dashboard;
   final List<InventoryStockSnapshotModel> snapshots;
-  final List<InventoryStockSnapshotModel> deletedSnapshots;
 }
 
 class _InventoryHubScreenState extends State<InventoryHubScreen> {
   final InventoryService _inventoryService = InventoryService();
-  final ReportExportService _reportExportService = ReportExportService();
   final TextEditingController _effectiveDateController =
       TextEditingController();
   final TextEditingController _petrolController = TextEditingController();
@@ -58,8 +52,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   bool _snapshotSeeded = false;
   bool _savingSnapshot = false;
-  bool _showDeletedStockHistory = false;
-  bool _deletingStockHistory = false;
 
   @override
   void initState() {
@@ -90,15 +82,10 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     final results = await Future.wait<dynamic>([
       _inventoryService.fetchInventoryDashboard(forceRefresh: forceRefresh),
       _inventoryService.fetchStockSnapshots(forceRefresh: forceRefresh),
-      _inventoryService.fetchStockSnapshots(
-        deletedOnly: true,
-        forceRefresh: forceRefresh,
-      ),
     ]);
     return _InventoryHubData(
       dashboard: results[0] as InventoryDashboardModel,
       snapshots: results[1] as List<InventoryStockSnapshotModel>,
-      deletedSnapshots: results[2] as List<InventoryStockSnapshotModel>,
     );
   }
 
@@ -158,7 +145,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     _effectiveDateController.text = picked.toIso8601String().split('T').first;
   }
 
-  Future<void> _saveSnapshot() async {
+  Future<bool> _saveSnapshot() async {
     final effectiveDate = _effectiveDateController.text.trim();
     final petrol = double.tryParse(_petrolController.text.trim());
     final diesel = double.tryParse(_dieselController.text.trim());
@@ -177,7 +164,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           content: Text('Enter a valid date and non-negative stock values.'),
         ),
       );
-      return;
+      return false;
     }
 
     setState(() => _savingSnapshot = true);
@@ -187,7 +174,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
         stock: {'petrol': petrol, 'diesel': diesel, 'two_t_oil': twoT},
         note: _noteController.text.trim(),
       );
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(const SnackBar(content: Text('Stock saved.')));
@@ -195,14 +182,16 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
         _snapshotSeeded = false;
         _future = _load(forceRefresh: true);
       });
+      return true;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
           content: Text(userFacingErrorMessage(error)),
         ),
       );
+      return false;
     } finally {
       if (mounted) {
         setState(() => _savingSnapshot = false);
@@ -210,98 +199,121 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     }
   }
 
-  Future<void> _downloadStockHistory(
-    List<InventoryStockSnapshotModel> history, {
-    required bool deleted,
-  }) async {
-    try {
-      final path = await _reportExportService.saveRowsToDownloads(
-        title: deleted ? 'deleted_stock_history' : 'stock_history',
-        notificationTitle: 'Stock history downloaded',
-        headers: [
-          'Effective Date',
-          'Petrol',
-          'Diesel',
-          '2T Oil',
-          'Saved At',
-          'Saved By',
-          'Deleted At',
-          'Deleted By',
-          'Note',
-        ],
-        rows: history
-            .map(
-              (item) => [
-                item.effectiveDate,
-                (item.stock['petrol'] ?? 0).toStringAsFixed(2),
-                (item.stock['diesel'] ?? 0).toStringAsFixed(2),
-                (item.stock['two_t_oil'] ?? 0).toStringAsFixed(2),
-                item.createdAt,
-                item.createdByName,
-                item.deletedAt,
-                item.deletedByName,
-                item.note,
+  Future<void> _openStockUpdateDialog(_InventoryHubData data) async {
+    _snapshotSeeded = false;
+    _seedSnapshotForm(data);
+    var saving = false;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Update Current Stock'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: saving ? null : _pickEffectiveDate,
+                      child: AbsorbPointer(
+                        child: TextField(
+                          controller: _effectiveDateController,
+                          decoration: InputDecoration(
+                            labelText: 'Effective date',
+                            suffixIcon: const Icon(Icons.calendar_today),
+                            filled: true,
+                            fillColor: const Color(0xFFECEFF8),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(18),
+                              borderSide: BorderSide.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _StockNumberField(
+                      label: 'Petrol stock liters',
+                      controller: _petrolController,
+                      enabled: !saving,
+                    ),
+                    const SizedBox(height: 12),
+                    _StockNumberField(
+                      label: 'Diesel stock liters',
+                      controller: _dieselController,
+                      enabled: !saving,
+                    ),
+                    const SizedBox(height: 12),
+                    _StockNumberField(
+                      label: '2T oil stock liters',
+                      controller: _twoTController,
+                      enabled: !saving,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _noteController,
+                      enabled: !saving,
+                      minLines: 2,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: 'Reason / note (optional)',
+                        filled: true,
+                        fillColor: const Color(0xFFECEFF8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setDialogState(() => saving = true);
+                          final saved = await _saveSnapshot();
+                          if (!context.mounted) return;
+                          setDialogState(() => saving = false);
+                          if (saved && dialogContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                          }
+                        },
+                  icon: saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: Text(saving ? 'Saving...' : 'Save Stock'),
+                ),
               ],
-            )
-            .toList(),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Stock history downloaded to $path')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB91C1C),
-          content: Text(userFacingErrorMessage(error)),
-        ),
-      );
-    }
+            );
+          },
+        );
+      },
+    );
   }
 
-  Future<void> _deleteStockHistory(InventoryStockSnapshotModel snapshot) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete stock history?'),
-        content: const Text(
-          'This record will move to Deleted History for 30 days and then be permanently removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
+  Future<void> _openStockHistory() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            _StockHistoryScreen(canManagePlanning: widget.canManagePlanning),
       ),
     );
-    if (confirmed != true) return;
-    setState(() => _deletingStockHistory = true);
-    try {
-      await _inventoryService.deleteStockSnapshot(snapshot.id);
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Stock history deleted.')));
-      setState(() {
-        _snapshotSeeded = false;
-        _future = _load(forceRefresh: true);
-      });
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFB91C1C),
-          content: Text(userFacingErrorMessage(error)),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _deletingStockHistory = false);
+    if (mounted) {
+      await _refresh();
     }
   }
 
@@ -375,12 +387,9 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             final activeHistory = data.snapshots.reversed.toList(
               growable: false,
             );
-            final deletedHistory = data.deletedSnapshots.reversed.toList(
-              growable: false,
-            );
-            final history = _showDeletedStockHistory
-                ? deletedHistory
-                : activeHistory;
+            final recentHistory = activeHistory.isEmpty
+                ? null
+                : activeHistory.first;
             final showStockManagement =
                 widget.showStockManagement || widget.stockManagementOnly;
             if (showStockManagement) _seedSnapshotForm(data);
@@ -528,34 +537,73 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Active Stock',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1A2561),
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Active Stock',
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF1A2561),
+                                ),
+                              ),
+                            ),
+                            if (widget.canManagePlanning)
+                              FilledButton(
+                                onPressed: _savingSnapshot
+                                    ? null
+                                    : () => _openStockUpdateDialog(data),
+                                child: const Text('Update Current Stock'),
+                              ),
+                          ],
                         ),
                         const SizedBox(height: 6),
                         Text(
                           activeSnapshot == null
                               ? 'No manual stock found.'
-                              : 'Latest applicable manual stock set for inventory calculations and reports.',
+                              : 'Current stock used for inventory calculations and reports.',
                           style: const TextStyle(
                             color: Color(0xFF8A93B8),
                             height: 1.35,
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
+                            _SnapshotPill(
+                              label: 'Petrol',
+                              value: formatLiters(
+                                activeSnapshot?.stock['petrol'] ??
+                                    planning.currentStock['petrol'] ??
+                                    0,
+                              ),
+                            ),
+                            _SnapshotPill(
+                              label: 'Diesel',
+                              value: formatLiters(
+                                activeSnapshot?.stock['diesel'] ??
+                                    planning.currentStock['diesel'] ??
+                                    0,
+                              ),
+                            ),
+                            _SnapshotPill(
+                              label: '2T Oil',
+                              value: formatLiters(
+                                activeSnapshot?.stock['two_t_oil'] ??
+                                    planning.currentStock['two_t_oil'] ??
+                                    0,
+                              ),
+                            ),
                             _SnapshotPill(
                               label: 'Effective date',
                               value: activeSnapshot == null
                                   ? 'Not set'
                                   : _displayDate(activeSnapshot.effectiveDate),
                             ),
-                            const SizedBox(width: 8),
                             _SnapshotPill(
                               label: 'Set by',
                               value:
@@ -566,7 +614,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                                   ? activeSnapshot!.createdByName
                                   : 'System',
                             ),
-                            const SizedBox(width: 8),
                             _SnapshotPill(
                               label: 'Lead / alert',
                               value:
@@ -596,99 +643,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                       ],
                     ),
                   ),
-                  if (widget.canManagePlanning)
-                    _ClayCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Set Manual Stock',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1A2561),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Save full dated stock values. The latest save on or before a day becomes the active baseline for that date.',
-                            style: TextStyle(
-                              color: Color(0xFF8A93B8),
-                              height: 1.35,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          GestureDetector(
-                            onTap: _savingSnapshot ? null : _pickEffectiveDate,
-                            child: AbsorbPointer(
-                              child: TextField(
-                                controller: _effectiveDateController,
-                                decoration: InputDecoration(
-                                  labelText: 'Effective date',
-                                  suffixIcon: const Icon(Icons.calendar_today),
-                                  filled: true,
-                                  fillColor: const Color(0xFFECEFF8),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _StockNumberField(
-                            label: 'Petrol stock liters',
-                            controller: _petrolController,
-                            enabled: !_savingSnapshot,
-                          ),
-                          const SizedBox(height: 12),
-                          _StockNumberField(
-                            label: 'Diesel stock liters',
-                            controller: _dieselController,
-                            enabled: !_savingSnapshot,
-                          ),
-                          const SizedBox(height: 12),
-                          _StockNumberField(
-                            label: '2T oil stock liters',
-                            controller: _twoTController,
-                            enabled: !_savingSnapshot,
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _noteController,
-                            enabled: !_savingSnapshot,
-                            minLines: 2,
-                            maxLines: 3,
-                            decoration: InputDecoration(
-                              labelText: 'Reason / note (optional)',
-                              filled: true,
-                              fillColor: const Color(0xFFECEFF8),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(18),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          FilledButton.icon(
-                            onPressed: _savingSnapshot ? null : _saveSnapshot,
-                            icon: _savingSnapshot
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.save_outlined),
-                            label: Text(
-                              _savingSnapshot ? 'Saving...' : 'Save Stock',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   _ClayCard(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -697,7 +651,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           children: [
                             const Expanded(
                               child: Text(
-                                'Stock History',
+                                'Latest Stock History',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -705,83 +659,35 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                                 ),
                               ),
                             ),
-                            IconButton(
-                              tooltip: 'Download history',
-                              onPressed: history.isEmpty
-                                  ? null
-                                  : () => _downloadStockHistory(
-                                      history,
-                                      deleted: _showDeletedStockHistory,
-                                    ),
-                              icon: const Icon(Icons.download_rounded),
+                            TextButton.icon(
+                              onPressed: _openStockHistory,
+                              icon: const Icon(Icons.history_rounded),
+                              label: const Text('View All'),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Every manual stock save is kept in history. If the same date is saved again, the newest save for that date becomes the active one.',
+                          'Showing the newest stock update here. Open all history for filters, sorting, downloads, and deleted records.',
                           style: TextStyle(
                             color: Color(0xFF8A93B8),
                             height: 1.35,
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            _HistoryTabButton(
-                              label: 'Active',
-                              count: activeHistory.length,
-                              selected: !_showDeletedStockHistory,
-                              onTap: () => setState(
-                                () => _showDeletedStockHistory = false,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _HistoryTabButton(
-                              label: 'Deleted',
-                              count: deletedHistory.length,
-                              selected: _showDeletedStockHistory,
-                              onTap: () => setState(
-                                () => _showDeletedStockHistory = true,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (_showDeletedStockHistory) ...[
-                          const SizedBox(height: 10),
+                        if (recentHistory == null)
                           const Text(
-                            'Deleted records are kept here for 30 days before permanent removal.',
-                            style: TextStyle(
-                              color: Color(0xFF8A93B8),
-                              fontSize: 12,
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 14),
-                        if (history.isEmpty)
-                          Text(
-                            _showDeletedStockHistory
-                                ? 'No deleted stock records.'
-                                : 'No stock records yet.',
+                            'No stock records yet.',
                             style: TextStyle(
                               color: Color(0xFF8A93B8),
                               fontSize: 13,
                             ),
                           )
                         else
-                          ...history.map(
-                            (item) => _SnapshotHistoryRow(
-                              snapshot: item,
-                              displayDate: _displayDate,
-                              displayTimestamp: _displayTimestamp,
-                              onDelete:
-                                  widget.canManagePlanning &&
-                                      !_showDeletedStockHistory &&
-                                      !_deletingStockHistory
-                                  ? () => _deleteStockHistory(item)
-                                  : null,
-                            ),
+                          _SnapshotHistoryRow(
+                            snapshot: recentHistory,
+                            displayDate: _displayDate,
+                            displayTimestamp: _displayTimestamp,
                           ),
                       ],
                     ),
@@ -881,6 +787,423 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+enum _StockHistorySort {
+  savedNewest,
+  savedOldest,
+  effectiveNewest,
+  effectiveOldest,
+}
+
+class _StockHistoryData {
+  const _StockHistoryData({required this.active, required this.deleted});
+
+  final List<InventoryStockSnapshotModel> active;
+  final List<InventoryStockSnapshotModel> deleted;
+}
+
+class _StockHistoryScreen extends StatefulWidget {
+  const _StockHistoryScreen({required this.canManagePlanning});
+
+  final bool canManagePlanning;
+
+  @override
+  State<_StockHistoryScreen> createState() => _StockHistoryScreenState();
+}
+
+class _StockHistoryScreenState extends State<_StockHistoryScreen> {
+  final InventoryService _inventoryService = InventoryService();
+  final ReportExportService _reportExportService = ReportExportService();
+  late Future<_StockHistoryData> _future;
+  bool _showDeleted = false;
+  bool _deleting = false;
+  String _fromDate = '';
+  String _toDate = '';
+  _StockHistorySort _sort = _StockHistorySort.savedNewest;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<_StockHistoryData> _load({bool forceRefresh = false}) async {
+    final results = await Future.wait<dynamic>([
+      _inventoryService.fetchStockSnapshots(
+        fromDate: _fromDate,
+        toDate: _toDate,
+        forceRefresh: forceRefresh,
+      ),
+      _inventoryService.fetchStockSnapshots(
+        fromDate: _fromDate,
+        toDate: _toDate,
+        deletedOnly: true,
+        forceRefresh: forceRefresh,
+      ),
+    ]);
+    return _StockHistoryData(
+      active: results[0] as List<InventoryStockSnapshotModel>,
+      deleted: results[1] as List<InventoryStockSnapshotModel>,
+    );
+  }
+
+  Future<void> _reload({bool forceRefresh = true}) async {
+    setState(() => _future = _load(forceRefresh: forceRefresh));
+    await _future;
+  }
+
+  List<InventoryStockSnapshotModel> _sorted(
+    List<InventoryStockSnapshotModel> items,
+  ) {
+    final sorted = [...items];
+    int compareText(String left, String right) => left.compareTo(right);
+    sorted.sort((left, right) {
+      switch (_sort) {
+        case _StockHistorySort.savedNewest:
+          return compareText(right.createdAt, left.createdAt);
+        case _StockHistorySort.savedOldest:
+          return compareText(left.createdAt, right.createdAt);
+        case _StockHistorySort.effectiveNewest:
+          return compareText(right.effectiveDate, left.effectiveDate);
+        case _StockHistorySort.effectiveOldest:
+          return compareText(left.effectiveDate, right.effectiveDate);
+      }
+    });
+    return sorted;
+  }
+
+  String _sortLabel(_StockHistorySort sort) {
+    switch (sort) {
+      case _StockHistorySort.savedNewest:
+        return 'Saved newest';
+      case _StockHistorySort.savedOldest:
+        return 'Saved oldest';
+      case _StockHistorySort.effectiveNewest:
+        return 'Effective newest';
+      case _StockHistorySort.effectiveOldest:
+        return 'Effective oldest';
+    }
+  }
+
+  Future<void> _pickDate({required bool from}) async {
+    final current = DateTime.tryParse(from ? _fromDate : _toDate);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked == null) return;
+    final value = picked.toIso8601String().split('T').first;
+    setState(() {
+      if (from) {
+        _fromDate = value;
+      } else {
+        _toDate = value;
+      }
+      _future = _load(forceRefresh: true);
+    });
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _fromDate = '';
+      _toDate = '';
+      _future = _load(forceRefresh: true);
+    });
+  }
+
+  String _displayDate(String raw) =>
+      raw.trim().isEmpty ? 'Not available' : formatDateLabel(raw);
+
+  String _displayTimestamp(String raw) {
+    final value = DateTime.tryParse(raw);
+    if (value == null) {
+      return raw.trim().isEmpty ? 'Unknown time' : raw;
+    }
+    final local = value.toLocal();
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour24 = local.hour;
+    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final suffix = hour24 >= 12 ? 'PM' : 'AM';
+    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
+  }
+
+  Future<void> _download(
+    List<InventoryStockSnapshotModel> history, {
+    required bool deleted,
+  }) async {
+    try {
+      final path = await _reportExportService.saveRowsToDownloads(
+        title: deleted ? 'deleted_stock_history' : 'stock_history',
+        notificationTitle: 'Stock history downloaded',
+        headers: [
+          'Effective Date',
+          'Petrol',
+          'Diesel',
+          '2T Oil',
+          'Saved At',
+          'Saved By',
+          'Deleted At',
+          'Deleted By',
+          'Note',
+        ],
+        rows: history
+            .map(
+              (item) => [
+                item.effectiveDate,
+                (item.stock['petrol'] ?? 0).toStringAsFixed(2),
+                (item.stock['diesel'] ?? 0).toStringAsFixed(2),
+                (item.stock['two_t_oil'] ?? 0).toStringAsFixed(2),
+                item.createdAt,
+                item.createdByName,
+                item.deletedAt,
+                item.deletedByName,
+                item.note,
+              ],
+            )
+            .toList(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Stock history downloaded to $path')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    }
+  }
+
+  Future<void> _deleteStockHistory(InventoryStockSnapshotModel snapshot) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete stock history?'),
+        content: const Text(
+          'This record will move to Deleted History for 30 days and then be permanently removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _deleting = true);
+    try {
+      await _inventoryService.deleteStockSnapshot(snapshot.id);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Stock history deleted.')));
+      await _reload(forceRefresh: true);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFB91C1C),
+          content: Text(userFacingErrorMessage(error)),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _deleting = false);
+    }
+  }
+
+  Widget _filterButton({
+    required String label,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onTap,
+        child: OneLineScaleText(
+          value.isEmpty ? label : '$label: ${formatDateLabel(value)}',
+          alignment: Alignment.center,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFECEFF8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFECEFF8),
+        title: const Text('Stock History'),
+      ),
+      body: FutureBuilder<_StockHistoryData>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+          }
+          final data = snapshot.data!;
+          final source = _showDeleted ? data.deleted : data.active;
+          final history = _sorted(source);
+          return RefreshIndicator(
+            onRefresh: _reload,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              children: [
+                _ClayCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _HistoryTabButton(
+                            label: 'Active',
+                            count: data.active.length,
+                            selected: !_showDeleted,
+                            onTap: () => setState(() => _showDeleted = false),
+                          ),
+                          const SizedBox(width: 8),
+                          _HistoryTabButton(
+                            label: 'Deleted',
+                            count: data.deleted.length,
+                            selected: _showDeleted,
+                            onTap: () => setState(() => _showDeleted = true),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'Download history',
+                            onPressed: history.isEmpty
+                                ? null
+                                : () =>
+                                      _download(history, deleted: _showDeleted),
+                            icon: const Icon(Icons.download_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _filterButton(
+                            label: 'From',
+                            value: _fromDate,
+                            onTap: () => _pickDate(from: true),
+                          ),
+                          const SizedBox(width: 8),
+                          _filterButton(
+                            label: 'To',
+                            value: _toDate,
+                            onTap: () => _pickDate(from: false),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<_StockHistorySort>(
+                        initialValue: _sort,
+                        decoration: InputDecoration(
+                          labelText: 'Sort by',
+                          filled: true,
+                          fillColor: const Color(0xFFECEFF8),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        items: _StockHistorySort.values
+                            .map(
+                              (item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(_sortLabel(item)),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _sort = value);
+                        },
+                      ),
+                      if (_fromDate.isNotEmpty || _toDate.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        TextButton.icon(
+                          onPressed: _clearFilters,
+                          icon: const Icon(Icons.filter_alt_off_rounded),
+                          label: const Text('Clear filters'),
+                        ),
+                      ],
+                      if (_showDeleted) ...[
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Deleted records are kept here for 30 days before permanent removal.',
+                          style: TextStyle(
+                            color: Color(0xFF8A93B8),
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (history.isEmpty)
+                  _ClayCard(
+                    child: Text(
+                      _showDeleted
+                          ? 'No deleted stock records for this filter.'
+                          : 'No stock records for this filter.',
+                      style: const TextStyle(
+                        color: Color(0xFF8A93B8),
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                else
+                  ...history.map(
+                    (item) => _SnapshotHistoryRow(
+                      snapshot: item,
+                      displayDate: _displayDate,
+                      displayTimestamp: _displayTimestamp,
+                      onDelete:
+                          widget.canManagePlanning &&
+                              !_showDeleted &&
+                              !_deleting
+                          ? () => _deleteStockHistory(item)
+                          : null,
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
