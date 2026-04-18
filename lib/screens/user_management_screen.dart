@@ -55,25 +55,91 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final bool? shouldSave = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Staff Member'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name'),
+        builder: (context, setDialogState) => ClayDialogShell(
+          title: 'Add Staff Member',
+          subtitle: 'Create a station user and assign the access role.',
+          icon: Icons.person_add_alt_1_rounded,
+          actions: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kClayPrimary,
+                  side: BorderSide(color: kClayPrimary.withValues(alpha: 0.16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                  keyboardType: TextInputType.emailAddress,
+                child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF4D66A9),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
+                child: const Text('Save'),
+              ),
+            ),
+          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClayDialogSection(
+                title: 'Staff details',
+                subtitle:
+                    'This account will be available in Users & Roles once saved.',
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: clayDialogInputDecoration(
+                        label: 'Name',
+                        hintText: 'Staff member name',
+                        prefixIcon: const Icon(
+                          Icons.badge_outlined,
+                          color: kClaySub,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: emailController,
+                      decoration: clayDialogInputDecoration(
+                        label: 'Email',
+                        hintText: 'name@example.com',
+                        prefixIcon: const Icon(
+                          Icons.mail_outline_rounded,
+                          color: kClaySub,
+                        ),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              ClayDialogSection(
+                title: 'Role access',
+                subtitle:
+                    'Choose what this user can manage inside the station.',
+                child: DropdownButtonFormField<String>(
                   initialValue: role,
+                  decoration: clayDialogInputDecoration(
+                    label: 'Role',
+                    prefixIcon: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: kClaySub,
+                    ),
+                  ),
                   items: canManageSuperAdmins
                       ? const [
                           DropdownMenuItem(
@@ -106,19 +172,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     setDialogState(() => role = value);
                   },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Save'),
-            ),
-          ],
         ),
       ),
     );
@@ -191,27 +247,17 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
 
-    final bool? shouldDelete = await showDialog<bool>(
+    final shouldDelete = await showClayConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Pending Requests'),
-        content: Text(
+      title: 'Delete Pending Requests',
+      message:
           'Delete ${_selectedRequestIds.length} pending request(s) and remove those pending users?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Delete',
+      icon: Icons.delete_sweep_rounded,
+      destructive: true,
     );
 
-    if (shouldDelete != true) {
+    if (!shouldDelete) {
       return;
     }
 
@@ -242,25 +288,16 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _deleteStaff(ManagedUser user) async {
-    final bool? shouldDelete = await showDialog<bool>(
+    final shouldDelete = await showClayConfirmDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Staff Member'),
-        content: Text('Remove ${user.email} from staff access?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+      title: 'Delete Staff Member',
+      message: 'Remove ${user.email} from staff access?',
+      confirmLabel: 'Delete',
+      icon: Icons.person_remove_alt_1_rounded,
+      destructive: true,
     );
 
-    if (shouldDelete != true) {
+    if (!shouldDelete) {
       return;
     }
 
@@ -867,13 +904,14 @@ class _StatusPill extends StatelessWidget {
     final normalized = status.toLowerCase();
     final isApproved = normalized == 'approved';
     final color = isApproved
-        ? const Color(0xFF2AA878)
-        : const Color(0xFFC77A18);
+        ? const Color(0xFF2F7D64)
+        : const Color(0xFF9A6A24);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: isApproved ? const Color(0xFFF5FBF8) : const Color(0xFFFCF8F1),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
       ),
       child: Text(
         status,
@@ -1007,7 +1045,7 @@ class _StaffActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? const Color(0xFFB91C1C) : kClayPrimary;
+    final color = destructive ? const Color(0xFFAD5162) : kClayPrimary;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
@@ -1018,14 +1056,14 @@ class _StaffActionButton extends StatelessWidget {
           color: filled
               ? kClayPrimary
               : destructive
-              ? const Color(0xFFFFEEF0)
-              : const Color(0xFFECEFF8),
+              ? const Color(0xFFFFFBFC)
+              : const Color(0xFFF7F8FD),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: filled
                 ? kClayPrimary
                 : destructive
-                ? const Color(0xFFF6C9CF)
+                ? const Color(0xFFE7C6CF)
                 : const Color(0xFFDDE2F0),
           ),
         ),

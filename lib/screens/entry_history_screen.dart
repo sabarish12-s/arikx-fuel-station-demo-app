@@ -274,7 +274,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Use the date range and sorting here to narrow entries.',
+            'Use the filter and sorting controls below to narrow entries.',
             style: TextStyle(
               color: Colors.white70,
               height: 1.4,
@@ -282,67 +282,74 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                flex: 6,
-                child: SizedBox(
-                  height: 58,
-                  child: OutlinedButton.icon(
-                    onPressed: _pickDateRange,
-                    icon: const Icon(Icons.event_available_rounded),
-                    label: Text(
-                      '${formatDateLabel(_toApiDate(_fromDate))} to '
-                      '${formatDateLabel(_toApiDate(_toDate))}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: _historyFilterButtonStyle(),
-                  ),
-                ),
+          const Text(
+            'Filter',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 58,
+            child: OutlinedButton.icon(
+              onPressed: _pickDateRange,
+              icon: const Icon(Icons.event_available_rounded),
+              label: Text(
+                '${formatDateLabel(_toApiDate(_fromDate))} to '
+                '${formatDateLabel(_toApiDate(_toDate))}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 4,
-                child: Container(
-                  height: 58,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.28),
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<_EntryHistorySort>(
-                      value: _sort,
-                      isExpanded: true,
-                      dropdownColor: kClayPrimary,
-                      borderRadius: BorderRadius.circular(16),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
+              style: _historyFilterButtonStyle(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Sorting',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 58,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<_EntryHistorySort>(
+                value: _sort,
+                isExpanded: true,
+                dropdownColor: kClayPrimary,
+                borderRadius: BorderRadius.circular(16),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+                iconEnabledColor: Colors.white,
+                items: _EntryHistorySort.values
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(_sortLabel(item)),
                       ),
-                      iconEnabledColor: Colors.white,
-                      items: _EntryHistorySort.values
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item,
-                              child: Text(_sortLabel(item)),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _sort = value);
-                      },
-                    ),
-                  ),
-                ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _sort = value);
+                },
               ),
-            ],
+            ),
           ),
         ],
       ),

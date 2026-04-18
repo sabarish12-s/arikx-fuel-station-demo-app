@@ -151,24 +151,14 @@ class PendingApprovalScreen extends StatelessWidget {
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: () async {
-                final shouldLogout = await showDialog<bool>(
+                final shouldLogout = await showClayConfirmDialog(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Logout'),
-                    content: const Text('Are you sure you want to logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('Logout'),
-                      ),
-                    ],
-                  ),
+                  title: 'Logout',
+                  message: 'Are you sure you want to logout?',
+                  confirmLabel: 'Logout',
+                  icon: Icons.logout_rounded,
                 );
-                if (shouldLogout != true) {
+                if (!shouldLogout) {
                   return;
                 }
                 await AuthService().signOut();

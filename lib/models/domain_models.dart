@@ -451,8 +451,9 @@ FuelPricePeriodModel? _resolveActiveFuelPricePeriod(
   if (periods.isEmpty) {
     return null;
   }
-  final sorted = periods.where((period) => !period.isDeleted).toList()
-    ..sort(_compareFuelPricePeriods);
+  final sorted =
+      periods.where((period) => !period.isDeleted).toList()
+        ..sort(_compareFuelPricePeriods);
   final todayKey = _fuelPriceDateKeyForNow();
   final applicable = sorted.where(
     (period) => _fuelPricePeriodAppliesOn(period, todayKey),
@@ -497,25 +498,27 @@ class FuelPriceModel {
   }
 
   factory FuelPriceModel.fromJson(Map<String, dynamic> json) {
-    final parsedPeriods = (json['periods'] as List<dynamic>? ?? const [])
-        .map(
-          (item) => FuelPricePeriodModel.fromJson(
-            item as Map<String, dynamic>? ?? const {},
-          ),
-        )
-        .toList();
-    final periods = parsedPeriods.isNotEmpty
-        ? parsedPeriods
-        : [
-            FuelPricePeriodModel(
-              effectiveFrom: json['effectiveFrom']?.toString() ?? '',
-              effectiveTo: json['effectiveTo']?.toString() ?? '',
-              costPrice: (json['costPrice'] as num?)?.toDouble() ?? 0,
-              sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0,
-              updatedAt: json['updatedAt']?.toString() ?? '',
-              updatedBy: json['updatedBy']?.toString() ?? '',
-            ),
-          ];
+    final parsedPeriods =
+        (json['periods'] as List<dynamic>? ?? const [])
+            .map(
+              (item) => FuelPricePeriodModel.fromJson(
+                item as Map<String, dynamic>? ?? const {},
+              ),
+            )
+            .toList();
+    final periods =
+        parsedPeriods.isNotEmpty
+            ? parsedPeriods
+            : [
+              FuelPricePeriodModel(
+                effectiveFrom: json['effectiveFrom']?.toString() ?? '',
+                effectiveTo: json['effectiveTo']?.toString() ?? '',
+                costPrice: (json['costPrice'] as num?)?.toDouble() ?? 0,
+                sellingPrice: (json['sellingPrice'] as num?)?.toDouble() ?? 0,
+                updatedAt: json['updatedAt']?.toString() ?? '',
+                updatedBy: json['updatedBy']?.toString() ?? '',
+              ),
+            ];
     return FuelPriceModel(
       fuelTypeId: json['fuelTypeId']?.toString() ?? '',
       costPrice: (json['costPrice'] as num?)?.toDouble() ?? 0,
@@ -845,6 +848,121 @@ class PumpOpeningReadingLogModel {
   }
 }
 
+class StationDaySetupModel {
+  const StationDaySetupModel({
+    required this.id,
+    required this.stationId,
+    required this.effectiveDate,
+    required this.openingReadings,
+    required this.startingStock,
+    required this.fuelPrices,
+    required this.note,
+    required this.createdAt,
+    required this.createdBy,
+    required this.createdByName,
+    this.updatedAt = '',
+    this.updatedBy = '',
+    this.updatedByName = '',
+    this.deletedAt = '',
+    this.deletedBy = '',
+    this.deletedByName = '',
+    this.lockedAt = '',
+    this.lockedBy = '',
+    this.lockedByName = '',
+  });
+
+  final String id;
+  final String stationId;
+  final String effectiveDate;
+  final Map<String, PumpReadings> openingReadings;
+  final Map<String, double> startingStock;
+  final Map<String, Map<String, double>> fuelPrices;
+  final String note;
+  final String createdAt;
+  final String createdBy;
+  final String createdByName;
+  final String updatedAt;
+  final String updatedBy;
+  final String updatedByName;
+  final String deletedAt;
+  final String deletedBy;
+  final String deletedByName;
+  final String lockedAt;
+  final String lockedBy;
+  final String lockedByName;
+
+  bool get isDeleted => deletedAt.trim().isNotEmpty;
+  bool get isLocked => lockedAt.trim().isNotEmpty;
+
+  factory StationDaySetupModel.fromJson(Map<String, dynamic> json) {
+    final openingJson =
+        json['openingReadings'] as Map<String, dynamic>? ?? const {};
+    final stockJson =
+        json['startingStock'] as Map<String, dynamic>? ?? const {};
+    final pricesJson = json['fuelPrices'] as Map<String, dynamic>? ?? const {};
+    return StationDaySetupModel(
+      id: json['id']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? '',
+      effectiveDate: json['effectiveDate']?.toString() ?? '',
+      openingReadings: openingJson.map(
+        (key, value) =>
+            MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
+      ),
+      startingStock: {
+        'petrol': (stockJson['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (stockJson['diesel'] as num?)?.toDouble() ?? 0,
+        'two_t_oil': (stockJson['two_t_oil'] as num?)?.toDouble() ?? 0,
+      },
+      fuelPrices: pricesJson.map((key, value) {
+        final priceJson = value as Map<String, dynamic>? ?? const {};
+        return MapEntry(key, {
+          'costPrice': (priceJson['costPrice'] as num?)?.toDouble() ?? 0,
+          'sellingPrice': (priceJson['sellingPrice'] as num?)?.toDouble() ?? 0,
+        });
+      }),
+      note: json['note']?.toString() ?? '',
+      createdAt: json['createdAt']?.toString() ?? '',
+      createdBy: json['createdBy']?.toString() ?? '',
+      createdByName: json['createdByName']?.toString() ?? '',
+      updatedAt: json['updatedAt']?.toString() ?? '',
+      updatedBy: json['updatedBy']?.toString() ?? '',
+      updatedByName: json['updatedByName']?.toString() ?? '',
+      deletedAt: json['deletedAt']?.toString() ?? '',
+      deletedBy: json['deletedBy']?.toString() ?? '',
+      deletedByName: json['deletedByName']?.toString() ?? '',
+      lockedAt: json['lockedAt']?.toString() ?? '',
+      lockedBy: json['lockedBy']?.toString() ?? '',
+      lockedByName: json['lockedByName']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'stationId': stationId,
+      'effectiveDate': effectiveDate,
+      'openingReadings': openingReadings.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
+      'startingStock': startingStock,
+      'fuelPrices': fuelPrices,
+      'note': note,
+      'createdAt': createdAt,
+      'createdBy': createdBy,
+      'createdByName': createdByName,
+      'updatedAt': updatedAt,
+      'updatedBy': updatedBy,
+      'updatedByName': updatedByName,
+      'deletedAt': deletedAt,
+      'deletedBy': deletedBy,
+      'deletedByName': deletedByName,
+      'lockedAt': lockedAt,
+      'lockedBy': lockedBy,
+      'lockedByName': lockedByName,
+    };
+  }
+}
+
 class StationConfigModel {
   const StationConfigModel({
     required this.id,
@@ -875,21 +993,24 @@ class StationConfigModel {
         json['baseReadings'] as Map<String, dynamic>? ?? const {};
     final Map<String, dynamic> meterLimitsJson =
         json['meterLimits'] as Map<String, dynamic>? ?? const {};
-    final rawShifts = (json['shifts'] as List<dynamic>? ?? const [])
-        .map((item) => item.toString().trim())
-        .where((item) => item.isNotEmpty)
-        .toList();
+    final rawShifts =
+        (json['shifts'] as List<dynamic>? ?? const [])
+            .map((item) => item.toString().trim())
+            .where((item) => item.isNotEmpty)
+            .toList();
     return StationConfigModel(
       id: json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? '',
       code: json['code']?.toString() ?? '',
       city: json['city']?.toString() ?? '',
       shifts: rawShifts.toSet().toList(),
-      pumps: (json['pumps'] as List<dynamic>? ?? const [])
-          .map(
-            (item) => StationPumpModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
+      pumps:
+          (json['pumps'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    StationPumpModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
       baseReadings: baseReadingsJson.map(
         (key, value) =>
             MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
@@ -1037,24 +1158,27 @@ class InventoryDashboardModel {
       inventoryPlanning: InventoryPlanningModel.fromJson(
         json['inventoryPlanning'] as Map<String, dynamic>? ?? const {},
       ),
-      forecast: (json['forecast'] as List<dynamic>? ?? const [])
-          .map(
-            (item) => FuelInventoryForecastModel.fromJson(
-              item as Map<String, dynamic>,
-            ),
-          )
-          .toList(),
-      deliveries: (json['deliveries'] as List<dynamic>? ?? const [])
-          .map(
-            (item) =>
-                DeliveryReceiptModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
-      activeStockSnapshot: json['activeStockSnapshot'] is Map<String, dynamic>
-          ? InventoryStockSnapshotModel.fromJson(
-              json['activeStockSnapshot'] as Map<String, dynamic>,
-            )
-          : null,
+      forecast:
+          (json['forecast'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => FuelInventoryForecastModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
+      deliveries:
+          (json['deliveries'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    DeliveryReceiptModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+      activeStockSnapshot:
+          json['activeStockSnapshot'] is Map<String, dynamic>
+              ? InventoryStockSnapshotModel.fromJson(
+                json['activeStockSnapshot'] as Map<String, dynamic>,
+              )
+              : null,
     );
   }
 }
@@ -1176,10 +1300,9 @@ class ShiftEntryModel {
       openingReadings: parseReadings('openingReadings'),
       closingReadings: parseReadings('closingReadings'),
       soldByPump: parseReadings('soldByPump'),
-      pumpAttendants:
-          (json['pumpAttendants'] as Map<String, dynamic>? ?? const {}).map(
-            (key, value) => MapEntry(key, value?.toString() ?? ''),
-          ),
+      pumpAttendants: (json['pumpAttendants'] as Map<String, dynamic>? ??
+              const {})
+          .map((key, value) => MapEntry(key, value?.toString() ?? '')),
       pumpTesting: (json['pumpTesting'] as Map<String, dynamic>? ?? const {})
           .map((key, value) => MapEntry(key, parsePumpTesting(value))),
       pumpPayments: (json['pumpPayments'] as Map<String, dynamic>? ?? const {})
@@ -1191,18 +1314,19 @@ class ShiftEntryModel {
               ),
             ),
           ),
-      pumpCollections:
-          (json['pumpCollections'] as Map<String, dynamic>? ?? const {}).map(
-            (key, value) => MapEntry(key, (value as num?)?.toDouble() ?? 0),
-          ),
+      pumpCollections: (json['pumpCollections'] as Map<String, dynamic>? ??
+              const {})
+          .map((key, value) => MapEntry(key, (value as num?)?.toDouble() ?? 0)),
       paymentBreakdown: PaymentBreakdownModel.fromJson(
         json['paymentBreakdown'] as Map<String, dynamic>? ?? const {},
       ),
-      creditEntries: (json['creditEntries'] as List<dynamic>? ?? const [])
-          .map(
-            (item) => CreditEntryModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
+      creditEntries:
+          (json['creditEntries'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    CreditEntryModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
       creditCollections:
           (json['creditCollections'] as List<dynamic>? ?? const [])
               .map(
@@ -1219,16 +1343,16 @@ class ShiftEntryModel {
             {
               'petrol':
                   ((json['totals'] as Map<String, dynamic>? ?? const {})['sold']
-                      as Map<String, dynamic>? ??
-                  const {})['petrol'],
+                          as Map<String, dynamic>? ??
+                      const {})['petrol'],
               'diesel':
                   ((json['totals'] as Map<String, dynamic>? ?? const {})['sold']
-                      as Map<String, dynamic>? ??
-                  const {})['diesel'],
+                          as Map<String, dynamic>? ??
+                      const {})['diesel'],
               'twoT':
                   ((json['totals'] as Map<String, dynamic>? ?? const {})['sold']
-                      as Map<String, dynamic>? ??
-                  const {})['twoT'],
+                          as Map<String, dynamic>? ??
+                      const {})['twoT'],
             },
       ),
       revenue: (json['revenue'] as num?)?.toDouble() ?? 0,
@@ -1241,11 +1365,9 @@ class ShiftEntryModel {
       mismatchAmount: (json['mismatchAmount'] as num?)?.toDouble() ?? 0,
       mismatchReason: json['mismatchReason']?.toString() ?? '',
       profit: (json['profit'] as num?)?.toDouble() ?? 0,
-      priceSnapshot:
-          (json['priceSnapshot'] as Map<String, dynamic>? ?? const {}).map((
-            key,
-            value,
-          ) {
+      priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ??
+              const {})
+          .map((key, value) {
             final entry = value as Map<String, dynamic>? ?? const {};
             return MapEntry(key, {
               'sellingPrice': (entry['sellingPrice'] as num?)?.toDouble() ?? 0,
@@ -1443,12 +1565,14 @@ class CreditCustomerDetailModel {
       openedAt: json['openedAt']?.toString() ?? '',
       lastClosedAt: json['lastClosedAt']?.toString() ?? '',
       lastActivityDate: json['lastActivityDate']?.toString() ?? '',
-      transactions: (json['transactions'] as List<dynamic>? ?? const [])
-          .map(
-            (item) =>
-                CreditTransactionModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
+      transactions:
+          (json['transactions'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => CreditTransactionModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
     );
   }
 }
@@ -1457,6 +1581,10 @@ class SalesDashboardModel {
   const SalesDashboardModel({
     required this.station,
     required this.date,
+    required this.setupExists,
+    required this.allowedEntryDate,
+    required this.activeSetupDate,
+    required this.entryLockedReason,
     required this.openingReadings,
     required this.selectedEntry,
     required this.entryExists,
@@ -1473,6 +1601,10 @@ class SalesDashboardModel {
 
   final StationConfigModel station;
   final String date;
+  final bool setupExists;
+  final String allowedEntryDate;
+  final String activeSetupDate;
+  final String entryLockedReason;
   final Map<String, PumpReadings> openingReadings;
   final ShiftEntryModel? selectedEntry;
   final bool entryExists;
@@ -1495,15 +1627,20 @@ class SalesDashboardModel {
         json['station'] as Map<String, dynamic>? ?? const {},
       ),
       date: json['date']?.toString() ?? '',
+      setupExists: json['setupExists'] as bool? ?? false,
+      allowedEntryDate: json['allowedEntryDate']?.toString() ?? '',
+      activeSetupDate: json['activeSetupDate']?.toString() ?? '',
+      entryLockedReason: json['entryLockedReason']?.toString() ?? '',
       openingReadings: readings.map(
         (key, value) =>
             MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
       ),
-      selectedEntry: json['selectedEntry'] == null
-          ? null
-          : ShiftEntryModel.fromJson(
-              json['selectedEntry'] as Map<String, dynamic>,
-            ),
+      selectedEntry:
+          json['selectedEntry'] == null
+              ? null
+              : ShiftEntryModel.fromJson(
+                json['selectedEntry'] as Map<String, dynamic>,
+              ),
       entryExists: json['entryExists'] as bool? ?? false,
       revenue: (totals['revenue'] as num?)?.toDouble() ?? 0,
       paymentTotal: (totals['paymentTotal'] as num?)?.toDouble() ?? 0,
@@ -1515,20 +1652,57 @@ class SalesDashboardModel {
           (totals['entriesCompleted'] as num?)?.toInt() ??
           (totals['shiftsCompleted'] as num?)?.toInt() ??
           0,
-      todaysEntries: (json['todaysEntries'] as List<dynamic>? ?? const [])
-          .map((item) => ShiftEntryModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
-      priceSnapshot:
-          (json['priceSnapshot'] as Map<String, dynamic>? ?? const {}).map((
-            key,
-            value,
-          ) {
+      todaysEntries:
+          (json['todaysEntries'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    ShiftEntryModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+      priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ??
+              const {})
+          .map((key, value) {
             final entry = value as Map<String, dynamic>? ?? const {};
             return MapEntry(key, {
               'sellingPrice': (entry['sellingPrice'] as num?)?.toDouble() ?? 0,
               'costPrice': (entry['costPrice'] as num?)?.toDouble() ?? 0,
             });
           }),
+    );
+  }
+}
+
+class DaySetupStateModel {
+  const DaySetupStateModel({
+    required this.setupExists,
+    required this.allowedEntryDate,
+    required this.nextAllowedSetupDate,
+    required this.activeSetupDate,
+    required this.entryLockedReason,
+    required this.setups,
+  });
+
+  final bool setupExists;
+  final String allowedEntryDate;
+  final String nextAllowedSetupDate;
+  final String activeSetupDate;
+  final String entryLockedReason;
+  final List<StationDaySetupModel> setups;
+
+  factory DaySetupStateModel.fromJson(Map<String, dynamic> json) {
+    return DaySetupStateModel(
+      setupExists: json['setupExists'] as bool? ?? false,
+      allowedEntryDate: json['allowedEntryDate']?.toString() ?? '',
+      nextAllowedSetupDate: json['nextAllowedSetupDate']?.toString() ?? '',
+      activeSetupDate: json['activeSetupDate']?.toString() ?? '',
+      entryLockedReason: json['entryLockedReason']?.toString() ?? '',
+      setups:
+          (json['setups'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    StationDaySetupModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
     );
   }
 }
@@ -1590,9 +1764,10 @@ class PumpPerformanceModel {
       collectedAmount: (json['collectedAmount'] as num?)?.toDouble() ?? 0,
       computedSalesValue: (json['computedSalesValue'] as num?)?.toDouble() ?? 0,
       variance: (json['variance'] as num?)?.toDouble() ?? 0,
-      attendantsSeen: (json['attendantsSeen'] as List<dynamic>? ?? const [])
-          .map((item) => item.toString())
-          .toList(),
+      attendantsSeen:
+          (json['attendantsSeen'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(),
     );
   }
 }
@@ -1629,9 +1804,10 @@ class AttendantPerformanceModel {
       computedSalesValue: (json['computedSalesValue'] as num?)?.toDouble() ?? 0,
       variance: (json['variance'] as num?)?.toDouble() ?? 0,
       activeDays: (json['activeDays'] as num?)?.toInt() ?? 0,
-      pumpsWorked: (json['pumpsWorked'] as List<dynamic>? ?? const [])
-          .map((item) => item.toString())
-          .toList(),
+      pumpsWorked:
+          (json['pumpsWorked'] as List<dynamic>? ?? const [])
+              .map((item) => item.toString())
+              .toList(),
     );
   }
 }
@@ -1734,12 +1910,13 @@ class ManagementDashboardModel {
           (totals['entriesCompleted'] as num?)?.toInt() ??
           (totals['shiftsCompleted'] as num?)?.toInt() ??
           0,
-      pumpPerformance: (json['pumpPerformance'] as List<dynamic>? ?? const [])
-          .map(
-            (item) =>
-                PumpPerformanceModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
+      pumpPerformance:
+          (json['pumpPerformance'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    PumpPerformanceModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
       attendantPerformance:
           (json['attendantPerformance'] as List<dynamic>? ?? const [])
               .map(
@@ -1748,21 +1925,33 @@ class ManagementDashboardModel {
                 ),
               )
               .toList(),
-      trend: (json['trend'] as List<dynamic>? ?? const [])
-          .map(
-            (item) =>
-                DashboardTrendPointModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
-      recentEntries: (json['recentEntries'] as List<dynamic>? ?? const [])
-          .map((item) => ShiftEntryModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
-      fuelTypes: (json['fuelTypes'] as List<dynamic>? ?? const [])
-          .map((item) => FuelTypeModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
-      prices: (json['prices'] as List<dynamic>? ?? const [])
-          .map((item) => FuelPriceModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      trend:
+          (json['trend'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => DashboardTrendPointModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
+      recentEntries:
+          (json['recentEntries'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    ShiftEntryModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+      fuelTypes:
+          (json['fuelTypes'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => FuelTypeModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
+      prices:
+          (json['prices'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => FuelPriceModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
     );
   }
 }
@@ -1832,15 +2021,21 @@ class DailySummaryModel {
       dieselSold: (totals['dieselSold'] as num?)?.toDouble() ?? 0,
       twoTSold: (totals['twoTSold'] as num?)?.toDouble() ?? 0,
       flaggedCount: (totals['flaggedCount'] as num?)?.toInt() ?? 0,
-      distribution: (json['distribution'] as List<dynamic>? ?? const [])
-          .map(
-            (item) =>
-                ShiftDistributionModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
-      entries: (json['entries'] as List<dynamic>? ?? const [])
-          .map((item) => ShiftEntryModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      distribution:
+          (json['distribution'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => ShiftDistributionModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList(),
+      entries:
+          (json['entries'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    ShiftEntryModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
     );
   }
 }
@@ -1946,9 +2141,13 @@ class MonthlyReportModel {
       fuelBreakdown: breakdown.map(
         (key, value) => MapEntry(key, (value as num).toDouble()),
       ),
-      trend: (json['trend'] as List<dynamic>? ?? const [])
-          .map((item) => TrendPointModel.fromJson(item as Map<String, dynamic>))
-          .toList(),
+      trend:
+          (json['trend'] as List<dynamic>? ?? const [])
+              .map(
+                (item) =>
+                    TrendPointModel.fromJson(item as Map<String, dynamic>),
+              )
+              .toList(),
     );
   }
 }

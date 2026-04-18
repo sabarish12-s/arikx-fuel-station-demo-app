@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../models/auth_models.dart';
+import 'day_setup_screen.dart';
 import '../widgets/responsive_text.dart';
 import 'flag_threshold_settings_screen.dart';
-import 'fuel_price_settings_screen.dart';
 import 'fuel_type_manager_screen.dart';
-import 'inventory_hub_screen.dart';
 import 'inventory_planning_settings_screen.dart';
-import 'opening_stock_settings_screen.dart';
 import 'station_settings_screen.dart';
 import 'user_management_screen.dart';
 
@@ -28,11 +26,7 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
   bool get _isSuperAdmin => widget.user.role == 'superadmin';
   bool get _canEditFuelTypes =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
-  bool get _canEditPrices =>
-      widget.user.role == 'admin' || widget.user.role == 'superadmin';
   bool get _canEditStationSettings =>
-      widget.user.role == 'admin' || widget.user.role == 'superadmin';
-  bool get _canEditOpeningStock =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
   bool get _canEditInventoryPlanning =>
       widget.user.role == 'admin' || widget.user.role == 'superadmin';
@@ -61,28 +55,15 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           embedded: true,
           onBack: _showHome,
         );
-      case _SettingsPanel.openingStockSettings:
-        return OpeningStockSettingsScreen(
-          canEdit: _canEditOpeningStock,
+      case _SettingsPanel.daySetup:
+        return DaySetupScreen(
+          canEdit: _canEditStationSettings,
           embedded: true,
           onBack: _showHome,
         );
       case _SettingsPanel.inventoryPlanning:
         return InventoryPlanningSettingsScreen(
           canEdit: _canEditInventoryPlanning,
-          embedded: true,
-          onBack: _showHome,
-        );
-      case _SettingsPanel.stockManagement:
-        return InventoryHubScreen(
-          canManagePlanning: _canEditInventoryPlanning,
-          stockManagementOnly: true,
-          embedded: true,
-          onBack: _showHome,
-        );
-      case _SettingsPanel.fuelPriceSettings:
-        return FuelPriceSettingsScreen(
-          canEdit: _canEditPrices,
           embedded: true,
           onBack: _showHome,
         );
@@ -220,29 +201,17 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           ),
           const SizedBox(height: 10),
           _SettingsTile(
-            title: 'Pump Opening Readings',
-            subtitle: 'Starting meter readings for each pump',
-            icon: Icons.speed_rounded,
+            title: 'Day Setup',
+            subtitle: 'Opening readings, stock, and fuel prices from one date',
+            icon: Icons.event_note_rounded,
             iconColor: const Color(0xFF2AA878),
-            onTap:
-                () => setState(
-                  () => _panel = _SettingsPanel.openingStockSettings,
-                ),
+            onTap: () => setState(() => _panel = _SettingsPanel.daySetup),
           ),
 
           const SizedBox(height: 20),
 
           // ── Finance ──────────────────────────────────────────────
           const _SectionLabel(label: 'FINANCE'),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            title: 'Fuel Prices',
-            subtitle: 'Selling and cost prices for each fuel',
-            icon: Icons.payments_rounded,
-            iconColor: const Color(0xFF7048A8),
-            onTap:
-                () => setState(() => _panel = _SettingsPanel.fuelPriceSettings),
-          ),
           const SizedBox(height: 10),
           _SettingsTile(
             title: 'Variance Rules',
@@ -256,15 +225,6 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
 
           // ── Inventory ────────────────────────────────────────────
           const _SectionLabel(label: 'INVENTORY'),
-          const SizedBox(height: 10),
-          _SettingsTile(
-            title: 'Stock Management',
-            subtitle: 'Active stock, manual stock, and stock history',
-            icon: Icons.warehouse_rounded,
-            iconColor: const Color(0xFF1298B8),
-            onTap:
-                () => setState(() => _panel = _SettingsPanel.stockManagement),
-          ),
           const SizedBox(height: 10),
           _SettingsTile(
             title: 'Reorder Alert Rules',
@@ -439,10 +399,8 @@ class _SettingsTileState extends State<_SettingsTile> {
 enum _SettingsPanel {
   home,
   stationSettings,
-  openingStockSettings,
+  daySetup,
   inventoryPlanning,
-  stockManagement,
-  fuelPriceSettings,
   fuelTypeManager,
   flagThreshold,
   userManagement,

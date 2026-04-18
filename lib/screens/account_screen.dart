@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
-import 'fuel_price_settings_screen.dart';
+import 'day_setup_screen.dart';
 import 'login_screen.dart';
 
 class AccountScreen extends StatelessWidget {
@@ -14,33 +14,19 @@ class AccountScreen extends StatelessWidget {
   final AuthUser user;
 
   Future<bool> _confirmLogout(BuildContext context) async {
-    final shouldLogout = await showDialog<bool>(
+    final shouldLogout = await showClayConfirmDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Logout'),
-            content: const Text('Are you sure you want to logout?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Logout'),
-              ),
-            ],
-          ),
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      confirmLabel: 'Logout',
+      icon: Icons.logout_rounded,
     );
-    return shouldLogout == true;
+    return shouldLogout;
   }
 
   @override
   Widget build(BuildContext context) {
-    final canEditFuelPrices =
-        user.role == 'sales' ||
-        user.role == 'admin' ||
-        user.role == 'superadmin';
+    final canManageDaySetup = user.role == 'admin' || user.role == 'superadmin';
     final displayName =
         user.name.trim().isEmpty ? user.email : user.name.trim();
     final roleLabel = '${user.role[0].toUpperCase()}${user.role.substring(1)}';
@@ -152,23 +138,20 @@ class AccountScreen extends StatelessWidget {
           const SizedBox(height: 10),
           ClayCard(
             child: _AccountActionTile(
-              title: 'Fuel Prices',
+              title: 'Day Setup',
               subtitle:
-                  canEditFuelPrices
-                      ? 'Review and update current selling prices'
-                      : 'Fuel pricing access is limited for this role',
-              icon: Icons.local_gas_station_rounded,
+                  canManageDaySetup
+                      ? 'Manage opening readings, stock, and fuel prices together'
+                      : 'Day setup access is limited for this role',
+              icon: Icons.event_note_rounded,
               iconColor: const Color(0xFF1298B8),
-              enabled: canEditFuelPrices,
+              enabled: canManageDaySetup,
               onTap:
-                  canEditFuelPrices
+                  canManageDaySetup
                       ? () {
                         Navigator.of(context).push<void>(
                           MaterialPageRoute<void>(
-                            builder:
-                                (_) => const FuelPriceSettingsScreen(
-                                  canEdit: true,
-                                ),
+                            builder: (_) => const DaySetupScreen(canEdit: true),
                           ),
                         );
                       }
