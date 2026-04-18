@@ -177,68 +177,122 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Update Fuel Rates'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: saving ? null : _pickEffectiveDate,
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _effectiveDateController,
-                          enabled: !saving,
-                          decoration: InputDecoration(
-                            labelText: 'Effective date',
-                            suffixIcon: const Icon(Icons.calendar_today),
-                            filled: true,
-                            fillColor: kClayBg,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
+              contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+              actionsPadding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: const Text(
+                'Update Fuel Rates',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: saving ? null : _pickEffectiveDate,
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: _effectiveDateController,
+                            enabled: !saving,
+                            decoration: InputDecoration(
+                              labelText: 'Effective date',
+                              prefixIcon: const Icon(Icons.event_rounded),
+                              suffixIcon: const Icon(Icons.calendar_today),
+                              filled: true,
+                              fillColor: kClayBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    ..._sortPrices(prices).map((price) {
-                      final draft = _drafts[price.fuelTypeId];
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: kClayBg,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _prettyFuelLabel(price.fuelTypeId),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: kClayPrimary,
+                      const SizedBox(height: 14),
+                      ..._sortPrices(prices).map((price) {
+                        final draft = _drafts[price.fuelTypeId];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: kClayBg,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFDDE2F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: _fuelColor(
+                                        price.fuelTypeId,
+                                      ).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Center(
+                                      child: Container(
+                                        width: 9,
+                                        height: 9,
+                                        decoration: BoxDecoration(
+                                          color: _fuelColor(price.fuelTypeId),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      _prettyFuelLabel(price.fuelTypeId),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w900,
+                                        color: kClayPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            _RateField(
-                              label: 'Cost price',
-                              controller: draft?.costController,
-                              enabled: !saving,
-                            ),
-                            const SizedBox(height: 12),
-                            _RateField(
-                              label: 'Selling price',
-                              controller: draft?.sellingController,
-                              enabled: !saving,
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _RateField(
+                                      label: 'Cost',
+                                      controller: draft?.costController,
+                                      enabled: !saving,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _RateField(
+                                      label: 'Sell',
+                                      controller: draft?.sellingController,
+                                      enabled: !saving,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -491,6 +545,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
   }
 
   Widget _buildCurrentRates(List<FuelPriceModel> prices) {
+    final sortedPrices = _sortPrices(prices);
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -523,16 +578,44 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
             style: TextStyle(color: kClaySub, height: 1.4),
           ),
           const SizedBox(height: 14),
-          ..._sortPrices(prices).map((price) {
-            final active = price.activePeriod;
-            return _RateSummaryRow(
-              title: _prettyFuelLabel(price.fuelTypeId),
-              color: _fuelColor(price.fuelTypeId),
-              effectiveDate: active?.effectiveFrom ?? price.effectiveFrom,
-              costPrice: active?.costPrice ?? price.costPrice,
-              sellingPrice: active?.sellingPrice ?? price.sellingPrice,
-            );
-          }),
+          if (sortedPrices.isEmpty)
+            const Text(
+              'No fuel rates configured yet.',
+              style: TextStyle(color: kClaySub),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+              decoration: BoxDecoration(
+                color: kClayBg,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                children: [
+                  const _RateTableHeader(),
+                  const SizedBox(height: 8),
+                  ...List.generate(sortedPrices.length, (index) {
+                    final price = sortedPrices[index];
+                    final active = price.activePeriod;
+                    return Column(
+                      children: [
+                        _RateSummaryRow(
+                          title: _prettyFuelLabel(price.fuelTypeId),
+                          color: _fuelColor(price.fuelTypeId),
+                          effectiveDate:
+                              active?.effectiveFrom ?? price.effectiveFrom,
+                          costPrice: active?.costPrice ?? price.costPrice,
+                          sellingPrice:
+                              active?.sellingPrice ?? price.sellingPrice,
+                        ),
+                        if (index != sortedPrices.length - 1)
+                          const Divider(height: 14, color: Color(0xFFDDE2F0)),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -923,12 +1006,46 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: OutlinedButton(
-        onPressed: onTap,
-        child: OneLineScaleText(
-          value.isEmpty ? label : '$label: ${formatDateLabel(value)}',
-          alignment: Alignment.center,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECEFF8),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFDDE2F0)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event_rounded, size: 18, color: kClayPrimary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: kClaySub,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    OneLineScaleText(
+                      value.isEmpty ? 'Any date' : formatDateLabel(value),
+                      style: const TextStyle(
+                        color: kClayPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -966,6 +1083,47 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _showDeleted
+                                      ? 'Deleted Fuel Rates'
+                                      : 'Active Fuel Rates',
+                                  style: const TextStyle(
+                                    color: kClayPrimary,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${sets.length} rate set${sets.length == 1 ? '' : 's'} shown',
+                                  style: const TextStyle(
+                                    color: kClaySub,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton.filledTonal(
+                            tooltip: 'Download history',
+                            onPressed: sets.isEmpty
+                                ? null
+                                : () => _download(sets, deleted: _showDeleted),
+                            icon: const Icon(Icons.download_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           _HistoryTabButton(
                             label: 'Active',
@@ -973,20 +1131,11 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                             selected: !_showDeleted,
                             onTap: () => setState(() => _showDeleted = false),
                           ),
-                          const SizedBox(width: 8),
                           _HistoryTabButton(
                             label: 'Deleted',
                             count: deletedSets.length,
                             selected: _showDeleted,
                             onTap: () => setState(() => _showDeleted = true),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: 'Download history',
-                            onPressed: sets.isEmpty
-                                ? null
-                                : () => _download(sets, deleted: _showDeleted),
-                            icon: const Icon(Icons.download_rounded),
                           ),
                         ],
                       ),
@@ -1012,9 +1161,9 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                         decoration: InputDecoration(
                           labelText: 'Sort by',
                           filled: true,
-                          fillColor: kClayBg,
+                          fillColor: const Color(0xFFECEFF8),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14),
                             borderSide: BorderSide.none,
                           ),
                         ),
@@ -1141,47 +1290,64 @@ class _RateSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: kClayBg,
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                OneLineScaleText(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: kClayPrimary,
-                    fontSize: 13,
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 9,
+                      height: 9,
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  effectiveDate.isEmpty
-                      ? 'No effective date'
-                      : 'From ${formatDateLabel(effectiveDate)}',
-                  style: const TextStyle(color: kClaySub, fontSize: 11),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      OneLineScaleText(
+                        title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: kClayPrimary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        effectiveDate.isEmpty
+                            ? 'No effective date'
+                            : 'From ${formatDateLabel(effectiveDate)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: kClaySub, fontSize: 11),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          _SmallPill(label: 'Cost', value: formatCurrency(costPrice)),
+          const SizedBox(width: 10),
+          _RateValueCell(value: formatCurrency(costPrice)),
           const SizedBox(width: 6),
-          _SmallPill(label: 'Sell', value: formatCurrency(sellingPrice)),
+          _RateValueCell(value: formatCurrency(sellingPrice)),
         ],
       ),
     );
@@ -1205,12 +1371,27 @@ class _FuelPriceSetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final orderedFuelIds = fuelOrder
+        .where((fuelId) => set.prices.containsKey(fuelId))
+        .toList();
+    final missingFuelIds = fuelOrder
+        .where((fuelId) => !set.prices.containsKey(fuelId))
+        .toList();
+    final visibleFuelIds = [...orderedFuelIds, ...missingFuelIds];
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kClayBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3E7F2)),
+        boxShadow: [
+          BoxShadow(
+            color: kClayPrimary.withValues(alpha: 0.06),
+            offset: const Offset(0, 8),
+            blurRadius: 18,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1262,41 +1443,130 @@ class _FuelPriceSetCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 12),
-          ...fuelOrder.map((fuelId) {
-            final period = set.prices[fuelId];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OneLineScaleText(
-                      labelForFuel(fuelId),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: kClayPrimary,
+          Container(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.78),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              children: [
+                const _RateTableHeader(),
+                const SizedBox(height: 8),
+                ...List.generate(visibleFuelIds.length, (index) {
+                  final fuelId = visibleFuelIds[index];
+                  final period = set.prices[fuelId];
+                  return Column(
+                    children: [
+                      _HistoryRateRow(
+                        title: labelForFuel(fuelId),
+                        costValue: period == null
+                            ? 'Missing'
+                            : formatCurrency(period.costPrice),
+                        sellValue: period == null
+                            ? 'Missing'
+                            : formatCurrency(period.sellingPrice),
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _SmallPill(
-                    label: 'Cost',
-                    value: period == null
-                        ? 'Missing'
-                        : formatCurrency(period.costPrice),
-                  ),
-                  const SizedBox(width: 6),
-                  _SmallPill(
-                    label: 'Sell',
-                    value: period == null
-                        ? 'Missing'
-                        : formatCurrency(period.sellingPrice),
-                  ),
-                ],
-              ),
-            );
-          }),
+                      if (index != visibleFuelIds.length - 1)
+                        const Divider(height: 14, color: Color(0xFFE4E8F3)),
+                    ],
+                  );
+                }),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _RateTableHeader extends StatelessWidget {
+  const _RateTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    const headerStyle = TextStyle(
+      color: kClaySub,
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+    );
+    return Row(
+      children: const [
+        Expanded(child: Text('Fuel', style: headerStyle)),
+        SizedBox(width: 10),
+        SizedBox(width: 82, child: Text('Cost', style: headerStyle)),
+        SizedBox(width: 6),
+        SizedBox(width: 82, child: Text('Sell', style: headerStyle)),
+      ],
+    );
+  }
+}
+
+class _HistoryRateRow extends StatelessWidget {
+  const _HistoryRateRow({
+    required this.title,
+    required this.costValue,
+    required this.sellValue,
+  });
+
+  final String title;
+  final String costValue;
+  final String sellValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: OneLineScaleText(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: kClayPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          _RateValueCell(value: costValue),
+          const SizedBox(width: 6),
+          _RateValueCell(value: sellValue),
+        ],
+      ),
+    );
+  }
+}
+
+class _RateValueCell extends StatelessWidget {
+  const _RateValueCell({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 82,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE6EAF4)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: OneLineScaleText(
+            value,
+            alignment: Alignment.centerLeft,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1355,54 +1625,32 @@ class _RateField extends StatelessWidget {
       controller: controller,
       enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: const TextStyle(
+        color: kClayPrimary,
+        fontSize: 14,
+        fontWeight: FontWeight.w800,
+      ),
       decoration: InputDecoration(
         labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         filled: true,
         fillColor: enabled ? Colors.white : const Color(0xFFE8EBF4),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 13,
         ),
-      ),
-    );
-  }
-}
-
-class _SmallPill extends StatelessWidget {
-  const _SmallPill({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: kClaySub,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 2),
-          OneLineScaleText(
-            value,
-            style: const TextStyle(
-              color: kClayPrimary,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E6F1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E6F1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kClayPrimary, width: 1.2),
+        ),
       ),
     );
   }

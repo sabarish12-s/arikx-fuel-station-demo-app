@@ -54,76 +54,73 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final bool? shouldSave = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setDialogState) => AlertDialog(
-                  title: const Text('Add Staff Member'),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(labelText: 'Name'),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: emailController,
-                          decoration: const InputDecoration(labelText: 'Email'),
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: role,
-                          items:
-                              canManageSuperAdmins
-                                  ? const [
-                                    DropdownMenuItem(
-                                      value: 'sales',
-                                      child: Text('Sales'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'admin',
-                                      child: Text('Admin'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'superadmin',
-                                      child: Text('Superadmin'),
-                                    ),
-                                  ]
-                                  : const [
-                                    DropdownMenuItem(
-                                      value: 'sales',
-                                      child: Text('Sales'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'admin',
-                                      child: Text('Admin'),
-                                    ),
-                                  ],
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
-                            setDialogState(() => role = value);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Save'),
-                    ),
-                  ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Add Staff Member'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name'),
                 ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: role,
+                  items: canManageSuperAdmins
+                      ? const [
+                          DropdownMenuItem(
+                            value: 'sales',
+                            child: Text('Sales'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Admin'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'superadmin',
+                            child: Text('Superadmin'),
+                          ),
+                        ]
+                      : const [
+                          DropdownMenuItem(
+                            value: 'sales',
+                            child: Text('Sales'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'admin',
+                            child: Text('Admin'),
+                          ),
+                        ],
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setDialogState(() => role = value);
+                  },
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
 
     if (shouldSave != true) {
@@ -167,16 +164,15 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Future<void> _bulkApprove(List<AccessRequest> requests) async {
-    final selected =
-        requests
-            .where((request) => _selectedRequestIds.contains(request.id))
-            .map(
-              (request) => {
-                'requestId': request.id,
-                'role': _requestRoles[request.id] ?? request.roleRequested,
-              },
-            )
-            .toList();
+    final selected = requests
+        .where((request) => _selectedRequestIds.contains(request.id))
+        .map(
+          (request) => {
+            'requestId': request.id,
+            'role': _requestRoles[request.id] ?? request.roleRequested,
+          },
+        )
+        .toList();
     if (selected.isEmpty) {
       return;
     }
@@ -197,23 +193,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Pending Requests'),
-            content: Text(
-              'Delete ${_selectedRequestIds.length} pending request(s) and remove those pending users?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Pending Requests'),
+        content: Text(
+          'Delete ${_selectedRequestIds.length} pending request(s) and remove those pending users?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
 
     if (shouldDelete != true) {
@@ -249,21 +244,20 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _deleteStaff(ManagedUser user) async {
     final bool? shouldDelete = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Staff Member'),
-            content: Text('Remove ${user.email} from staff access?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Staff Member'),
+        content: Text('Remove ${user.email} from staff access?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
 
     if (shouldDelete != true) {
@@ -426,9 +420,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                   if (requests.isNotEmpty)
                     TextButton(
-                      onPressed:
-                          () =>
-                              _toggleSelectAllRequests(requests, !allSelected),
+                      onPressed: () =>
+                          _toggleSelectAllRequests(requests, !allSelected),
                       child: Text(allSelected ? 'Clear All' : 'Select All'),
                     ),
                 ],
@@ -503,32 +496,31 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         const SizedBox(height: 10),
                         DropdownButtonFormField<String>(
                           initialValue: selectedRole,
-                          items:
-                              canManageSuperAdmins
-                                  ? const [
-                                    DropdownMenuItem(
-                                      value: 'sales',
-                                      child: Text('Sales'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'admin',
-                                      child: Text('Admin'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'superadmin',
-                                      child: Text('Superadmin'),
-                                    ),
-                                  ]
-                                  : const [
-                                    DropdownMenuItem(
-                                      value: 'sales',
-                                      child: Text('Sales'),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'admin',
-                                      child: Text('Admin'),
-                                    ),
-                                  ],
+                          items: canManageSuperAdmins
+                              ? const [
+                                  DropdownMenuItem(
+                                    value: 'sales',
+                                    child: Text('Sales'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'admin',
+                                    child: Text('Admin'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'superadmin',
+                                    child: Text('Superadmin'),
+                                  ),
+                                ]
+                              : const [
+                                  DropdownMenuItem(
+                                    value: 'sales',
+                                    child: Text('Sales'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'admin',
+                                    child: Text('Admin'),
+                                  ),
+                                ],
                           onChanged: (value) {
                             if (value == null) {
                               return;
@@ -542,8 +534,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         Row(
                           children: [
                             FilledButton(
-                              onPressed:
-                                  () => _approveRequest(request, selectedRole),
+                              onPressed: () =>
+                                  _approveRequest(request, selectedRole),
                               child: const Text('Approve'),
                             ),
                             const SizedBox(width: 10),
@@ -578,130 +570,44 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     (user.role != 'superadmin' || canManageSuperAdmins);
                 final roleItems =
                     user.role == 'superadmin' || canManageSuperAdmins
-                        ? const [
-                          DropdownMenuItem(
-                            value: 'sales',
-                            child: Text('Sales'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'admin',
-                            child: Text('Admin'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'superadmin',
-                            child: Text('Superadmin'),
-                          ),
-                        ]
-                        : const [
-                          DropdownMenuItem(
-                            value: 'sales',
-                            child: Text('Sales'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'admin',
-                            child: Text('Admin'),
-                          ),
-                        ];
+                    ? const [
+                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                        DropdownMenuItem(
+                          value: 'superadmin',
+                          child: Text('Superadmin'),
+                        ),
+                      ]
+                    : const [
+                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                        DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                      ];
 
-                return _SectionCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              user.name.isEmpty ? user.email : user.name,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          Chip(label: Text(user.status)),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(user.email),
-                      Text(
-                        'Station ${user.stationId}',
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                      Text(
-                        'Added on ${formatDateLabel(user.createdAt.toIso8601String())}',
-                        style: const TextStyle(color: Color(0xFF55606E)),
-                      ),
-                      if (user.requestCreatedAt != null)
-                        Text(
-                          'Requested on ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
-                          style: const TextStyle(color: Color(0xFF55606E)),
-                        ),
-                      if (user.reviewedAt != null)
-                        Text(
-                          'Reviewed on ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
-                          style: const TextStyle(color: Color(0xFF55606E)),
-                        ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedRole,
-                        items: roleItems,
-                        onChanged:
-                            isEditing && canManage
-                                ? (value) {
-                                  if (value == null) {
-                                    return;
-                                  }
-                                  setState(() {
-                                    _staffRoles[user.id] = value;
-                                  });
-                                }
-                                : null,
-                      ),
-                      const SizedBox(height: 12),
-                      if (canManage && !isEditing)
-                        OutlinedButton(
-                          onPressed: () {
-                            setState(() {
-                              _editingUserIds.add(user.id);
-                            });
-                          },
-                          child: const Text('Edit'),
-                        )
-                      else if (canManage && isEditing)
-                        Row(
-                          children: [
-                            FilledButton(
-                              onPressed:
-                                  () => _saveStaffRole(user, selectedRole),
-                              child: const Text('Save Role'),
-                            ),
-                            const SizedBox(width: 10),
-                            OutlinedButton(
-                              onPressed: () => _deleteStaff(user),
-                              child: const Text('Delete'),
-                            ),
-                            const SizedBox(width: 10),
-                            TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _editingUserIds.remove(user.id);
-                                  _staffRoles.remove(user.id);
-                                });
-                              },
-                              child: const Text('Cancel'),
-                            ),
-                          ],
-                        )
-                      else
-                        const Text(
-                          'Protected account',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF55606E),
-                          ),
-                        ),
-                    ],
-                  ),
+                return _StaffUserCard(
+                  user: user,
+                  selectedRole: selectedRole,
+                  roleItems: roleItems,
+                  canManage: canManage,
+                  isEditing: isEditing,
+                  onRoleChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _staffRoles[user.id] = value;
+                    });
+                  },
+                  onEdit: () {
+                    setState(() {
+                      _editingUserIds.add(user.id);
+                    });
+                  },
+                  onSave: () => _saveStaffRole(user, selectedRole),
+                  onDelete: () => _deleteStaff(user),
+                  onCancel: () {
+                    setState(() {
+                      _editingUserIds.remove(user.id);
+                      _staffRoles.remove(user.id);
+                    });
+                  },
                 );
               }),
             ],
@@ -774,6 +680,418 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClayCard(margin: const EdgeInsets.only(bottom: 12), child: child);
+  }
+}
+
+class _StaffUserCard extends StatelessWidget {
+  const _StaffUserCard({
+    required this.user,
+    required this.selectedRole,
+    required this.roleItems,
+    required this.canManage,
+    required this.isEditing,
+    required this.onRoleChanged,
+    required this.onEdit,
+    required this.onSave,
+    required this.onDelete,
+    required this.onCancel,
+  });
+
+  final ManagedUser user;
+  final String selectedRole;
+  final List<DropdownMenuItem<String>> roleItems;
+  final bool canManage;
+  final bool isEditing;
+  final ValueChanged<String?> onRoleChanged;
+  final VoidCallback onEdit;
+  final VoidCallback onSave;
+  final VoidCallback onDelete;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = user.name.trim().isEmpty ? user.email : user.name;
+    final initial = displayName.trim().isEmpty
+        ? '?'
+        : displayName.trim().characters.first.toUpperCase();
+
+    return ClayCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: kClayPrimary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: kClayPrimary,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      user.email,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF4B5563),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              _StatusPill(status: user.status),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _StaffInfoPill(
+                icon: Icons.storefront_rounded,
+                label: 'Station ${user.stationId}',
+              ),
+              _StaffInfoPill(
+                icon: Icons.person_add_alt_1_rounded,
+                label:
+                    'Added ${formatDateLabel(user.createdAt.toIso8601String())}',
+              ),
+              if (user.requestCreatedAt != null)
+                _StaffInfoPill(
+                  icon: Icons.schedule_rounded,
+                  label:
+                      'Requested ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
+                ),
+              if (user.reviewedAt != null)
+                _StaffInfoPill(
+                  icon: Icons.verified_rounded,
+                  label:
+                      'Reviewed ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isEditing && canManage)
+            _RoleDropdown(
+              value: selectedRole,
+              items: roleItems,
+              onChanged: onRoleChanged,
+            )
+          else
+            _RoleDisplay(role: selectedRole),
+          const SizedBox(height: 12),
+          if (canManage && !isEditing)
+            _StaffActionButton(
+              icon: Icons.edit_rounded,
+              label: 'Edit role',
+              onTap: onEdit,
+            )
+          else if (canManage && isEditing)
+            Row(
+              children: [
+                Expanded(
+                  child: _StaffActionButton(
+                    icon: Icons.save_outlined,
+                    label: 'Save',
+                    onTap: onSave,
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StaffActionButton(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    onTap: onDelete,
+                    destructive: true,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StaffActionButton(
+                    icon: Icons.close_rounded,
+                    label: 'Cancel',
+                    onTap: onCancel,
+                  ),
+                ),
+              ],
+            )
+          else
+            const _ProtectedPill(),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  const _StatusPill({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalized = status.toLowerCase();
+    final isApproved = normalized == 'approved';
+    final color = isApproved
+        ? const Color(0xFF2AA878)
+        : const Color(0xFFC77A18);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _StaffInfoPill extends StatelessWidget {
+  const _StaffInfoPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: kClayPrimary),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF5D6685),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoleDisplay extends StatelessWidget {
+  const _RoleDisplay({required this.role});
+
+  final String role;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE2F0)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.admin_panel_settings_rounded, color: kClayPrimary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _roleLabel(role),
+              style: const TextStyle(
+                color: kClayPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RoleDropdown extends StatelessWidget {
+  const _RoleDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String value;
+  final List<DropdownMenuItem<String>> items;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      initialValue: value,
+      items: items,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: 'Role',
+        prefixIcon: const Icon(Icons.admin_panel_settings_rounded),
+        filled: true,
+        fillColor: const Color(0xFFECEFF8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+}
+
+class _StaffActionButton extends StatelessWidget {
+  const _StaffActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.filled = false,
+    this.destructive = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool filled;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = destructive ? const Color(0xFFB91C1C) : kClayPrimary;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: filled
+              ? kClayPrimary
+              : destructive
+              ? const Color(0xFFFFEEF0)
+              : const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: filled
+                ? kClayPrimary
+                : destructive
+                ? const Color(0xFFF6C9CF)
+                : const Color(0xFFDDE2F0),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: filled ? Colors.white : color, size: 16),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: filled ? Colors.white : color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProtectedPill extends StatelessWidget {
+  const _ProtectedPill();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.lock_outline_rounded, color: Color(0xFF5D6685), size: 17),
+          SizedBox(width: 8),
+          Text(
+            'Protected account',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF5D6685),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _roleLabel(String role) {
+  switch (role) {
+    case 'superadmin':
+      return 'Superadmin';
+    case 'admin':
+      return 'Admin';
+    case 'sales':
+      return 'Sales';
+    default:
+      return role;
   }
 }
 

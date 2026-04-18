@@ -173,194 +173,180 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
 
     final created = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: const Text('Record Credit Collection'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        CreditCustomerSummaryModel? selectedCustomer;
-                        for (final item in customers) {
-                          if (item.customer.id == selectedCustomerId) {
-                            selectedCustomer = item;
-                            break;
-                          }
-                        }
-                        final dropdownWidth =
-                            constraints.maxWidth.isFinite
-                                ? constraints.maxWidth
-                                : MediaQuery.sizeOf(context).width - 96;
-                        return Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            DropdownMenu<String>(
-                              width: dropdownWidth,
-                              enableFilter: true,
-                              enableSearch: true,
-                              requestFocusOnTap: true,
-                              label: const Text('Customer'),
-                              hintText: 'Search and select existing customer',
-                              onSelected: (value) {
-                                setState(() {
-                                  selectedCustomerId = value;
-                                });
-                              },
-                              dropdownMenuEntries:
-                                  customers
-                                      .map(
-                                        (item) => DropdownMenuEntry<String>(
-                                          value: item.customer.id,
-                                          label: item.customer.name,
-                                        ),
-                                      )
-                                      .toList(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Record Credit Collection'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                CreditCustomerSummaryModel? selectedCustomer;
+                for (final item in customers) {
+                  if (item.customer.id == selectedCustomerId) {
+                    selectedCustomer = item;
+                    break;
+                  }
+                }
+                final dropdownWidth = constraints.maxWidth.isFinite
+                    ? constraints.maxWidth
+                    : MediaQuery.sizeOf(context).width - 96;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    DropdownMenu<String>(
+                      width: dropdownWidth,
+                      enableFilter: true,
+                      enableSearch: true,
+                      requestFocusOnTap: true,
+                      label: const Text('Customer'),
+                      hintText: 'Search and select existing customer',
+                      onSelected: (value) {
+                        setState(() {
+                          selectedCustomerId = value;
+                        });
+                      },
+                      dropdownMenuEntries: customers
+                          .map(
+                            (item) => DropdownMenuEntry<String>(
+                              value: item.customer.id,
+                              label: item.customer.name,
                             ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: amountController,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Amount',
-                                filled: true,
-                              ).copyWith(
-                                helperText:
-                                    selectedCustomer == null
-                                        ? null
-                                        : 'Borrowed balance: ${formatCurrency(_collectableCreditBalance(selectedCustomer.currentBalance))}',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: dateController,
-                              decoration: const InputDecoration(
-                                labelText: 'Date (YYYY-MM-DD)',
-                                filled: true,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            DropdownButtonFormField<String>(
-                              initialValue: paymentMode,
-                              decoration: const InputDecoration(
-                                labelText: 'Payment mode',
-                                filled: true,
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'cash',
-                                  child: Text('Cash'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'check',
-                                  child: Text('HP Pay'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'upi',
-                                  child: Text('UPI'),
-                                ),
-                              ],
-                              onChanged: (value) {
-                                setState(() {
-                                  paymentMode = value ?? 'cash';
-                                });
-                              },
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: noteController,
-                              decoration: const InputDecoration(
-                                labelText: 'Note (optional)',
-                                filled: true,
-                              ),
-                            ),
-                          ],
-                        );
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration:
+                          const InputDecoration(
+                            labelText: 'Amount',
+                            filled: true,
+                          ).copyWith(
+                            helperText: selectedCustomer == null
+                                ? null
+                                : 'Borrowed balance: ${formatCurrency(_collectableCreditBalance(selectedCustomer.currentBalance))}',
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: dateController,
+                      decoration: const InputDecoration(
+                        labelText: 'Date (YYYY-MM-DD)',
+                        filled: true,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: paymentMode,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment mode',
+                        filled: true,
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                        DropdownMenuItem(value: 'check', child: Text('HP Pay')),
+                        DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          paymentMode = value ?? 'cash';
+                        });
                       },
                     ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () async {
-                        CreditCustomerSummaryModel? selectedCustomer;
-                        for (final item in customers) {
-                          if (item.customer.id == selectedCustomerId) {
-                            selectedCustomer = item;
-                            break;
-                          }
-                        }
-                        if (selectedCustomer == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Color(0xFFB91C1C),
-                              content: Text(
-                                'Select an existing customer from the list.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        final amount =
-                            double.tryParse(amountController.text.trim()) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Color(0xFFB91C1C),
-                              content: Text(
-                                'Collection amount must be greater than zero.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        final collectableBalance = _collectableCreditBalance(
-                          selectedCustomer.currentBalance,
-                        );
-                        if (amount > collectableBalance) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(
-                                'Amount received cannot be more than borrowed balance ${formatCurrency(collectableBalance)}.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        try {
-                          await _creditService.recordCollection(
-                            customerId: selectedCustomer.customer.id,
-                            name: selectedCustomer.customer.name,
-                            amount: amount,
-                            date: dateController.text.trim(),
-                            paymentMode: paymentMode,
-                            note: noteController.text.trim(),
-                          );
-                          if (!context.mounted) return;
-                          Navigator.of(context).pop(true);
-                        } catch (error) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(userFacingErrorMessage(error)),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Save'),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        labelText: 'Note (optional)',
+                        filled: true,
+                      ),
                     ),
                   ],
-                ),
+                );
+              },
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                CreditCustomerSummaryModel? selectedCustomer;
+                for (final item in customers) {
+                  if (item.customer.id == selectedCustomerId) {
+                    selectedCustomer = item;
+                    break;
+                  }
+                }
+                if (selectedCustomer == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFFB91C1C),
+                      content: Text(
+                        'Select an existing customer from the list.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                final amount =
+                    double.tryParse(amountController.text.trim()) ?? 0;
+                if (amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFFB91C1C),
+                      content: Text(
+                        'Collection amount must be greater than zero.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                final collectableBalance = _collectableCreditBalance(
+                  selectedCustomer.currentBalance,
+                );
+                if (amount > collectableBalance) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      content: Text(
+                        'Amount received cannot be more than borrowed balance ${formatCurrency(collectableBalance)}.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await _creditService.recordCollection(
+                    customerId: selectedCustomer.customer.id,
+                    name: selectedCustomer.customer.name,
+                    amount: amount,
+                    date: dateController.text.trim(),
+                    paymentMode: paymentMode,
+                    note: noteController.text.trim(),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(true);
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      content: Text(userFacingErrorMessage(error)),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
 
     amountController.dispose();
@@ -383,22 +369,20 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
         iconTheme: const IconThemeData(color: kClayPrimary),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed:
-            _loadingStandaloneCollectionCustomers
-                ? null
-                : _openStandaloneCollectionDialogFromLedger,
+        onPressed: _loadingStandaloneCollectionCustomers
+            ? null
+            : _openStandaloneCollectionDialogFromLedger,
         backgroundColor: const Color(0xFF1A3A7A),
-        icon:
-            _loadingStandaloneCollectionCustomers
-                ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-                : const Icon(Icons.payments_outlined, color: Colors.white),
+        icon: _loadingStandaloneCollectionCustomers
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.payments_outlined, color: Colors.white),
         label: Text(
           _loadingStandaloneCollectionCustomers
               ? 'Loading...'
@@ -411,190 +395,198 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
-        child: FutureBuilder<
-          (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)
-        >(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 80, 16, 24),
-                children: [Text(_errorText(snapshot.error))],
-              );
-            }
+        child:
+            FutureBuilder<
+              (CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)
+            >(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 80, 16, 24),
+                    children: [Text(_errorText(snapshot.error))],
+                  );
+                }
 
-            final (summary, customers) = snapshot.data!;
-            _latestCustomers = customers;
+                final (summary, customers) = snapshot.data!;
+                _latestCustomers = customers;
 
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              children: [
-                // ── Hero summary ──────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(24),
-                    gradient: const LinearGradient(
-                      colors: [kClayHeroStart, kClayHeroEnd],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kClayHeroEnd.withValues(alpha: 0.45),
-                        offset: const Offset(0, 10),
-                        blurRadius: 24,
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      _HeroMetric(
-                        label: 'Open',
-                        value: '${summary.openCustomerCount}',
-                        sub: 'customers',
-                      ),
-                      _HeroDivider(),
-                      _HeroMetric(
-                        label: 'Balance',
-                        value: formatCurrency(summary.openBalanceTotal),
-                        sub: 'outstanding',
-                      ),
-                      _HeroDivider(),
-                      _HeroMetric(
-                        label: 'Collected',
-                        value: formatCurrency(summary.collectedInRangeTotal),
-                        sub: 'in range',
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 14),
-
-                // ── Filters ───────────────────────────────────────
-                ClayCard(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'FILTERS',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: kClaySub,
-                          letterSpacing: 1.1,
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                  children: [
+                    // ── Hero summary ──────────────────────────────────
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        gradient: const LinearGradient(
+                          colors: [kClayHeroStart, kClayHeroEnd],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _searchController,
-                        decoration: InputDecoration(
-                          hintText: 'Search by customer name',
-                          filled: true,
-                          fillColor: kClayBg,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
+                        boxShadow: [
+                          BoxShadow(
+                            color: kClayHeroEnd.withValues(alpha: 0.45),
+                            offset: const Offset(0, 10),
+                            blurRadius: 24,
                           ),
-                          suffixIcon: IconButton(
-                            onPressed: _reload,
-                            icon: const Icon(Icons.search_rounded),
-                          ),
-                        ),
-                        onSubmitted: (_) => _reload(),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final option in const ['all', 'open', 'closed'])
-                            _StatusPill(
-                              label: option.toUpperCase(),
-                              selected: _status == option,
-                              onTap: () {
-                                setState(() {
-                                  _status = option;
-                                  _future = _load();
-                                });
-                              },
-                            ),
-                          _DatePill(
-                            icon: Icons.date_range_rounded,
-                            label:
-                                _fromDate == null || _toDate == null
-                                    ? 'Date Range'
-                                    : '${formatDateLabel(_toApiDate(_fromDate!))} to '
-                                        '${formatDateLabel(_toApiDate(_toDate!))}',
-                            onTap: _pickDateRange,
-                          ),
-                          if (_fromDate != null || _toDate != null)
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _fromDate = null;
-                                  _toDate = null;
-                                  _future = _load();
-                                });
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 6),
-                                child: Text(
-                                  'Clear Range',
-                                  style: TextStyle(
-                                    color: Color(0xFFCE5828),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-
-                // ── Customer list ─────────────────────────────────
-                if (customers.isEmpty)
-                  ClayCard(
-                    child: const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'No credit customers found.',
-                          style: TextStyle(color: kClaySub),
-                        ),
+                      child: Row(
+                        children: [
+                          _HeroMetric(
+                            label: 'Open',
+                            value: '${summary.openCustomerCount}',
+                            sub: 'customers',
+                          ),
+                          _HeroDivider(),
+                          _HeroMetric(
+                            label: 'Balance',
+                            value: formatCurrency(summary.openBalanceTotal),
+                            sub: 'outstanding',
+                          ),
+                          _HeroDivider(),
+                          _HeroMetric(
+                            label: 'Collected',
+                            value: formatCurrency(
+                              summary.collectedInRangeTotal,
+                            ),
+                            sub: 'in range',
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                else
-                  ...customers.map(
-                    (item) => _CustomerCard(
-                      item: item,
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder:
-                                (_) => CreditCustomerDetailScreen(
+
+                    const SizedBox(height: 14),
+
+                    // ── Filters ───────────────────────────────────────
+                    ClayCard(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'FILTERS',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: kClaySub,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _searchController,
+                            decoration: InputDecoration(
+                              hintText: 'Search by customer name',
+                              filled: true,
+                              fillColor: kClayBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: IconButton(
+                                onPressed: _reload,
+                                icon: const Icon(Icons.search_rounded),
+                              ),
+                            ),
+                            onSubmitted: (_) => _reload(),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              for (final option in const [
+                                'all',
+                                'open',
+                                'closed',
+                              ]) ...[
+                                Expanded(
+                                  child: _StatusPill(
+                                    label: option.toUpperCase(),
+                                    selected: _status == option,
+                                    onTap: () {
+                                      setState(() {
+                                        _status = option;
+                                        _future = _load();
+                                      });
+                                    },
+                                  ),
+                                ),
+                                if (option != 'closed')
+                                  const SizedBox(width: 8),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _DatePill(
+                                  icon: Icons.date_range_rounded,
+                                  label: _fromDate == null || _toDate == null
+                                      ? 'Date Range'
+                                      : '${formatDateLabel(_toApiDate(_fromDate!))} to '
+                                            '${formatDateLabel(_toApiDate(_toDate!))}',
+                                  onTap: _pickDateRange,
+                                ),
+                              ),
+                              if (_fromDate != null || _toDate != null) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _ClearRangeButton(
+                                    onTap: () {
+                                      setState(() {
+                                        _fromDate = null;
+                                        _toDate = null;
+                                        _future = _load();
+                                      });
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ── Customer list ─────────────────────────────────
+                    if (customers.isEmpty)
+                      ClayCard(
+                        child: const Center(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text(
+                              'No credit customers found.',
+                              style: TextStyle(color: kClaySub),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      ...customers.map(
+                        (item) => _CustomerCard(
+                          item: item,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => CreditCustomerDetailScreen(
                                   customerId: item.customer.id,
                                 ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
       ),
     );
   }
@@ -673,28 +665,29 @@ class _StatusPill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
         decoration: BoxDecoration(
           color: selected ? kClayPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          boxShadow:
-              selected
-                  ? null
-                  : [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
-                      offset: const Offset(3, 3),
-                      blurRadius: 8,
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      offset: Offset(-2, -2),
-                      blurRadius: 6,
-                    ),
-                  ],
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: selected
+              ? null
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
+                    offset: const Offset(3, 3),
+                    blurRadius: 8,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-2, -2),
+                    blurRadius: 6,
+                  ),
+                ],
         ),
         child: Text(
           label,
+          textAlign: TextAlign.center,
           style: TextStyle(
             color: selected ? Colors.white : kClaySub,
             fontWeight: FontWeight.w700,
@@ -722,13 +715,11 @@ class _DatePill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.sizeOf(context).width - 32,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFFB8C0DC).withValues(alpha: 0.50),
@@ -743,11 +734,10 @@ class _DatePill extends StatelessWidget {
           ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 14, color: kClaySub),
-            const SizedBox(width: 5),
-            Flexible(
+            const SizedBox(width: 8),
+            Expanded(
               child: Text(
                 label,
                 maxLines: 1,
@@ -767,6 +757,38 @@ class _DatePill extends StatelessWidget {
 }
 
 // ─── Customer card ────────────────────────────────────────────────────────────
+class _ClearRangeButton extends StatelessWidget {
+  const _ClearRangeButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFEF2F2),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Text(
+          'Clear Range',
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Color(0xFFCE5828),
+            fontWeight: FontWeight.w800,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _CustomerCard extends StatelessWidget {
   const _CustomerCard({required this.item, required this.onTap});
   final CreditCustomerSummaryModel item;
@@ -786,16 +808,16 @@ class _CustomerCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color:
-                    isOpen
-                        ? const Color(0xFFCE5828).withValues(alpha: 0.10)
-                        : const Color(0xFF2AA878).withValues(alpha: 0.10),
+                color: isOpen
+                    ? const Color(0xFFCE5828).withValues(alpha: 0.10)
+                    : const Color(0xFF2AA878).withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 isOpen ? Icons.pending_rounded : Icons.check_circle_rounded,
-                color:
-                    isOpen ? const Color(0xFFCE5828) : const Color(0xFF2AA878),
+                color: isOpen
+                    ? const Color(0xFFCE5828)
+                    : const Color(0xFF2AA878),
                 size: 20,
               ),
             ),
@@ -902,131 +924,123 @@ class _CreditCustomerDetailScreenState
 
     final saved = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: Text('Collect from ${detail.customer.name}'),
-                  content: SizedBox(
-                    width: double.maxFinite,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: amountController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          decoration: InputDecoration(
-                            labelText: 'Amount',
-                            filled: true,
-                            helperText:
-                                'Borrowed balance: ${formatCurrency(_collectableCreditBalance(detail.currentBalance))}',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: dateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Date (YYYY-MM-DD)',
-                            filled: true,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: paymentMode,
-                          decoration: const InputDecoration(
-                            labelText: 'Payment mode',
-                            filled: true,
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'cash',
-                              child: Text('Cash'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'check',
-                              child: Text('HP Pay'),
-                            ),
-                            DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              paymentMode = value ?? 'cash';
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: noteController,
-                          decoration: const InputDecoration(
-                            labelText: 'Note (optional)',
-                            filled: true,
-                          ),
-                        ),
-                      ],
-                    ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Collect from ${detail.customer.name}'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    FilledButton(
-                      onPressed: () async {
-                        final amount =
-                            double.tryParse(amountController.text.trim()) ?? 0;
-                        if (amount <= 0) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              backgroundColor: Color(0xFFB91C1C),
-                              content: Text(
-                                'Collection amount must be greater than zero.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        final collectableBalance = _collectableCreditBalance(
-                          detail.currentBalance,
-                        );
-                        if (amount > collectableBalance) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(
-                                'Amount received cannot be more than borrowed balance ${formatCurrency(collectableBalance)}.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-                        try {
-                          await _creditService.recordCollection(
-                            customerId: detail.customer.id,
-                            name: detail.customer.name,
-                            amount: amount,
-                            date: dateController.text.trim(),
-                            paymentMode: paymentMode,
-                            note: noteController.text.trim(),
-                          );
-                          if (!context.mounted) return;
-                          Navigator.of(context).pop(true);
-                        } catch (error) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              backgroundColor: const Color(0xFFB91C1C),
-                              content: Text(userFacingErrorMessage(error)),
-                            ),
-                          );
-                        }
-                      },
-                      child: const Text('Save'),
-                    ),
-                  ],
+                  decoration: InputDecoration(
+                    labelText: 'Amount',
+                    filled: true,
+                    helperText:
+                        'Borrowed balance: ${formatCurrency(_collectableCreditBalance(detail.currentBalance))}',
+                  ),
                 ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: dateController,
+                  decoration: const InputDecoration(
+                    labelText: 'Date (YYYY-MM-DD)',
+                    filled: true,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMode,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment mode',
+                    filled: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                    DropdownMenuItem(value: 'check', child: Text('HP Pay')),
+                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      paymentMode = value ?? 'cash';
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteController,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                    filled: true,
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final amount =
+                    double.tryParse(amountController.text.trim()) ?? 0;
+                if (amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      backgroundColor: Color(0xFFB91C1C),
+                      content: Text(
+                        'Collection amount must be greater than zero.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                final collectableBalance = _collectableCreditBalance(
+                  detail.currentBalance,
+                );
+                if (amount > collectableBalance) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      content: Text(
+                        'Amount received cannot be more than borrowed balance ${formatCurrency(collectableBalance)}.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await _creditService.recordCollection(
+                    customerId: detail.customer.id,
+                    name: detail.customer.name,
+                    amount: amount,
+                    date: dateController.text.trim(),
+                    paymentMode: paymentMode,
+                    note: noteController.text.trim(),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop(true);
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: const Color(0xFFB91C1C),
+                      content: Text(userFacingErrorMessage(error)),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
     );
 
     amountController.dispose();
@@ -1115,10 +1129,9 @@ class _CreditCustomerDetailScreenState
                             child: Text(
                               detail.status.toUpperCase(),
                               style: TextStyle(
-                                color:
-                                    isOpen
-                                        ? const Color(0xFFFFB649)
-                                        : const Color(0xFF7EEFC0),
+                                color: isOpen
+                                    ? const Color(0xFFFFB649)
+                                    : const Color(0xFF7EEFC0),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 11,
                               ),
@@ -1297,18 +1310,18 @@ class _TransactionCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color:
-                  isCredit
-                      ? const Color(0xFFCE5828).withValues(alpha: 0.10)
-                      : const Color(0xFF2AA878).withValues(alpha: 0.10),
+              color: isCredit
+                  ? const Color(0xFFCE5828).withValues(alpha: 0.10)
+                  : const Color(0xFF2AA878).withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               isCredit
                   ? Icons.arrow_upward_rounded
                   : Icons.arrow_downward_rounded,
-              color:
-                  isCredit ? const Color(0xFFCE5828) : const Color(0xFF2AA878),
+              color: isCredit
+                  ? const Color(0xFFCE5828)
+                  : const Color(0xFF2AA878),
               size: 18,
             ),
           ),
@@ -1334,10 +1347,9 @@ class _TransactionCard extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 14,
-                        color:
-                            isCredit
-                                ? const Color(0xFFCE5828)
-                                : const Color(0xFF2AA878),
+                        color: isCredit
+                            ? const Color(0xFFCE5828)
+                            : const Color(0xFF2AA878),
                       ),
                     ),
                   ],

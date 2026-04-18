@@ -89,15 +89,6 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     });
   }
 
-  void _clearDateRange() {
-    final today = DateTime.now();
-    setState(() {
-      _toDate = DateTime(today.year, today.month, today.day);
-      _fromDate = _toDate.subtract(const Duration(days: 29));
-      _future = _loadEntries();
-    });
-  }
-
   double _entryLiters(ShiftEntryModel entry) {
     return entry.totals.sold.petrol +
         entry.totals.sold.diesel +
@@ -283,89 +274,71 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Use the date filters here to narrow entries. The default view shows the last 30 days.',
+            'Use the date range and sorting here to narrow entries.',
             style: TextStyle(
               color: Colors.white70,
               height: 1.4,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          const SizedBox(height: 18),
+          Row(
             children: [
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width - 32,
-                ),
-                child: OutlinedButton.icon(
-                  onPressed: _pickDateRange,
-                  icon: const Icon(Icons.event_available_rounded),
-                  label: Text(
-                    '${formatDateLabel(_toApiDate(_fromDate))} to '
-                    '${formatDateLabel(_toApiDate(_toDate))}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  style: _historyFilterButtonStyle(),
-                ),
-              ),
-              TextButton(
-                onPressed: _clearDateRange,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.white.withValues(alpha: 0.08),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text('Last 30 days'),
-              ),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.sizeOf(context).width - 32,
-                ),
+              Expanded(
+                flex: 6,
                 child: SizedBox(
-                  width: 260,
-                  child: DropdownButtonFormField<_EntryHistorySort>(
-                    initialValue: _sort,
-                    decoration: InputDecoration(
-                      labelText: 'Sort by',
-                      labelStyle: const TextStyle(color: Colors.white70),
-                      filled: true,
-                      fillColor: Colors.white.withValues(alpha: 0.08),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.28),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.50),
-                        ),
-                      ),
+                  height: 58,
+                  child: OutlinedButton.icon(
+                    onPressed: _pickDateRange,
+                    icon: const Icon(Icons.event_available_rounded),
+                    label: Text(
+                      '${formatDateLabel(_toApiDate(_fromDate))} to '
+                      '${formatDateLabel(_toApiDate(_toDate))}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    dropdownColor: kClayPrimary,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                    style: _historyFilterButtonStyle(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 4,
+                child: Container(
+                  height: 58,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.28),
                     ),
-                    iconEnabledColor: Colors.white,
-                    items: _EntryHistorySort.values
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(_sortLabel(item)),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _sort = value);
-                    },
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<_EntryHistorySort>(
+                      value: _sort,
+                      isExpanded: true,
+                      dropdownColor: kClayPrimary,
+                      borderRadius: BorderRadius.circular(16),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                      iconEnabledColor: Colors.white,
+                      items: _EntryHistorySort.values
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(_sortLabel(item)),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _sort = value);
+                      },
+                    ),
                   ),
                 ),
               ),

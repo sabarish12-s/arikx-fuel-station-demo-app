@@ -32,6 +32,14 @@ class _OpeningReadingsData {
   final List<PumpOpeningReadingLogModel> logs;
 }
 
+String _visibleOpeningNote(String note) {
+  final trimmed = note.trim();
+  if (trimmed.toLowerCase() == 'migrated pump opening readings') {
+    return '';
+  }
+  return trimmed;
+}
+
 class _OpeningStockSettingsScreenState
     extends State<OpeningStockSettingsScreen> {
   final InventoryService _inventoryService = InventoryService();
@@ -204,85 +212,141 @@ class _OpeningStockSettingsScreenState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Update Opening Readings'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: saving ? null : _pickEffectiveDate,
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _effectiveDateController,
-                          enabled: widget.canEdit && !saving,
-                          decoration: InputDecoration(
-                            labelText: 'Effective date',
-                            suffixIcon: const Icon(Icons.calendar_today),
-                            filled: true,
-                            fillColor: kClayBg,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 8),
+              contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+              actionsPadding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: const Text(
+                'Update Opening Readings',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      GestureDetector(
+                        onTap: saving ? null : _pickEffectiveDate,
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: _effectiveDateController,
+                            enabled: widget.canEdit && !saving,
+                            decoration: InputDecoration(
+                              labelText: 'Effective date',
+                              prefixIcon: const Icon(Icons.event_rounded),
+                              suffixIcon: const Icon(Icons.calendar_today),
+                              filled: true,
+                              fillColor: kClayBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _noteController,
-                      enabled: widget.canEdit && !saving,
-                      minLines: 2,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Reason / note (optional)',
-                        filled: true,
-                        fillColor: kClayBg,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _noteController,
+                        enabled: widget.canEdit && !saving,
+                        minLines: 2,
+                        maxLines: 3,
+                        decoration: InputDecoration(
+                          labelText: 'Reason / note (optional)',
+                          prefixIcon: const Icon(Icons.notes_rounded),
+                          filled: true,
+                          fillColor: kClayBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...station.pumps.map((pump) {
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: kClayBg,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              formatPumpLabel(pump.id, pump.label),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: kClayPrimary,
+                      const SizedBox(height: 14),
+                      ...station.pumps.map((pump) {
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: kClayBg,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFDDE2F0)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: kClayPrimary.withValues(
+                                        alpha: 0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.local_gas_station_rounded,
+                                      color: kClayPrimary,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      formatPumpLabel(pump.id, pump.label),
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w900,
+                                        color: kClayPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            _NumericField(
-                              controller:
-                                  _controllers[_readingKey(pump.id, 'petrol')],
-                              label: 'Petrol opening reading',
-                              enabled: widget.canEdit && !saving,
-                            ),
-                            const SizedBox(height: 12),
-                            _NumericField(
-                              controller:
-                                  _controllers[_readingKey(pump.id, 'diesel')],
-                              label: 'Diesel opening reading',
-                              enabled: widget.canEdit && !saving,
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ],
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _NumericField(
+                                      controller:
+                                          _controllers[_readingKey(
+                                            pump.id,
+                                            'petrol',
+                                          )],
+                                      label: 'Petrol',
+                                      enabled: widget.canEdit && !saving,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: _NumericField(
+                                      controller:
+                                          _controllers[_readingKey(
+                                            pump.id,
+                                            'diesel',
+                                          )],
+                                      label: 'Diesel',
+                                      enabled: widget.canEdit && !saving,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               ),
               actions: [
@@ -428,63 +492,23 @@ class _OpeningStockSettingsScreenState
                       ),
                       if (activeLog != null) ...[
                         const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _InfoChip(
-                              label: 'Changed at',
-                              value: _displayTimestamp(activeLog.createdAt),
-                            ),
-                            _InfoChip(
-                              label: 'Changed by',
-                              value: activeLog.createdByName.trim().isEmpty
-                                  ? 'System'
-                                  : activeLog.createdByName,
-                            ),
-                          ],
+                        _OpeningMetaRow(
+                          leftLabel: 'Changed at',
+                          leftValue: _displayTimestamp(activeLog.createdAt),
+                          rightLabel: 'Changed by',
+                          rightValue: activeLog.createdByName.trim().isEmpty
+                              ? 'System'
+                              : activeLog.createdByName,
                         ),
                         const SizedBox(height: 12),
-                        ...station.pumps.map((pump) {
-                          final readings = activeLog.readings[pump.id];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  formatPumpLabel(pump.id, pump.label),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w800,
-                                    color: kClayPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    _InfoChip(
-                                      label: 'Petrol',
-                                      value: (readings?.petrol ?? 0)
-                                          .toStringAsFixed(2),
-                                    ),
-                                    _InfoChip(
-                                      label: 'Diesel',
-                                      value: (readings?.diesel ?? 0)
-                                          .toStringAsFixed(2),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                        if (activeLog.note.trim().isNotEmpty) ...[
+                        _PumpReadingTable(
+                          pumps: station.pumps,
+                          readings: activeLog.readings,
+                        ),
+                        if (_visibleOpeningNote(activeLog.note).isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Text(
-                            activeLog.note,
+                            _visibleOpeningNote(activeLog.note),
                             style: const TextStyle(
                               color: kClayPrimary,
                               fontWeight: FontWeight.w600,
@@ -537,6 +561,7 @@ class _OpeningStockSettingsScreenState
                           log: activeLog,
                           pumps: station.pumps,
                           displayTimestamp: _displayTimestamp,
+                          visibleNote: _visibleOpeningNote,
                         ),
                     ],
                   ),
@@ -830,12 +855,46 @@ class _OpeningReadingHistoryScreenState
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: OutlinedButton(
-        onPressed: onTap,
-        child: OneLineScaleText(
-          value.isEmpty ? label : '$label: ${formatDateLabel(value)}',
-          alignment: Alignment.center,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECEFF8),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFDDE2F0)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.event_rounded, size: 18, color: kClayPrimary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: kClaySub,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    OneLineScaleText(
+                      value.isEmpty ? 'Any date' : formatDateLabel(value),
+                      style: const TextStyle(
+                        color: kClayPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -872,22 +931,35 @@ class _OpeningReadingHistoryScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _HistoryTabButton(
-                            label: 'Active',
-                            count: data.active.length,
-                            selected: !_showDeleted,
-                            onTap: () => setState(() => _showDeleted = false),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _showDeleted
+                                      ? 'Deleted Opening Readings'
+                                      : 'Active Opening Readings',
+                                  style: const TextStyle(
+                                    color: kClayPrimary,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${history.length} log${history.length == 1 ? '' : 's'} shown',
+                                  style: const TextStyle(
+                                    color: kClaySub,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          _HistoryTabButton(
-                            label: 'Deleted',
-                            count: data.deleted.length,
-                            selected: _showDeleted,
-                            onTap: () => setState(() => _showDeleted = true),
-                          ),
-                          const Spacer(),
-                          IconButton(
+                          IconButton.filledTonal(
                             tooltip: 'Download history',
                             onPressed: history.isEmpty
                                 ? null
@@ -897,6 +969,25 @@ class _OpeningReadingHistoryScreenState
                                     deleted: _showDeleted,
                                   ),
                             icon: const Icon(Icons.download_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _HistoryTabButton(
+                            label: 'Active',
+                            count: data.active.length,
+                            selected: !_showDeleted,
+                            onTap: () => setState(() => _showDeleted = false),
+                          ),
+                          _HistoryTabButton(
+                            label: 'Deleted',
+                            count: data.deleted.length,
+                            selected: _showDeleted,
+                            onTap: () => setState(() => _showDeleted = true),
                           ),
                         ],
                       ),
@@ -922,9 +1013,9 @@ class _OpeningReadingHistoryScreenState
                         decoration: InputDecoration(
                           labelText: 'Sort by',
                           filled: true,
-                          fillColor: kClayBg,
+                          fillColor: const Color(0xFFECEFF8),
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14),
                             borderSide: BorderSide.none,
                           ),
                         ),
@@ -966,6 +1057,7 @@ class _OpeningReadingHistoryScreenState
                       log: item,
                       pumps: data.station.pumps,
                       displayTimestamp: _displayTimestamp,
+                      visibleNote: _visibleOpeningNote,
                       onDelete: widget.canEdit && !_showDeleted && !_deleting
                           ? () => _deleteHistory(item)
                           : null,
@@ -985,24 +1077,15 @@ class _OpeningReadingLogRow extends StatelessWidget {
     required this.log,
     required this.pumps,
     required this.displayTimestamp,
+    required this.visibleNote,
     this.onDelete,
   });
 
   final PumpOpeningReadingLogModel log;
   final List<StationPumpModel> pumps;
   final String Function(String) displayTimestamp;
+  final String Function(String) visibleNote;
   final VoidCallback? onDelete;
-
-  String _value(PumpReadings? readings, String fuelKey) {
-    switch (fuelKey) {
-      case 'petrol':
-        return (readings?.petrol ?? 0).toStringAsFixed(2);
-      case 'diesel':
-        return (readings?.diesel ?? 0).toStringAsFixed(2);
-      default:
-        return '0.00';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1013,8 +1096,16 @@ class _OpeningReadingLogRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kClayBg,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3E7F2)),
+        boxShadow: [
+          BoxShadow(
+            color: kClayPrimary.withValues(alpha: 0.06),
+            offset: const Offset(0, 8),
+            blurRadius: 18,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1055,13 +1146,11 @@ class _OpeningReadingLogRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'Saved by $actor',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: kClayPrimary,
-            ),
+          _OpeningMetaRow(
+            leftLabel: 'Saved by',
+            leftValue: actor,
+            rightLabel: 'Logged at',
+            rightValue: displayTimestamp(log.createdAt),
           ),
           if (log.deletedAt.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -1075,44 +1164,11 @@ class _OpeningReadingLogRow extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          ...pumps.map((pump) {
-            final readings = log.readings[pump.id];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatPumpLabel(pump.id, pump.label),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: kClayPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _InfoChip(
-                        label: 'Petrol',
-                        value: _value(readings, 'petrol'),
-                      ),
-                      _InfoChip(
-                        label: 'Diesel',
-                        value: _value(readings, 'diesel'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }),
-          if (log.note.trim().isNotEmpty) ...[
+          _PumpReadingTable(pumps: pumps, readings: log.readings),
+          if (visibleNote(log.note).isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
-              log.note,
+              visibleNote(log.note),
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.35,
@@ -1121,6 +1177,206 @@ class _OpeningReadingLogRow extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _OpeningMetaRow extends StatelessWidget {
+  const _OpeningMetaRow({
+    required this.leftLabel,
+    required this.leftValue,
+    required this.rightLabel,
+    required this.rightValue,
+  });
+
+  final String leftLabel;
+  final String leftValue;
+  final String rightLabel;
+  final String rightValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kClayBg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _MetaValue(label: leftLabel, value: leftValue),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _MetaValue(label: rightLabel, value: rightValue),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetaValue extends StatelessWidget {
+  const _MetaValue({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: kClaySub,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 3),
+        OneLineScaleText(
+          value,
+          style: const TextStyle(
+            color: kClayPrimary,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PumpReadingTable extends StatelessWidget {
+  const _PumpReadingTable({required this.pumps, required this.readings});
+
+  final List<StationPumpModel> pumps;
+  final Map<String, PumpReadings> readings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+      decoration: BoxDecoration(
+        color: kClayBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDDE2F0)),
+      ),
+      child: Column(
+        children: [
+          const _PumpReadingHeader(),
+          const SizedBox(height: 8),
+          ...List.generate(pumps.length, (index) {
+            final pump = pumps[index];
+            final reading = readings[pump.id];
+            return Column(
+              children: [
+                _PumpReadingRow(
+                  pumpLabel: formatPumpLabel(pump.id, pump.label),
+                  petrol: (reading?.petrol ?? 0).toStringAsFixed(2),
+                  diesel: (reading?.diesel ?? 0).toStringAsFixed(2),
+                ),
+                if (index != pumps.length - 1)
+                  const Divider(height: 14, color: Color(0xFFE4E8F3)),
+              ],
+            );
+          }),
+        ],
+      ),
+    );
+  }
+}
+
+class _PumpReadingHeader extends StatelessWidget {
+  const _PumpReadingHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(
+      color: kClaySub,
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+    );
+    return Row(
+      children: const [
+        Expanded(child: Text('Pump', style: style)),
+        SizedBox(width: 10),
+        SizedBox(width: 82, child: Text('Petrol', style: style)),
+        SizedBox(width: 6),
+        SizedBox(width: 82, child: Text('Diesel', style: style)),
+      ],
+    );
+  }
+}
+
+class _PumpReadingRow extends StatelessWidget {
+  const _PumpReadingRow({
+    required this.pumpLabel,
+    required this.petrol,
+    required this.diesel,
+  });
+
+  final String pumpLabel;
+  final String petrol;
+  final String diesel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: OneLineScaleText(
+              pumpLabel,
+              style: const TextStyle(
+                color: kClayPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          _ReadingValueCell(value: petrol),
+          const SizedBox(width: 6),
+          _ReadingValueCell(value: diesel),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadingValueCell extends StatelessWidget {
+  const _ReadingValueCell({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 82,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE6EAF4)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          child: OneLineScaleText(
+            value,
+            alignment: Alignment.centerLeft,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1162,46 +1418,6 @@ class _HistoryTabButton extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: kClaySub,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: kClayPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ─── Numeric field ───────────────────────────────────────────────────────────
 class _NumericField extends StatelessWidget {
   const _NumericField({
@@ -1220,14 +1436,31 @@ class _NumericField extends StatelessWidget {
       controller: controller,
       enabled: enabled,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: const TextStyle(
+        color: kClayPrimary,
+        fontWeight: FontWeight.w800,
+        fontSize: 14,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: const Icon(Icons.local_gas_station_rounded),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
         filled: true,
-        fillColor: enabled ? kClayBg : const Color(0xFFE8EBF4),
+        fillColor: enabled ? Colors.white : const Color(0xFFE8EBF4),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E6F1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E6F1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kClayPrimary, width: 1.2),
         ),
       ),
     );

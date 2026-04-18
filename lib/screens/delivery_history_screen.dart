@@ -207,20 +207,216 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: OutlinedButton.icon(
-        onPressed: onTap,
-        icon: const Icon(Icons.event_rounded, size: 18),
-        label: Text(
-          value.isEmpty ? label : formatDateLabel(value),
-          overflow: TextOverflow.ellipsis,
-        ),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: kClayPrimary,
-          side: const BorderSide(color: Color(0xFFD9DEED)),
-          backgroundColor: const Color(0xFFECEFF8),
-          shape: RoundedRectangleBorder(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECEFF8),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFDDE3F0)),
           ),
+          child: Row(
+            children: [
+              const Icon(Icons.event_rounded, size: 18, color: kClayPrimary),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: kClaySub,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      value.isEmpty ? 'Any date' : formatDateLabel(value),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: kClayPrimary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterDropdown<T>({
+    required String label,
+    required T value,
+    required List<T> values,
+    required String Function(T value) labelFor,
+    required ValueChanged<T> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 10, 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE3F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF5D6685),
+              ),
+              style: const TextStyle(
+                color: kClayPrimary,
+                fontWeight: FontWeight.w900,
+                fontSize: 14,
+              ),
+              dropdownColor: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              items: values
+                  .map(
+                    (item) => DropdownMenuItem<T>(
+                      value: item,
+                      child: Text(
+                        labelFor(item),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (selected) {
+                if (selected == null) return;
+                onChanged(selected);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState({required bool hasPurchases}) {
+    return ClayCard(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFFECEFF8),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              hasPurchases
+                  ? Icons.filter_alt_off_rounded
+                  : Icons.local_shipping_outlined,
+              color: kClayPrimary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            hasPurchases
+                ? 'No purchases match these filters'
+                : 'No purchases recorded yet',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            hasPurchases
+                ? 'Change the date range, fuel type, or sorting to find older records.'
+                : 'Recorded fuel purchases will appear here with date, quantity, and notes.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: kClaySub, fontSize: 12, height: 1.35),
+          ),
+          if (_hasFilters) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: _clearFilters,
+              icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
+              label: const Text('Clear filters'),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _countPill({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: kClayPrimary, size: 17),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: kClaySub,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -232,6 +428,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   }) {
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -252,19 +449,66 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  totalCount == 0
-                      ? 'No purchases recorded yet.'
-                      : '$visibleCount of $totalCount purchase event${totalCount == 1 ? '' : 's'} shown.',
-                  style: const TextStyle(
-                    color: kClayPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Purchase Records',
+                      style: TextStyle(
+                        color: kClayPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      totalCount == 0
+                          ? 'No purchases recorded yet'
+                          : '$visibleCount of $totalCount purchase event${totalCount == 1 ? '' : 's'} shown',
+                      style: const TextStyle(
+                        color: kClaySub,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              if (_hasFilters)
+                IconButton(
+                  tooltip: 'Clear filters',
+                  onPressed: _clearFilters,
+                  icon: const Icon(Icons.filter_alt_off_rounded),
+                  color: kClayPrimary,
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _countPill(
+                icon: Icons.receipt_long_rounded,
+                label: 'total records',
+                value: totalCount.toString(),
+              ),
+              const SizedBox(width: 10),
+              _countPill(
+                icon: Icons.visibility_rounded,
+                label: 'visible now',
+                value: visibleCount.toString(),
               ),
             ],
           ),
           const SizedBox(height: 14),
+          const Text(
+            'FILTERS',
+            style: TextStyle(
+              color: kClaySub,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(
             children: [
               _filterButton(
@@ -281,63 +525,21 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<_DeliveryFuelFilter>(
-            initialValue: _fuelFilter,
-            decoration: InputDecoration(
-              labelText: 'Fuel filter',
-              filled: true,
-              fillColor: const Color(0xFFECEFF8),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            items: _DeliveryFuelFilter.values
-                .map(
-                  (item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(_fuelFilterLabel(item)),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _fuelFilter = value);
-            },
+          _filterDropdown<_DeliveryFuelFilter>(
+            label: 'Fuel filter',
+            value: _fuelFilter,
+            values: _DeliveryFuelFilter.values,
+            labelFor: _fuelFilterLabel,
+            onChanged: (value) => setState(() => _fuelFilter = value),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<_DeliveryHistorySort>(
-            initialValue: _sort,
-            decoration: InputDecoration(
-              labelText: 'Sort by',
-              filled: true,
-              fillColor: const Color(0xFFECEFF8),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-            ),
-            items: _DeliveryHistorySort.values
-                .map(
-                  (item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(_sortLabel(item)),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _sort = value);
-            },
+          _filterDropdown<_DeliveryHistorySort>(
+            label: 'Sort by',
+            value: _sort,
+            values: _DeliveryHistorySort.values,
+            labelFor: _sortLabel,
+            onChanged: (value) => setState(() => _sort = value),
           ),
-          if (_hasFilters) ...[
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: _clearFilters,
-              icon: const Icon(Icons.filter_alt_off_rounded),
-              label: const Text('Clear filters'),
-            ),
-          ],
         ],
       ),
     );
@@ -383,13 +585,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                   visibleCount: visibleDeliveries.length,
                 ),
                 if (visibleDeliveries.isEmpty)
-                  const ClayCard(
-                    margin: EdgeInsets.only(bottom: 14),
-                    child: Text(
-                      'No purchases for this filter.',
-                      style: TextStyle(color: kClaySub),
-                    ),
-                  )
+                  _emptyState(hasPurchases: deliveries.isNotEmpty)
                 else
                   ...visibleDeliveries.map(
                     (delivery) => DeliveryReceiptSummaryCard(

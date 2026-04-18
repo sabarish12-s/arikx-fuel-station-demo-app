@@ -20,12 +20,8 @@ class SalesDashboardScreen extends StatefulWidget {
 
 class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   final SalesService _salesService = SalesService();
-  late Future<SalesDashboardModel> _future;
+  late Future<_SalesDashboardBundle> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
-
-  String _errorText(Object? error) {
-    return userFacingErrorMessage(error);
-  }
 
   @override
   void initState() {
@@ -47,8 +43,34 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
     super.dispose();
   }
 
-  Future<SalesDashboardModel> _load({bool forceRefresh = false}) {
-    return _salesService.fetchDashboard(forceRefresh: forceRefresh);
+  String _errorText(Object? error) {
+    return userFacingErrorMessage(error);
+  }
+
+  String _apiDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  DateTime _previousDay(DateTime base) {
+    return DateTime(
+      base.year,
+      base.month,
+      base.day,
+    ).subtract(const Duration(days: 1));
+  }
+
+  Future<_SalesDashboardBundle> _load({bool forceRefresh = false}) async {
+    final today = await _salesService.fetchDashboard(
+      forceRefresh: forceRefresh,
+    );
+    final parsedToday = DateTime.tryParse(today.date) ?? DateTime.now();
+    final yesterday = await _salesService.fetchDashboardForDate(
+      date: _apiDate(_previousDay(parsedToday)),
+      forceRefresh: forceRefresh,
+    );
+    return _SalesDashboardBundle(today: today, yesterday: yesterday);
   }
 
   Future<void> _refresh() async {
@@ -64,11 +86,29 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
     ).push(MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()));
   }
 
+  List<_PumpCashSummary> _todayCashByPump(SalesDashboardModel data) {
+    final totals = <String, double>{};
+    for (final entry in data.todaysEntries) {
+      entry.pumpPayments.forEach((pumpId, payments) {
+        totals[pumpId] = (totals[pumpId] ?? 0) + payments.cash;
+      });
+    }
+
+    return data.station.pumps
+        .map(
+          (pump) => _PumpCashSummary(
+            label: formatPumpLabel(pump.id, pump.label),
+            cash: totals[pump.id] ?? 0,
+          ),
+        )
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: FutureBuilder<SalesDashboardModel>(
+      child: FutureBuilder<_SalesDashboardBundle>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -98,12 +138,15 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
             );
           }
 
-          final data = snapshot.data!;
-          final approvedEntries = data.todaysEntries
+          final bundle = snapshot.data!;
+          final today = bundle.today;
+          final yesterday = bundle.yesterday;
+          final cashByPump = _todayCashByPump(today);
+          final approvedEntries = today.todaysEntries
               .where((entry) => entry.isFinalized)
               .length;
-          final pendingEntries = data.todaysEntries.length - approvedEntries;
-          final flaggedEntries = data.todaysEntries
+          final pendingEntries = today.todaysEntries.length - approvedEntries;
+          final flaggedEntries = today.todaysEntries
               .where((entry) => entry.flagged)
               .length;
 
@@ -111,7 +154,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              // ── Hero header ────────────────────────────────────────────
               Container(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
                 decoration: BoxDecoration(
@@ -133,7 +175,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      formatDateLabel(data.date),
+                      formatDateLabel(today.date),
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 11,
@@ -143,7 +185,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      data.station.name,
+                      today.station.name,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -157,7 +199,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                           child: _HeroStatChip(
                             label: 'Liters',
                             value: formatLiters(
-                              data.petrolSold + data.dieselSold + data.twoTSold,
+                              today.petrolSold +
+                                  today.dieselSold +
+                                  today.twoTSold,
                             ),
                           ),
                         ),
@@ -187,7 +231,6 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 18),
               FilledButton.icon(
                 onPressed: _openCreditLedger,
@@ -205,10 +248,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   style: TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
-
-              // ── Fuel sales cards ───────────────────────────────────────
+              const SizedBox(height: 10),
               const Text(
-                'FUEL DISPENSED',
+                'YESTERDAY\'S SALES',
                 style: TextStyle(
                   fontSize: 11,
                   letterSpacing: 1.1,
@@ -216,48 +258,61 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                   color: kClaySub,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: _FuelCard(
-                      label: 'Petrol',
-                      liters: data.petrolSold,
-                      icon: Icons.local_gas_station_rounded,
-                      color: const Color(0xFF1A3A7A),
-                      bgColor: const Color(0xFFD7E8FB),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _FuelCard(
-                      label: 'Diesel',
-                      liters: data.dieselSold,
-                      icon: Icons.oil_barrel_rounded,
-                      color: const Color(0xFF2AA878),
-                      bgColor: const Color(0xFFD4F5E9),
-                    ),
-                  ),
-                  if (data.twoTSold > 0) ...[
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _FuelCard(
-                        label: '2T Oil',
-                        liters: data.twoTSold,
-                        icon: Icons.opacity_rounded,
-                        color: const Color(0xFFCE5828),
-                        bgColor: const Color(0xFFFDE8DF),
-                      ),
-                    ),
-                  ],
-                ],
+              const SizedBox(height: 6),
+              Text(
+                formatDateLabel(yesterday.date),
+                style: const TextStyle(
+                  color: kClaySub,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const gap = 10.0;
+                  final itemWidth = (constraints.maxWidth - gap) / 2;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      SizedBox(
+                        width: itemWidth,
+                        child: _FuelCard(
+                          label: 'Petrol',
+                          liters: yesterday.petrolSold,
+                          icon: Icons.local_gas_station_rounded,
+                          color: const Color(0xFF1A3A7A),
+                          bgColor: const Color(0xFFD7E8FB),
+                        ),
+                      ),
+                      SizedBox(
+                        width: itemWidth,
+                        child: _FuelCard(
+                          label: 'Diesel',
+                          liters: yesterday.dieselSold,
+                          icon: Icons.oil_barrel_rounded,
+                          color: const Color(0xFF2AA878),
+                          bgColor: const Color(0xFFD4F5E9),
+                        ),
+                      ),
+                      SizedBox(
+                        width: itemWidth,
+                        child: _FuelCard(
+                          label: '2T Oil',
+                          liters: yesterday.twoTSold,
+                          icon: Icons.opacity_rounded,
+                          color: const Color(0xFFCE5828),
+                          bgColor: const Color(0xFFFDE8DF),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
               const SizedBox(height: 22),
-
-              // ── Recently submitted ─────────────────────────────────────
               const Text(
-                'RECENTLY SUBMITTED',
+                'TODAY\'S CASH BY PUMP',
                 style: TextStyle(
                   fontSize: 11,
                   letterSpacing: 1.1,
@@ -266,96 +321,35 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              if (data.todaysEntries.isEmpty)
-                const ClayCard(
-                  child: Text(
-                    'No entries submitted yet.',
-                    style: TextStyle(
-                      color: kClaySub,
-                      fontWeight: FontWeight.w600,
+              ClayCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatDateLabel(today.date),
+                      style: const TextStyle(
+                        color: kClayPrimary,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                )
-              else
-                ...data.todaysEntries.map(
-                  (entry) => ClayCard(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: entry.flagged
-                                ? const Color(
-                                    0xFFCE5828,
-                                  ).withValues(alpha: 0.14)
-                                : const Color(
-                                    0xFF1A3A7A,
-                                  ).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Icon(
-                            entry.flagged
-                                ? Icons.flag_rounded
-                                : Icons.receipt_long_rounded,
-                            color: entry.flagged
-                                ? const Color(0xFFCE5828)
-                                : kClayHeroStart,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'Daily Entry',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 15,
-                                        color: kClayPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                  _DashboardEntryBadge(
-                                    flagged: entry.flagged,
-                                    status: entry.status,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${formatLiters(entry.totals.sold.petrol)} petrol  •  ${formatLiters(entry.totals.sold.diesel)} diesel'
-                                '${entry.totals.sold.twoT > 0 ? '  •  ${formatLiters(entry.totals.sold.twoT)} 2T' : ''}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: kClayPrimary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              if (entry.flagged &&
-                                  entry.varianceNote.isNotEmpty) ...[
-                                const SizedBox(height: 3),
-                                Text(
-                                  entry.varianceNote,
-                                  style: const TextStyle(
-                                    color: Color(0xFFCE5828),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Cash collected from each pump for today.',
+                      style: TextStyle(
+                        color: kClaySub,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    ...cashByPump.map(
+                      (pump) =>
+                          _PumpCashRow(label: pump.label, cash: pump.cash),
+                    ),
+                  ],
                 ),
+              ),
             ],
           );
         },
@@ -364,7 +358,20 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   }
 }
 
-// ── Fuel dispensed card ────────────────────────────────────────────────────────
+class _SalesDashboardBundle {
+  const _SalesDashboardBundle({required this.today, required this.yesterday});
+
+  final SalesDashboardModel today;
+  final SalesDashboardModel yesterday;
+}
+
+class _PumpCashSummary {
+  const _PumpCashSummary({required this.label, required this.cash});
+
+  final String label;
+  final double cash;
+}
+
 class _FuelCard extends StatelessWidget {
   const _FuelCard({
     required this.label,
@@ -436,7 +443,6 @@ class _FuelCard extends StatelessWidget {
   }
 }
 
-// ── Hero stat chip ─────────────────────────────────────────────────────────────
 class _HeroStatChip extends StatelessWidget {
   const _HeroStatChip({required this.label, required this.value});
 
@@ -464,41 +470,57 @@ class _HeroStatChip extends StatelessWidget {
   }
 }
 
-// ── Entry badge ────────────────────────────────────────────────────────────────
-class _DashboardEntryBadge extends StatelessWidget {
-  const _DashboardEntryBadge({required this.flagged, required this.status});
+class _PumpCashRow extends StatelessWidget {
+  const _PumpCashRow({required this.label, required this.cash});
 
-  final bool flagged;
-  final String status;
+  final String label;
+  final double cash;
 
   @override
   Widget build(BuildContext context) {
-    final Color bg;
-    final Color fg;
-    final String label;
-    if (flagged) {
-      bg = const Color(0xFFCE5828);
-      fg = Colors.white;
-      label = 'FLAGGED';
-    } else if (status.trim().toLowerCase() == 'approved') {
-      bg = const Color(0xFF2AA878);
-      fg = Colors.white;
-      label = 'APPROVED';
-    } else {
-      bg = const Color(0xFFE8ECF9);
-      fg = kClayHeroStart;
-      label = status.toUpperCase();
-    }
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(999),
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: OneLineScaleText(
-        label,
-        alignment: Alignment.center,
-        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w800),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFD4F5E9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.payments_rounded,
+              color: Color(0xFF2AA878),
+              size: 19,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: kClayPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          OneLineScaleText(
+            formatCurrency(cash),
+            alignment: Alignment.centerRight,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -40,6 +40,14 @@ class _InventoryHubData {
   final List<InventoryStockSnapshotModel> snapshots;
 }
 
+String _visibleStockNote(String note) {
+  final trimmed = note.trim();
+  if (trimmed.toLowerCase() == 'migrated stock baseline') {
+    return '';
+  }
+  return trimmed;
+}
+
 class _InventoryHubScreenState extends State<InventoryHubScreen> {
   final InventoryService _inventoryService = InventoryService();
   final TextEditingController _effectiveDateController =
@@ -209,93 +217,183 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Update Current Stock'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    GestureDetector(
-                      onTap: saving ? null : _pickEffectiveDate,
-                      child: AbsorbPointer(
-                        child: TextField(
-                          controller: _effectiveDateController,
-                          decoration: InputDecoration(
-                            labelText: 'Effective date',
-                            suffixIcon: const Icon(Icons.calendar_today),
-                            filled: true,
-                            fillColor: const Color(0xFFECEFF8),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(18),
-                              borderSide: BorderSide.none,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(22, 20, 22, 6),
+              contentPadding: const EdgeInsets.fromLTRB(22, 0, 22, 0),
+              actionsPadding: const EdgeInsets.fromLTRB(22, 12, 22, 18),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              title: const Text(
+                'Update Current Stock',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Set the stock used for inventory calculations.',
+                        style: TextStyle(
+                          color: kClaySub,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      GestureDetector(
+                        onTap: saving ? null : _pickEffectiveDate,
+                        child: AbsorbPointer(
+                          child: TextField(
+                            controller: _effectiveDateController,
+                            decoration: InputDecoration(
+                              labelText: 'Effective date',
+                              prefixIcon: const Icon(Icons.event_rounded),
+                              suffixIcon: const Icon(Icons.calendar_today),
+                              filled: true,
+                              fillColor: const Color(0xFFECEFF8),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _StockNumberField(
-                      label: 'Petrol stock liters',
-                      controller: _petrolController,
-                      enabled: !saving,
-                    ),
-                    const SizedBox(height: 12),
-                    _StockNumberField(
-                      label: 'Diesel stock liters',
-                      controller: _dieselController,
-                      enabled: !saving,
-                    ),
-                    const SizedBox(height: 12),
-                    _StockNumberField(
-                      label: '2T oil stock liters',
-                      controller: _twoTController,
-                      enabled: !saving,
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _noteController,
-                      enabled: !saving,
-                      minLines: 2,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        labelText: 'Reason / note (optional)',
-                        filled: true,
-                        fillColor: const Color(0xFFECEFF8),
-                        border: OutlineInputBorder(
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECEFF8),
                           borderRadius: BorderRadius.circular(18),
-                          borderSide: BorderSide.none,
+                          border: Border.all(color: const Color(0xFFDDE2F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.inventory_2_rounded,
+                                  color: kClayPrimary,
+                                  size: 18,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Stock levels',
+                                  style: TextStyle(
+                                    color: kClayPrimary,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _StockNumberField(
+                                    label: 'Petrol',
+                                    controller: _petrolController,
+                                    enabled: !saving,
+                                    color: const Color(0xFF1298B8),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _StockNumberField(
+                                    label: 'Diesel',
+                                    controller: _dieselController,
+                                    enabled: !saving,
+                                    color: const Color(0xFF2AA878),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            _StockNumberField(
+                              label: '2T Oil',
+                              controller: _twoTController,
+                              enabled: !saving,
+                              color: const Color(0xFF7048A8),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _noteController,
+                        enabled: !saving,
+                        minLines: 1,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          labelText: 'Reason / note (optional)',
+                          prefixIcon: const Icon(Icons.notes_rounded),
+                          filled: true,
+                          fillColor: const Color(0xFFECEFF8),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               actions: [
-                TextButton(
-                  onPressed: saving
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: saving
-                      ? null
-                      : () async {
-                          setDialogState(() => saving = true);
-                          final saved = await _saveSnapshot();
-                          if (!context.mounted) return;
-                          setDialogState(() => saving = false);
-                          if (saved && dialogContext.mounted) {
-                            Navigator.of(dialogContext).pop();
-                          }
-                        },
-                  icon: saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: Text(saving ? 'Saving...' : 'Save Stock'),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: saving
+                            ? null
+                            : () => Navigator.of(dialogContext).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                setDialogState(() => saving = true);
+                                final saved = await _saveSnapshot();
+                                if (!context.mounted) return;
+                                setDialogState(() => saving = false);
+                                if (saved && dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                }
+                              },
+                        icon: saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(saving ? 'Saving...' : 'Save Stock'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             );
@@ -570,59 +668,37 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _SnapshotPill(
-                              label: 'Petrol',
-                              value: formatLiters(
-                                activeSnapshot?.stock['petrol'] ??
-                                    planning.currentStock['petrol'] ??
-                                    0,
-                              ),
-                            ),
-                            _SnapshotPill(
-                              label: 'Diesel',
-                              value: formatLiters(
-                                activeSnapshot?.stock['diesel'] ??
-                                    planning.currentStock['diesel'] ??
-                                    0,
-                              ),
-                            ),
-                            _SnapshotPill(
-                              label: '2T Oil',
-                              value: formatLiters(
-                                activeSnapshot?.stock['two_t_oil'] ??
-                                    planning.currentStock['two_t_oil'] ??
-                                    0,
-                              ),
-                            ),
-                            _SnapshotPill(
-                              label: 'Effective date',
-                              value: activeSnapshot == null
-                                  ? 'Not set'
-                                  : _displayDate(activeSnapshot.effectiveDate),
-                            ),
-                            _SnapshotPill(
-                              label: 'Set by',
-                              value:
-                                  activeSnapshot?.createdByName
-                                          .trim()
-                                          .isNotEmpty ==
-                                      true
-                                  ? activeSnapshot!.createdByName
-                                  : 'System',
-                            ),
-                            _SnapshotPill(
-                              label: 'Lead / alert',
-                              value:
-                                  '${planning.deliveryLeadDays}d / ${planning.alertBeforeDays}d',
-                            ),
-                          ],
+                        _StockSummaryTable(
+                          petrol:
+                              activeSnapshot?.stock['petrol'] ??
+                              planning.currentStock['petrol'] ??
+                              0,
+                          diesel:
+                              activeSnapshot?.stock['diesel'] ??
+                              planning.currentStock['diesel'] ??
+                              0,
+                          twoT:
+                              activeSnapshot?.stock['two_t_oil'] ??
+                              planning.currentStock['two_t_oil'] ??
+                              0,
+                        ),
+                        const SizedBox(height: 12),
+                        _StockMetaRow(
+                          effectiveDate: activeSnapshot == null
+                              ? 'Not set'
+                              : _displayDate(activeSnapshot.effectiveDate),
+                          setBy:
+                              activeSnapshot?.createdByName.trim().isNotEmpty ==
+                                  true
+                              ? activeSnapshot!.createdByName
+                              : 'System',
+                          leadAlert:
+                              '${planning.deliveryLeadDays}d / ${planning.alertBeforeDays}d',
                         ),
                         if (activeSnapshot != null &&
-                            activeSnapshot.note.trim().isNotEmpty) ...[
+                            _visibleStockNote(
+                              activeSnapshot.note,
+                            ).isNotEmpty) ...[
                           const SizedBox(height: 12),
                           Container(
                             width: double.infinity,
@@ -632,7 +708,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Text(
-                              activeSnapshot.note,
+                              _visibleStockNote(activeSnapshot.note),
                               style: const TextStyle(
                                 color: Color(0xFF4A5598),
                                 fontWeight: FontWeight.w600,
@@ -1045,12 +1121,50 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
     required VoidCallback onTap,
   }) {
     return Expanded(
-      child: OutlinedButton(
-        onPressed: onTap,
-        child: OneLineScaleText(
-          value.isEmpty ? label : '$label: ${formatDateLabel(value)}',
-          alignment: Alignment.center,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECEFF8),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFDDE2F0)),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.event_rounded,
+                size: 18,
+                color: Color(0xFF1A2561),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Color(0xFF8A93B8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    OneLineScaleText(
+                      value.isEmpty ? 'Any date' : formatDateLabel(value),
+                      style: const TextStyle(
+                        color: Color(0xFF1A2561),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1086,6 +1200,48 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _showDeleted
+                                      ? 'Deleted Stock Records'
+                                      : 'Active Stock Records',
+                                  style: const TextStyle(
+                                    color: Color(0xFF1A2561),
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${history.length} record${history.length == 1 ? '' : 's'} shown',
+                                  style: const TextStyle(
+                                    color: Color(0xFF8A93B8),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton.filledTonal(
+                            tooltip: 'Download history',
+                            onPressed: history.isEmpty
+                                ? null
+                                : () =>
+                                      _download(history, deleted: _showDeleted),
+                            icon: const Icon(Icons.download_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           _HistoryTabButton(
                             label: 'Active',
@@ -1093,21 +1249,11 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
                             selected: !_showDeleted,
                             onTap: () => setState(() => _showDeleted = false),
                           ),
-                          const SizedBox(width: 8),
                           _HistoryTabButton(
                             label: 'Deleted',
                             count: data.deleted.length,
                             selected: _showDeleted,
                             onTap: () => setState(() => _showDeleted = true),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            tooltip: 'Download history',
-                            onPressed: history.isEmpty
-                                ? null
-                                : () =>
-                                      _download(history, deleted: _showDeleted),
-                            icon: const Icon(Icons.download_rounded),
                           ),
                         ],
                       ),
@@ -1346,8 +1492,16 @@ class _SnapshotHistoryRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFECEFF8),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3E7F2)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1A2561).withValues(alpha: 0.06),
+            offset: const Offset(0, 8),
+            blurRadius: 18,
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1388,31 +1542,31 @@ class _SnapshotHistoryRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _HistoryChip(
-                label: 'Petrol',
-                value: formatLiters(snapshot.stock['petrol'] ?? 0),
-              ),
-              _HistoryChip(
-                label: 'Diesel',
-                value: formatLiters(snapshot.stock['diesel'] ?? 0),
-              ),
-              _HistoryChip(
-                label: '2T Oil',
-                value: formatLiters(snapshot.stock['two_t_oil'] ?? 0),
-              ),
-            ],
+          _StockSummaryTable(
+            petrol: snapshot.stock['petrol'] ?? 0,
+            diesel: snapshot.stock['diesel'] ?? 0,
+            twoT: snapshot.stock['two_t_oil'] ?? 0,
           ),
           const SizedBox(height: 10),
-          Text(
-            'Saved by $actor',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF4A5598),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFECEFF8),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _StockMetaCell(label: 'Saved by', value: actor),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _StockMetaCell(
+                    label: 'Logged at',
+                    value: displayTimestamp(snapshot.createdAt),
+                  ),
+                ),
+              ],
             ),
           ),
           if (snapshot.deletedAt.trim().isNotEmpty) ...[
@@ -1426,10 +1580,10 @@ class _SnapshotHistoryRow extends StatelessWidget {
               ),
             ),
           ],
-          if (snapshot.note.trim().isNotEmpty) ...[
+          if (_visibleStockNote(snapshot.note).isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              snapshot.note,
+              _visibleStockNote(snapshot.note),
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.35,
@@ -1479,56 +1633,18 @@ class _HistoryTabButton extends StatelessWidget {
   }
 }
 
-class _HistoryChip extends StatelessWidget {
-  const _HistoryChip({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF8A93B8),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1A2561),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _StockNumberField extends StatelessWidget {
   const _StockNumberField({
     required this.label,
     required this.controller,
     required this.enabled,
+    required this.color,
   });
 
   final String label;
   final TextEditingController controller;
   final bool enabled;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -1538,10 +1654,24 @@ class _StockNumberField extends StatelessWidget {
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
         labelText: label,
+        prefixIcon: Padding(
+          padding: const EdgeInsets.only(left: 12, right: 8),
+          child: Icon(Icons.circle, color: color, size: 12),
+        ),
+        prefixIconConstraints: const BoxConstraints(minWidth: 32),
+        suffixText: 'L',
+        suffixStyle: const TextStyle(
+          color: kClaySub,
+          fontWeight: FontWeight.w800,
+        ),
         filled: true,
-        fillColor: const Color(0xFFECEFF8),
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 13,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
       ),
@@ -1645,57 +1775,230 @@ class _ClayCard extends StatelessWidget {
   }
 }
 
-class _SnapshotPill extends StatelessWidget {
-  const _SnapshotPill({required this.label, required this.value});
+class _StockSummaryTable extends StatelessWidget {
+  const _StockSummaryTable({
+    required this.petrol,
+    required this.diesel,
+    required this.twoT,
+  });
+
+  final double petrol;
+  final double diesel;
+  final double twoT;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE2F0)),
+      ),
+      child: Column(
+        children: [
+          const _StockTableHeader(),
+          const SizedBox(height: 8),
+          _StockTableRow(
+            label: 'Petrol',
+            color: Color(0xFF1298B8),
+            value: formatLiters(petrol),
+          ),
+          const Divider(height: 14, color: Color(0xFFDDE2F0)),
+          _StockTableRow(
+            label: 'Diesel',
+            color: Color(0xFF2AA878),
+            value: formatLiters(diesel),
+          ),
+          const Divider(height: 14, color: Color(0xFFDDE2F0)),
+          _StockTableRow(
+            label: '2T Oil',
+            color: Color(0xFF7048A8),
+            value: formatLiters(twoT),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StockTableHeader extends StatelessWidget {
+  const _StockTableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    const style = TextStyle(
+      color: Color(0xFF8A93B8),
+      fontSize: 10,
+      fontWeight: FontWeight.w800,
+    );
+    return Row(
+      children: const [
+        Expanded(child: Text('Fuel', style: style)),
+        SizedBox(width: 12),
+        SizedBox(width: 110, child: Text('Current stock', style: style)),
+      ],
+    );
+  }
+}
+
+class _StockTableRow extends StatelessWidget {
+  const _StockTableRow({
+    required this.label,
+    required this.color,
+    required this.value,
+  });
 
   final String label;
+  final Color color;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFECEFF8),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
-              offset: const Offset(2, 2),
-              blurRadius: 5,
-            ),
-            const BoxShadow(
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OneLineScaleText(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF1A2561),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 110,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
               color: Colors.white,
-              offset: Offset(-2, -2),
-              blurRadius: 4,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE6EAF4)),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            OneLineScaleText(
-              label,
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF8A93B8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              child: OneLineScaleText(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF1A2561),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
-            const SizedBox(height: 2),
-            OneLineScaleText(
-              value,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1A2561),
-              ),
-            ),
-          ],
+          ),
         ),
+      ],
+    );
+  }
+}
+
+class _StockMetaRow extends StatelessWidget {
+  const _StockMetaRow({
+    required this.effectiveDate,
+    required this.setBy,
+    required this.leadAlert,
+  });
+
+  final String effectiveDate;
+  final String setBy;
+  final String leadAlert;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDDE2F0)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _StockMetaCell(
+                  label: 'Effective date',
+                  value: effectiveDate,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _StockMetaCell(label: 'Set by', value: setBy),
+              ),
+            ],
+          ),
+          const Divider(height: 18, color: Color(0xFFDDE2F0)),
+          _StockMetaCell(label: 'Lead / alert', value: leadAlert, full: true),
+        ],
       ),
     );
+  }
+}
+
+class _StockMetaCell extends StatelessWidget {
+  const _StockMetaCell({
+    required this.label,
+    required this.value,
+    this.full = false,
+  });
+
+  final String label;
+  final String value;
+  final bool full;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF8A93B8),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 3),
+        OneLineScaleText(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF1A2561),
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+    return full ? SizedBox(width: double.infinity, child: child) : child;
   }
 }
 
