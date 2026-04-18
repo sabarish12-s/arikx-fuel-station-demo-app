@@ -6,6 +6,7 @@ import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
 import 'day_setup_screen.dart';
+import 'fuel_price_update_requests_screen.dart';
 import 'login_screen.dart';
 
 class AccountScreen extends StatelessWidget {
@@ -137,25 +138,48 @@ class AccountScreen extends StatelessWidget {
           const _AccountSectionLabel(label: 'SHORTCUTS'),
           const SizedBox(height: 10),
           ClayCard(
-            child: _AccountActionTile(
-              title: 'Day Setup',
-              subtitle:
-                  canManageDaySetup
-                      ? 'Manage opening readings, stock, and fuel prices together'
-                      : 'Day setup access is limited for this role',
-              icon: Icons.event_note_rounded,
-              iconColor: const Color(0xFF1298B8),
-              enabled: canManageDaySetup,
-              onTap:
-                  canManageDaySetup
-                      ? () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const DaySetupScreen(canEdit: true),
-                          ),
-                        );
-                      }
-                      : null,
+            child: Column(
+              children: [
+                _AccountActionTile(
+                  title: 'Fuel Price Update',
+                  subtitle: 'Request selling price changes for admin approval',
+                  icon: Icons.sell_outlined,
+                  iconColor: const Color(0xFF2AA878),
+                  enabled: true,
+                  onTap: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder:
+                            (_) => const FuelPriceUpdateRequestsScreen(
+                              canReview: false,
+                            ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(color: kClayBg, height: 24),
+                _AccountActionTile(
+                  title: 'Day Setup',
+                  subtitle:
+                      canManageDaySetup
+                          ? 'Manage opening readings, stock, and fuel prices together'
+                          : 'Day setup access is limited for this role',
+                  icon: Icons.event_note_rounded,
+                  iconColor: const Color(0xFF1298B8),
+                  enabled: canManageDaySetup,
+                  onTap:
+                      canManageDaySetup
+                          ? () {
+                            Navigator.of(context).push<void>(
+                              MaterialPageRoute<void>(
+                                builder:
+                                    (_) => const DaySetupScreen(canEdit: true),
+                              ),
+                            );
+                          }
+                          : null,
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),

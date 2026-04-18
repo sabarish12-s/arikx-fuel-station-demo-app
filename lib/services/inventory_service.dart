@@ -237,6 +237,108 @@ class InventoryService {
         .toList();
   }
 
+  Future<List<FuelPriceUpdateRequestModel>> fetchFuelPriceUpdateRequests({
+    String status = '',
+    bool forceRefresh = false,
+  }) async {
+    final params = <String, String>{
+      if (status.trim().isNotEmpty) 'status': status.trim(),
+    };
+    final suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final response = await _apiClient.get(
+      '/inventory/price-update-requests$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load fuel price requests.',
+        ),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return (json['requests'] as List<dynamic>? ?? const [])
+        .map(
+          (item) => FuelPriceUpdateRequestModel.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
+        .toList();
+  }
+
+  Future<FuelPriceUpdateRequestModel> createFuelPriceUpdateRequest({
+    required String effectiveDate,
+    required Map<String, Map<String, double>> fuelPrices,
+    String note = '',
+  }) async {
+    final response = await _apiClient.post(
+      '/inventory/price-update-requests',
+      body: jsonEncode({
+        'effectiveDate': effectiveDate,
+        'fuelPrices': fuelPrices,
+        'note': note,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to submit fuel price request.',
+        ),
+      );
+    }
+    return FuelPriceUpdateRequestModel.fromJson(
+      _apiClient.decodeObject(response)['request'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<FuelPriceUpdateRequestModel> approveFuelPriceUpdateRequest(
+    String requestId, {
+    String note = '',
+  }) async {
+    final encoded = Uri.encodeComponent(requestId);
+    final response = await _apiClient.post(
+      '/inventory/price-update-requests/$encoded/approve',
+      body: jsonEncode({'note': note}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to approve fuel price request.',
+        ),
+      );
+    }
+    return FuelPriceUpdateRequestModel.fromJson(
+      _apiClient.decodeObject(response)['request'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<FuelPriceUpdateRequestModel> rejectFuelPriceUpdateRequest(
+    String requestId, {
+    String note = '',
+  }) async {
+    final encoded = Uri.encodeComponent(requestId);
+    final response = await _apiClient.post(
+      '/inventory/price-update-requests/$encoded/reject',
+      body: jsonEncode({'note': note}),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to reject fuel price request.',
+        ),
+      );
+    }
+    return FuelPriceUpdateRequestModel.fromJson(
+      _apiClient.decodeObject(response)['request'] as Map<String, dynamic>,
+    );
+  }
+
   Future<StationConfigModel> fetchStationConfig({
     bool forceRefresh = false,
   }) async {

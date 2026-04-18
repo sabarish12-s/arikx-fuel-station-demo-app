@@ -4,6 +4,7 @@ import '../models/auth_models.dart';
 import 'day_setup_screen.dart';
 import '../widgets/responsive_text.dart';
 import 'flag_threshold_settings_screen.dart';
+import 'fuel_price_update_requests_screen.dart';
 import 'fuel_type_manager_screen.dart';
 import 'inventory_planning_settings_screen.dart';
 import 'station_settings_screen.dart';
@@ -58,6 +59,12 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
       case _SettingsPanel.daySetup:
         return DaySetupScreen(
           canEdit: _canEditStationSettings,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.fuelPriceRequests:
+        return FuelPriceUpdateRequestsScreen(
+          canReview: _canEditStationSettings,
           embedded: true,
           onBack: _showHome,
         );
@@ -219,6 +226,15 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             icon: Icons.flag_rounded,
             iconColor: const Color(0xFFCE5828),
             onTap: () => setState(() => _panel = _SettingsPanel.flagThreshold),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            title: 'Fuel Price Approvals',
+            subtitle: 'Approve sales-submitted price changes',
+            icon: Icons.fact_check_outlined,
+            iconColor: const Color(0xFF2AA878),
+            onTap:
+                () => setState(() => _panel = _SettingsPanel.fuelPriceRequests),
           ),
 
           const SizedBox(height: 20),
@@ -400,6 +416,7 @@ enum _SettingsPanel {
   home,
   stationSettings,
   daySetup,
+  fuelPriceRequests,
   inventoryPlanning,
   fuelTypeManager,
   flagThreshold,

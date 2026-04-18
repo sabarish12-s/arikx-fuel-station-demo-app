@@ -610,212 +610,412 @@ class _DaySetupDialogState extends State<_DaySetupDialog> {
     );
   }
 
+  @override
+  void dispose() {
+    _dateController.dispose();
+    _noteController.dispose();
+    for (final controller in _petrolOpeningControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _dieselOpeningControllers.values) {
+      controller.dispose();
+    }
+    _petrolStockController.dispose();
+    _dieselStockController.dispose();
+    _twoTStockController.dispose();
+    _petrolCostController.dispose();
+    _petrolSellController.dispose();
+    _dieselCostController.dispose();
+    _dieselSellController.dispose();
+    _twoTCostController.dispose();
+    _twoTSellController.dispose();
+    super.dispose();
+  }
+
   double _valueOf(TextEditingController controller) =>
       double.tryParse(controller.text.trim()) ?? 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      title: const Text('Day Setup'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  String _dateValue(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  Future<void> _pickDate() async {
+    final parsedDate = DateTime.tryParse(_dateController.text.trim());
+    final initialDate = parsedDate ?? DateTime.now();
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime(initialDate.year - 5),
+      lastDate: DateTime(initialDate.year + 5),
+      helpText: 'Select effective date',
+    );
+    if (selectedDate == null) {
+      return;
+    }
+    _dateController.text = _dateValue(selectedDate);
+  }
+
+  Widget _numberField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? suffixText,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: TextInputAction.next,
+      style: const TextStyle(
+        color: kClayPrimary,
+        fontWeight: FontWeight.w800,
+      ),
+      decoration: clayDialogInputDecoration(
+        label: label,
+        prefixIcon: Icon(icon, color: kClaySub, size: 20),
+      ).copyWith(
+        suffixText: suffixText,
+        suffixStyle: const TextStyle(
+          color: kClaySub,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _twoColumnFields(Widget first, Widget second) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 300) {
+          return Column(
             children: [
-              TextField(
-                controller: _dateController,
-                decoration: const InputDecoration(
-                  labelText: 'Effective date',
-                  hintText: 'YYYY-MM-DD',
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Pump opening readings',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              ...widget.station.pumps.map(
-                (pump) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pump.label,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _petrolOpeningControllers[pump.id],
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Petrol',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: _dieselOpeningControllers[pump.id],
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Diesel',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Starting stock',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _petrolStockController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(labelText: 'Petrol stock'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _dieselStockController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(labelText: 'Diesel stock'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _twoTStockController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(labelText: '2T oil stock'),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Fuel prices',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 8),
-              ...[
-                ('Petrol', _petrolCostController, _petrolSellController),
-                ('Diesel', _dieselCostController, _dieselSellController),
-                ('2T Oil', _twoTCostController, _twoTSellController),
-              ].map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.$1,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: item.$2,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Cost',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: item.$3,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              decoration: const InputDecoration(
-                                labelText: 'Selling',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              TextField(
-                controller: _noteController,
-                decoration: const InputDecoration(labelText: 'Reason / note'),
-              ),
+              first,
+              const SizedBox(height: 10),
+              second,
             ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: first),
+            const SizedBox(width: 10),
+            Expanded(child: second),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _miniHeader({
+    required String label,
+    required IconData icon,
+    Color color = kClayPrimary,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: color),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontWeight: FontWeight.w900,
+              fontSize: 15,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _nestedCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE4E8F5)),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _dateSection() {
+    return ClayDialogSection(
+      title: 'Setup date',
+      subtitle: 'This date anchors the next sales, stock, and price entries.',
+      child: TextField(
+        controller: _dateController,
+        textInputAction: TextInputAction.next,
+        style: const TextStyle(
+          color: kClayPrimary,
+          fontWeight: FontWeight.w800,
+        ),
+        decoration: clayDialogInputDecoration(
+          label: 'Effective date',
+          hintText: 'YYYY-MM-DD',
+          prefixIcon: const Icon(Icons.event_rounded, color: kClaySub),
+        ).copyWith(
+          suffixIcon: IconButton(
+            tooltip: 'Pick date',
+            onPressed: _pickDate,
+            icon: const Icon(Icons.calendar_month_rounded, color: kClayPrimary),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: () {
-            Navigator.of(context).pop(
-              _DaySetupFormValue(
-                effectiveDate: _dateController.text.trim(),
-                openingReadings: {
-                  for (final pump in widget.station.pumps)
-                    pump.id: PumpReadings(
-                      petrol: _valueOf(_petrolOpeningControllers[pump.id]!),
-                      diesel: _valueOf(_dieselOpeningControllers[pump.id]!),
-                      twoT: 0,
+    );
+  }
+
+  Widget _pumpReadingsSection() {
+    return ClayDialogSection(
+      title: 'Pump opening readings',
+      subtitle: 'Capture each pump meter before starting entries for the day.',
+      child: Column(
+        children: [
+          for (final pump in widget.station.pumps) ...[
+            _nestedCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _miniHeader(
+                    label: pump.label,
+                    icon: Icons.local_gas_station_rounded,
+                  ),
+                  const SizedBox(height: 12),
+                  _twoColumnFields(
+                    _numberField(
+                      controller: _petrolOpeningControllers[pump.id]!,
+                      label: 'Petrol reading',
+                      icon: Icons.opacity_rounded,
                     ),
-                },
-                startingStock: {
-                  'petrol': _valueOf(_petrolStockController),
-                  'diesel': _valueOf(_dieselStockController),
-                  'two_t_oil': _valueOf(_twoTStockController),
-                },
-                fuelPrices: {
-                  'petrol': {
-                    'costPrice': _valueOf(_petrolCostController),
-                    'sellingPrice': _valueOf(_petrolSellController),
-                  },
-                  'diesel': {
-                    'costPrice': _valueOf(_dieselCostController),
-                    'sellingPrice': _valueOf(_dieselSellController),
-                  },
-                  'two_t_oil': {
-                    'costPrice': _valueOf(_twoTCostController),
-                    'sellingPrice': _valueOf(_twoTSellController),
-                  },
-                },
-                note: _noteController.text.trim(),
+                    _numberField(
+                      controller: _dieselOpeningControllers[pump.id]!,
+                      label: 'Diesel reading',
+                      icon: Icons.water_drop_outlined,
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
-          child: const Text('Save'),
+            ),
+            if (pump != widget.station.pumps.last) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _startingStockSection() {
+    return ClayDialogSection(
+      title: 'Starting stock',
+      subtitle: 'Opening tank and oil stock available for this date.',
+      child: Column(
+        children: [
+          _twoColumnFields(
+            _numberField(
+              controller: _petrolStockController,
+              label: 'Petrol stock',
+              icon: Icons.inventory_2_outlined,
+              suffixText: 'L',
+            ),
+            _numberField(
+              controller: _dieselStockController,
+              label: 'Diesel stock',
+              icon: Icons.inventory_2_outlined,
+              suffixText: 'L',
+            ),
+          ),
+          const SizedBox(height: 10),
+          _numberField(
+            controller: _twoTStockController,
+            label: '2T oil stock',
+            icon: Icons.oil_barrel_outlined,
+            suffixText: 'L',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fuelPricesSection() {
+    final fuels = [
+      (
+        label: 'Petrol',
+        cost: _petrolCostController,
+        selling: _petrolSellController,
+        icon: Icons.local_gas_station_rounded,
+      ),
+      (
+        label: 'Diesel',
+        cost: _dieselCostController,
+        selling: _dieselSellController,
+        icon: Icons.local_shipping_outlined,
+      ),
+      (
+        label: '2T Oil',
+        cost: _twoTCostController,
+        selling: _twoTSellController,
+        icon: Icons.oil_barrel_outlined,
+      ),
+    ];
+
+    return ClayDialogSection(
+      title: 'Fuel prices',
+      subtitle: 'Set cost and selling prices used for sales calculations.',
+      child: Column(
+        children: [
+          for (final fuel in fuels) ...[
+            _nestedCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _miniHeader(label: fuel.label, icon: fuel.icon),
+                  const SizedBox(height: 12),
+                  _twoColumnFields(
+                    _numberField(
+                      controller: fuel.cost,
+                      label: 'Cost price',
+                      icon: Icons.currency_rupee_rounded,
+                    ),
+                    _numberField(
+                      controller: fuel.selling,
+                      label: 'Selling price',
+                      icon: Icons.sell_outlined,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (fuel.label != fuels.last.label) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _noteSection() {
+    return ClayDialogSection(
+      title: 'Note',
+      subtitle: 'Optional reason or context for this setup change.',
+      child: TextField(
+        controller: _noteController,
+        minLines: 2,
+        maxLines: 4,
+        textInputAction: TextInputAction.done,
+        style: const TextStyle(
+          color: kClayPrimary,
+          fontWeight: FontWeight.w700,
+        ),
+        decoration: clayDialogInputDecoration(
+          label: 'Reason / note',
+          hintText: 'Example: Updated for next business day setup',
+          prefixIcon: const Padding(
+            padding: EdgeInsets.only(bottom: 22),
+            child: Icon(Icons.notes_rounded, color: kClaySub),
+          ),
+        ),
+      ),
+    );
+  }
+
+  _DaySetupFormValue _formValue() {
+    return _DaySetupFormValue(
+      effectiveDate: _dateController.text.trim(),
+      openingReadings: {
+        for (final pump in widget.station.pumps)
+          pump.id: PumpReadings(
+            petrol: _valueOf(_petrolOpeningControllers[pump.id]!),
+            diesel: _valueOf(_dieselOpeningControllers[pump.id]!),
+            twoT: 0,
+          ),
+      },
+      startingStock: {
+        'petrol': _valueOf(_petrolStockController),
+        'diesel': _valueOf(_dieselStockController),
+        'two_t_oil': _valueOf(_twoTStockController),
+      },
+      fuelPrices: {
+        'petrol': {
+          'costPrice': _valueOf(_petrolCostController),
+          'sellingPrice': _valueOf(_petrolSellController),
+        },
+        'diesel': {
+          'costPrice': _valueOf(_dieselCostController),
+          'sellingPrice': _valueOf(_dieselSellController),
+        },
+        'two_t_oil': {
+          'costPrice': _valueOf(_twoTCostController),
+          'sellingPrice': _valueOf(_twoTSellController),
+        },
+      },
+      note: _noteController.text.trim(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClayDialogShell(
+      title: 'Day Setup',
+      subtitle: 'Prepare the operating day with readings, stock, and prices.',
+      icon: Icons.event_note_rounded,
+      actions: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: kClayPrimary,
+              side: BorderSide(color: kClayPrimary.withValues(alpha: 0.16)),
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(_formValue()),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF4D66A9),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+            icon: const Icon(Icons.check_rounded, size: 19),
+            label: const Text('Save setup'),
+          ),
         ),
       ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _dateSection(),
+          const SizedBox(height: 14),
+          _pumpReadingsSection(),
+          const SizedBox(height: 14),
+          _startingStockSection(),
+          const SizedBox(height: 14),
+          _fuelPricesSection(),
+          const SizedBox(height: 14),
+          _noteSection(),
+        ],
+      ),
     );
   }
 }

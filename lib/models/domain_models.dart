@@ -963,6 +963,74 @@ class StationDaySetupModel {
   }
 }
 
+class FuelPriceUpdateRequestModel {
+  const FuelPriceUpdateRequestModel({
+    required this.id,
+    required this.stationId,
+    required this.effectiveDate,
+    required this.currentPrices,
+    required this.requestedPrices,
+    required this.note,
+    required this.status,
+    required this.requestedAt,
+    required this.requestedBy,
+    required this.requestedByName,
+    this.reviewedAt = '',
+    this.reviewedBy = '',
+    this.reviewedByName = '',
+    this.reviewNote = '',
+  });
+
+  final String id;
+  final String stationId;
+  final String effectiveDate;
+  final Map<String, Map<String, double>> currentPrices;
+  final Map<String, Map<String, double>> requestedPrices;
+  final String note;
+  final String status;
+  final String requestedAt;
+  final String requestedBy;
+  final String requestedByName;
+  final String reviewedAt;
+  final String reviewedBy;
+  final String reviewedByName;
+  final String reviewNote;
+
+  bool get isPending => status.trim().toLowerCase() == 'pending';
+  bool get isApproved => status.trim().toLowerCase() == 'approved';
+  bool get isRejected => status.trim().toLowerCase() == 'rejected';
+
+  factory FuelPriceUpdateRequestModel.fromJson(Map<String, dynamic> json) {
+    return FuelPriceUpdateRequestModel(
+      id: json['id']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? '',
+      effectiveDate: json['effectiveDate']?.toString() ?? '',
+      currentPrices: _parseFuelPriceMap(json['currentPrices']),
+      requestedPrices: _parseFuelPriceMap(json['requestedPrices']),
+      note: json['note']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'pending',
+      requestedAt: json['requestedAt']?.toString() ?? '',
+      requestedBy: json['requestedBy']?.toString() ?? '',
+      requestedByName: json['requestedByName']?.toString() ?? '',
+      reviewedAt: json['reviewedAt']?.toString() ?? '',
+      reviewedBy: json['reviewedBy']?.toString() ?? '',
+      reviewedByName: json['reviewedByName']?.toString() ?? '',
+      reviewNote: json['reviewNote']?.toString() ?? '',
+    );
+  }
+}
+
+Map<String, Map<String, double>> _parseFuelPriceMap(dynamic value) {
+  final json = value as Map<String, dynamic>? ?? const {};
+  return json.map((key, item) {
+    final price = item as Map<String, dynamic>? ?? const {};
+    return MapEntry(key, {
+      'costPrice': (price['costPrice'] as num?)?.toDouble() ?? 0,
+      'sellingPrice': (price['sellingPrice'] as num?)?.toDouble() ?? 0,
+    });
+  });
+}
+
 class StationConfigModel {
   const StationConfigModel({
     required this.id,
