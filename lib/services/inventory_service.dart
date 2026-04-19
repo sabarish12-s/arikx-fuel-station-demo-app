@@ -398,6 +398,88 @@ class InventoryService {
     );
   }
 
+  Future<DailyFuelRecordModel> fetchDailyFuelRecord({
+    String? date,
+    bool forceRefresh = false,
+  }) async {
+    final suffix =
+        date != null && date.isNotEmpty
+            ? '?${Uri(queryParameters: {'date': date}).query}'
+            : '';
+    final response = await _apiClient.get(
+      '/inventory/daily-fuel/current$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load daily fuel register.',
+        ),
+      );
+    }
+    return DailyFuelRecordModel.fromJson(
+      _apiClient.decodeObject(response)['record'] as Map<String, dynamic>,
+    );
+  }
+
+  Future<List<DailyFuelRecordModel>> fetchDailyFuelHistory({
+    String? fromDate,
+    String? toDate,
+    bool forceRefresh = false,
+  }) async {
+    final params = <String, String>{
+      if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'to': toDate,
+    };
+    final suffix =
+        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final response = await _apiClient.get(
+      '/inventory/daily-fuel$suffix',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load daily fuel history.',
+        ),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return (json['records'] as List<dynamic>? ?? const [])
+        .map(
+          (item) => DailyFuelRecordModel.fromJson(item as Map<String, dynamic>),
+        )
+        .toList();
+  }
+
+  Future<DailyFuelRecordModel> saveDailyFuelRecord({
+    required String date,
+    required Map<String, double> density,
+  }) async {
+    final response = await _apiClient.put(
+      '/inventory/daily-fuel',
+      body: jsonEncode({
+        'date': date,
+        'density': density,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to save daily fuel register.',
+        ),
+      );
+    }
+    return DailyFuelRecordModel.fromJson(
+      _apiClient.decodeObject(response)['record'] as Map<String, dynamic>,
+    );
+  }
+
   Future<List<DeliveryReceiptModel>> fetchDeliveries({
     bool forceRefresh = false,
   }) async {

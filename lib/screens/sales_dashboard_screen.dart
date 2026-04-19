@@ -8,8 +8,11 @@ import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/responsive_text.dart';
+import 'closing_stock_entry_screen.dart';
 import 'credit_ledger_screen.dart';
+import 'daily_fuel_history_screen.dart';
 
 class SalesDashboardScreen extends StatefulWidget {
   const SalesDashboardScreen({super.key});
@@ -84,6 +87,28 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
     await Navigator.of(
       context,
     ).push(MaterialPageRoute<void>(builder: (_) => const CreditLedgerScreen()));
+  }
+
+  Future<void> _openSalesEntryPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const ClosingStockEntryScreen()),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _refresh();
+  }
+
+  Future<void> _openDailyFuelHistory() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const DailyFuelHistoryScreen(),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _refresh();
   }
 
   List<_PumpCashSummary> _todayCashByPump(SalesDashboardModel data) {
@@ -249,6 +274,18 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 10),
+              DailyFuelStatusCard(
+                title: 'Daily Fuel Status',
+                targetDate: today.date,
+                record: today.dailyFuelRecord,
+                pendingMessage:
+                    'Save petrol and diesel density before entering today\'s sales.',
+                primaryActionLabel:
+                    today.dailyFuelRecordComplete ? 'Edit Density' : 'Enter Density',
+                onPrimaryAction: _openSalesEntryPage,
+                onHistory: _openDailyFuelHistory,
+              ),
+              const SizedBox(height: 16),
               const Text(
                 'YESTERDAY\'S SALES',
                 style: TextStyle(

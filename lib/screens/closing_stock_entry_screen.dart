@@ -8,8 +8,10 @@ import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/daily_entry_dialogs.dart';
 import '../widgets/responsive_text.dart';
+import 'daily_fuel_history_screen.dart';
 
 class ClosingStockEntryScreen extends StatefulWidget {
   const ClosingStockEntryScreen({super.key});
@@ -32,6 +34,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
   String? _selectedDate;
   DailyEntryDraft? _draft;
   bool _submitting = false;
+  bool _savingDailyFuel = false;
   String? _busyPumpActionKey;
   Future<void>? _supportDataFuture;
   String? _error;
@@ -659,13 +662,60 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     }
   }
 
+  Future<void> _saveDailyFuelRecord(Map<String, double> density) async {
+    final targetDate = _selectedDate ?? _dashboard?.date;
+    if (targetDate == null) {
+      return;
+    }
+    setState(() {
+      _savingDailyFuel = true;
+      _error = null;
+    });
+    try {
+      await _inventoryService.saveDailyFuelRecord(
+        date: targetDate,
+        density: density,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Daily fuel density saved.')),
+      );
+      await _load(date: targetDate);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _error = userFacingErrorMessage(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingDailyFuel = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openDailyFuelHistory() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const DailyFuelHistoryScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dashboard = _dashboard;
     final draft = _draft;
+    final dailyFuelReady = dashboard?.dailyFuelRecordComplete ?? false;
     final canWorkOnEntry =
         dashboard != null &&
         dashboard.setupExists &&
+        dailyFuelReady &&
         dashboard.allowedEntryDate.trim().isNotEmpty &&
         dashboard.date == dashboard.allowedEntryDate;
     final summary =
@@ -823,6 +873,14 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                         ],
                       ],
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  DailyFuelEntrySection(
+                    targetDate: _selectedDate ?? dashboard.date,
+                    record: dashboard.dailyFuelRecord,
+                    busy: _savingDailyFuel,
+                    onSave: _saveDailyFuelRecord,
+                    onHistory: _openDailyFuelHistory,
                   ),
                   const SizedBox(height: 16),
                   const _ClosingSectionLabel(label: 'PUMPS'),
@@ -1159,6 +1217,8 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                           ? 'Submitting...'
                           : _selectedEntryApproved
                           ? 'Entry Approved'
+                          : !dailyFuelReady
+                          ? 'Save Density First'
                           : dashboard.selectedEntry == null
                           ? 'Submit Entry'
                           : 'Update Entry',

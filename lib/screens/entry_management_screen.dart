@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
+import '../services/inventory_service.dart';
 import '../services/management_service.dart';
 import '../services/sales_service.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
+import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/responsive_text.dart';
+import 'daily_fuel_history_screen.dart';
 import 'entry_workflow_screen.dart';
 
 class EntryManagementScreen extends StatefulWidget {
@@ -25,6 +28,7 @@ enum _EntryAction { approve, delete }
 class _EntryManagementScreenState extends State<EntryManagementScreen> {
   final ManagementService _managementService = ManagementService();
   final SalesService _salesService = SalesService();
+  final InventoryService _inventoryService = InventoryService();
   static const List<String> _monthNames = <String>[
     'January',
     'February',
@@ -48,6 +52,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   late Future<_EntryManagementData> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   bool _submitting = false;
+  bool _savingDailyFuel = false;
   String? _activeEntryId;
   _EntryAction? _activeAction;
   // null = All, 'approved', 'pending', 'flagged'
@@ -417,6 +422,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       final dashboard = await _salesService.fetchDashboardForDate(
         date: preselectedDate,
       );
+      if (!dashboard.dailyFuelRecordComplete) {
+        throw Exception('Save petrol and diesel density before creating an entry.');
+      }
       final date = preselectedDate ?? dashboard.allowedEntryDate;
       if (!dashboard.setupExists || date.trim().isEmpty) {
         throw Exception(
@@ -472,6 +480,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                           creditCollections: const [],
                         )
                         : _draftFromEntry(dashboard.selectedEntry!),
+                dailyFuelRecord: dashboard.dailyFuelRecord,
                 isAdmin: true,
                 existingEntryId: dashboard.selectedEntry?.id,
                 canChangeDate: false,
@@ -541,6 +550,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     setState(() => _submitting = true);
     try {
       final detailedEntry = await _managementService.fetchEntryDetail(entry.id);
+      final dailyFuelRecord = await _inventoryService.fetchDailyFuelRecord(
+        date: detailedEntry.date,
+      );
       if (!mounted) return;
 
       final saved = await Navigator.of(context).push<bool>(
@@ -552,6 +564,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 openingReadings: detailedEntry.openingReadings,
                 priceSnapshot: detailedEntry.priceSnapshot,
                 initialDraft: _draftFromEntry(detailedEntry),
+                dailyFuelRecord: dailyFuelRecord,
                 isAdmin: true,
                 existingEntryId: detailedEntry.id,
                 canChangeDate: false,
@@ -586,6 +599,46 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  Future<void> _saveDailyFuelRecord(SalesDashboardModel dashboard, Map<String, double> density) async {
+    setState(() {
+      _savingDailyFuel = true;
+    });
+    try {
+      await _inventoryService.saveDailyFuelRecord(
+        date: dashboard.date,
+        density: density,
+      );
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Daily fuel density saved.')),
+      );
+      await _reload();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(userFacingErrorMessage(error))),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingDailyFuel = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _openDailyFuelHistory() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const DailyFuelHistoryScreen(),
+      ),
+    );
   }
 
   void _setEntryActionBusy(ShiftEntryModel entry, _EntryAction action) {
@@ -933,10 +986,33 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 const SizedBox(height: 14),
 
                 // ── New Entry button ─────────────────────────────────────
+                DailyFuelEntrySection(
+                  targetDate: data.dashboard.date,
+                  record: data.dashboard.dailyFuelRecord,
+                  busy: _savingDailyFuel,
+                  onSave:
+                      (density) => _saveDailyFuelRecord(data.dashboard, density),
+                  onHistory: _openDailyFuelHistory,
+                ),
+                const SizedBox(height: 14),
                 _ClayButton(
                   icon: Icons.add_rounded,
-                  label: _submitting ? 'Opening...' : 'New Entry',
-                  onTap: _submitting ? null : _openAdminEntryDialog,
+                  label:
+                      _submitting
+                          ? 'Opening...'
+                          : data.dashboard.dailyFuelRecordComplete
+                          ? 'New Entry'
+                          : 'Save Density First',
+                  onTap:
+                      (_submitting || !data.dashboard.dailyFuelRecordComplete)
+                          ? null
+                          : _openAdminEntryDialog,
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _openDailyFuelHistory,
+                  icon: const Icon(Icons.history_rounded),
+                  label: const Text('Fuel Register History'),
                 ),
 
                 const SizedBox(height: 18),

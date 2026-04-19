@@ -9,6 +9,7 @@ import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/daily_entry_dialogs.dart';
 import '../widgets/responsive_text.dart';
 
@@ -24,6 +25,7 @@ class EntryWorkflowScreen extends StatefulWidget {
     required this.priceSnapshot,
     required this.initialDraft,
     required this.onSubmit,
+    this.dailyFuelRecord,
     this.isAdmin = false,
     this.existingEntryId,
     this.canChangeDate = false,
@@ -36,6 +38,7 @@ class EntryWorkflowScreen extends StatefulWidget {
   final Map<String, Map<String, double>> priceSnapshot;
   final DailyEntryDraft initialDraft;
   final EntrySubmitCallback onSubmit;
+  final DailyFuelRecordModel? dailyFuelRecord;
 
   /// Whether the current user is admin/superadmin (enables date editing).
   final bool isAdmin;
@@ -629,6 +632,14 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             ),
           ),
           const SizedBox(height: 20),
+          if (widget.dailyFuelRecord != null) ...[
+            DailyFuelStatusCard(
+              title: 'Daily Fuel Summary',
+              targetDate: _draft.date,
+              record: widget.dailyFuelRecord,
+            ),
+            const SizedBox(height: 20),
+          ],
           const _WorkflowSectionLabel(label: 'PUMPS'),
           const SizedBox(height: 10),
           ...widget.station.pumps.map((pump) {
