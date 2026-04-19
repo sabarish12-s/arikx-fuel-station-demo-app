@@ -25,6 +25,8 @@ String formatCurrency(double value) {
 }
 
 String formatLiters(double value) => '${value.toStringAsFixed(2)}${_nbsp}L';
+String formatPricePerLiter(double value) => '${formatCurrency(value)}/${_nbsp}L';
+String formatDensity(double value) => '${value.toStringAsFixed(3)}${_nbsp}kg/m3';
 
 String formatCompactNumber(double value) => value.toStringAsFixed(0);
 
@@ -98,6 +100,32 @@ String formatDateLabel(String raw) {
     'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
+}
+
+String formatDateTimeLabel(String raw) {
+  final date = DateTime.tryParse(raw);
+  if (date == null) {
+    return raw;
+  }
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final hour24 = date.hour;
+  final hour12 = hour24 == 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+  final minute = date.minute.toString().padLeft(2, '0');
+  final meridiem = hour24 >= 12 ? 'PM' : 'AM';
+  return '${months[date.month - 1]} ${date.day}, ${date.year} $hour12:$minute $meridiem';
 }
 
 String formatWeekdayLabel(String raw) {

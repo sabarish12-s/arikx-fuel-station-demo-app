@@ -782,6 +782,79 @@ class InventoryStockSnapshotModel {
   }
 }
 
+class DailyFuelRecordModel {
+  const DailyFuelRecordModel({
+    required this.id,
+    required this.stationId,
+    required this.date,
+    required this.openingStock,
+    required this.density,
+    required this.price,
+    required this.sourceClosingDate,
+    required this.createdBy,
+    required this.createdByName,
+    required this.updatedBy,
+    required this.updatedByName,
+    required this.createdAt,
+    required this.updatedAt,
+    this.exists = false,
+    this.complete = false,
+  });
+
+  final String id;
+  final String stationId;
+  final String date;
+  final Map<String, double> openingStock;
+  final Map<String, double> density;
+  final Map<String, double> price;
+  final String sourceClosingDate;
+  final String createdBy;
+  final String createdByName;
+  final String updatedBy;
+  final String updatedByName;
+  final String createdAt;
+  final String updatedAt;
+  final bool exists;
+  final bool complete;
+
+  bool get isComplete =>
+      complete ||
+      ((density['petrol'] ?? 0) > 0 && (density['diesel'] ?? 0) > 0);
+
+  factory DailyFuelRecordModel.fromJson(Map<String, dynamic> json) {
+    final openingStock =
+        json['openingStock'] as Map<String, dynamic>? ?? const {};
+    final density = json['density'] as Map<String, dynamic>? ?? const {};
+    final price = json['price'] as Map<String, dynamic>? ?? const {};
+    return DailyFuelRecordModel(
+      id: json['id']?.toString() ?? '',
+      stationId: json['stationId']?.toString() ?? '',
+      date: json['date']?.toString() ?? '',
+      openingStock: {
+        'petrol': (openingStock['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (openingStock['diesel'] as num?)?.toDouble() ?? 0,
+      },
+      density: {
+        'petrol': (density['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (density['diesel'] as num?)?.toDouble() ?? 0,
+      },
+      price: {
+        'petrol': (price['petrol'] as num?)?.toDouble() ?? 0,
+        'diesel': (price['diesel'] as num?)?.toDouble() ?? 0,
+      },
+      sourceClosingDate: json['sourceClosingDate']?.toString() ?? '',
+      createdBy: json['createdBy']?.toString() ?? '',
+      createdByName: json['createdByName']?.toString() ?? '',
+      updatedBy: json['updatedBy']?.toString() ?? '',
+      updatedByName: json['updatedByName']?.toString() ?? '',
+      createdAt: json['createdAt']?.toString() ?? '',
+      updatedAt: json['updatedAt']?.toString() ?? '',
+      exists: json['exists'] as bool? ?? false,
+      complete: json['complete'] as bool? ?? false,
+    );
+  }
+}
+
 class PumpOpeningReadingLogModel {
   const PumpOpeningReadingLogModel({
     required this.id,
@@ -1664,6 +1737,8 @@ class SalesDashboardModel {
     required this.twoTSold,
     required this.entriesCompleted,
     required this.todaysEntries,
+    this.dailyFuelRecord,
+    this.dailyFuelRecordComplete = false,
     this.priceSnapshot = const {},
   });
 
@@ -1684,6 +1759,8 @@ class SalesDashboardModel {
   final double twoTSold;
   final int entriesCompleted;
   final List<ShiftEntryModel> todaysEntries;
+  final DailyFuelRecordModel? dailyFuelRecord;
+  final bool dailyFuelRecordComplete;
   final Map<String, Map<String, double>> priceSnapshot;
 
   factory SalesDashboardModel.fromJson(Map<String, dynamic> json) {
@@ -1727,6 +1804,13 @@ class SalesDashboardModel {
                     ShiftEntryModel.fromJson(item as Map<String, dynamic>),
               )
               .toList(),
+      dailyFuelRecord:
+          json['dailyFuelRecord'] is Map<String, dynamic>
+              ? DailyFuelRecordModel.fromJson(
+                json['dailyFuelRecord'] as Map<String, dynamic>,
+              )
+              : null,
+      dailyFuelRecordComplete: json['dailyFuelRecordComplete'] as bool? ?? false,
       priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ??
               const {})
           .map((key, value) {
@@ -1917,6 +2001,10 @@ class ManagementDashboardModel {
     required this.station,
     required this.today,
     required this.range,
+    required this.setupExists,
+    required this.allowedEntryDate,
+    required this.activeSetupDate,
+    required this.entryLockedReason,
     required this.pendingRequests,
     required this.varianceCount,
     required this.revenue,
@@ -1933,11 +2021,17 @@ class ManagementDashboardModel {
     required this.recentEntries,
     required this.fuelTypes,
     required this.prices,
+    this.dailyFuelRecord,
+    this.dailyFuelRecordComplete = false,
   });
 
   final StationConfigModel station;
   final String today;
   final DashboardRangeModel range;
+  final bool setupExists;
+  final String allowedEntryDate;
+  final String activeSetupDate;
+  final String entryLockedReason;
   final int pendingRequests;
   final int varianceCount;
   final double revenue;
@@ -1954,6 +2048,8 @@ class ManagementDashboardModel {
   final List<ShiftEntryModel> recentEntries;
   final List<FuelTypeModel> fuelTypes;
   final List<FuelPriceModel> prices;
+  final DailyFuelRecordModel? dailyFuelRecord;
+  final bool dailyFuelRecordComplete;
 
   factory ManagementDashboardModel.fromJson(Map<String, dynamic> json) {
     final totals = json['totals'] as Map<String, dynamic>? ?? const {};
@@ -1965,6 +2061,10 @@ class ManagementDashboardModel {
       range: DashboardRangeModel.fromJson(
         json['range'] as Map<String, dynamic>? ?? const {},
       ),
+      setupExists: json['setupExists'] as bool? ?? false,
+      allowedEntryDate: json['allowedEntryDate']?.toString() ?? '',
+      activeSetupDate: json['activeSetupDate']?.toString() ?? '',
+      entryLockedReason: json['entryLockedReason']?.toString() ?? '',
       pendingRequests: (json['pendingRequests'] as num?)?.toInt() ?? 0,
       varianceCount: (json['varianceCount'] as num?)?.toInt() ?? 0,
       revenue: (totals['revenue'] as num?)?.toDouble() ?? 0,
@@ -2008,6 +2108,13 @@ class ManagementDashboardModel {
                     ShiftEntryModel.fromJson(item as Map<String, dynamic>),
               )
               .toList(),
+      dailyFuelRecord:
+          json['dailyFuelRecord'] is Map<String, dynamic>
+              ? DailyFuelRecordModel.fromJson(
+                json['dailyFuelRecord'] as Map<String, dynamic>,
+              )
+              : null,
+      dailyFuelRecordComplete: json['dailyFuelRecordComplete'] as bool? ?? false,
       fuelTypes:
           (json['fuelTypes'] as List<dynamic>? ?? const [])
               .map(

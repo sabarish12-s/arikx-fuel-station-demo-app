@@ -11,7 +11,10 @@ import '../services/management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
+import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/responsive_text.dart';
+import 'daily_fuel_history_screen.dart';
+import 'entry_management_screen.dart';
 
 String _shortDateLabel(String raw) {
   final date = DateTime.tryParse(raw);
@@ -118,6 +121,38 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       _staffTouchedIndex = -1;
       _future = _load();
     });
+  }
+
+  Future<void> _openEntriesShortcut() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => Scaffold(
+              backgroundColor: const Color(0xFFECEFF8),
+              appBar: AppBar(
+                backgroundColor: const Color(0xFFECEFF8),
+                title: const Text('Entries'),
+              ),
+              body: const EntryManagementScreen(),
+            ),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _refresh();
+  }
+
+  Future<void> _openDailyFuelHistory() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const DailyFuelHistoryScreen(),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    await _refresh();
   }
 
   Color _pumpColor(String pumpId) {
@@ -768,6 +803,28 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _buildHeroCard(data),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DailyFuelStatusCard(
+                  title: 'Daily Fuel Status',
+                  targetDate:
+                      data.allowedEntryDate.isNotEmpty
+                          ? data.allowedEntryDate
+                          : data.today,
+                  record: data.dailyFuelRecord,
+                  pendingMessage:
+                      data.entryLockedReason.isNotEmpty
+                          ? data.entryLockedReason
+                          : 'Save petrol and diesel density from Entries before creating today\'s sales entry.',
+                  primaryActionLabel:
+                      data.dailyFuelRecordComplete
+                          ? 'Open Entries'
+                          : 'Enter Density',
+                  onPrimaryAction: _openEntriesShortcut,
+                  onHistory: _openDailyFuelHistory,
+                ),
               ),
               const SizedBox(height: 12),
 

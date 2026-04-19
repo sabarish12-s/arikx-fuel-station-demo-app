@@ -10,6 +10,7 @@ import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
 import '../widgets/responsive_text.dart';
 import '../widgets/clay_widgets.dart';
+import 'daily_fuel_history_screen.dart';
 
 class EntryHistoryScreen extends StatefulWidget {
   const EntryHistoryScreen({super.key});
@@ -18,6 +19,8 @@ class EntryHistoryScreen extends StatefulWidget {
   State<EntryHistoryScreen> createState() => _EntryHistoryScreenState();
 }
 
+enum _SalesHistoryTab { entries, fuelRegister }
+
 class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   final SalesService _salesService = SalesService();
   late Future<List<ShiftEntryModel>> _future;
@@ -25,6 +28,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   late DateTime _fromDate;
   late DateTime _toDate;
   _EntryHistorySort _sort = _EntryHistorySort.dateNewest;
+  _SalesHistoryTab _tab = _SalesHistoryTab.entries;
 
   @override
   void initState() {
@@ -177,57 +181,109 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refresh,
-          child: FutureBuilder<List<ShiftEntryModel>>(
-            future: _future,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const ColoredBox(
-                  color: kClayBg,
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    userFacingErrorMessage(snapshot.error),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: kClayPrimary,
-                      fontWeight: FontWeight.w700,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed:
+                          () => setState(
+                            () => _tab = _SalesHistoryTab.entries,
+                          ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor:
+                            _tab == _SalesHistoryTab.entries
+                                ? const Color(0xFFE8EDF9)
+                                : Colors.white,
+                      ),
+                      child: const Text('Entries'),
                     ),
                   ),
-                );
-              }
-
-              final entries = _sortedEntries(snapshot.data ?? []);
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [
-                  _buildHeroCard(),
-                  const SizedBox(height: 12),
-                  if (entries.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 60),
-                      child: Center(
-                        child: Text(
-                          'No entries for the selected filters.',
-                          style: TextStyle(
-                            color: kClaySub,
-                            fontWeight: FontWeight.w700,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed:
+                          () => setState(
+                            () => _tab = _SalesHistoryTab.fuelRegister,
                           ),
-                        ),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor:
+                            _tab == _SalesHistoryTab.fuelRegister
+                                ? const Color(0xFFE8EDF9)
+                                : Colors.white,
                       ),
-                    )
-                  else
-                    ...entries.map(_buildEntryCard),
+                      child: const Text('Fuel Register'),
+                    ),
+                  ),
                 ],
-              );
-            },
-          ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child:
+                  _tab == _SalesHistoryTab.entries
+                      ? _buildEntriesView()
+                      : const DailyFuelHistoryScreen(embedded: true),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEntriesView() {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<List<ShiftEntryModel>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const ColoredBox(
+              color: kClayBg,
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                userFacingErrorMessage(snapshot.error),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: kClayPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }
+
+          final entries = _sortedEntries(snapshot.data ?? []);
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            children: [
+              _buildHeroCard(),
+              const SizedBox(height: 12),
+              if (entries.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: 60),
+                  child: Center(
+                    child: Text(
+                      'No entries for the selected filters.',
+                      style: TextStyle(
+                        color: kClaySub,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                )
+              else
+                ...entries.map(_buildEntryCard),
+            ],
+          );
+        },
       ),
     );
   }
