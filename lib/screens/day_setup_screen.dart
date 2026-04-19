@@ -546,9 +546,6 @@ class _DaySetupHistoryCard extends StatelessWidget {
 
   Future<void> _showDetails(BuildContext context) async {
     final createdBy = _auditName(setup.createdByName, setup.createdBy);
-    final updatedBy = _auditName(setup.updatedByName, setup.updatedBy);
-    final deletedBy = _auditName(setup.deletedByName, setup.deletedBy);
-    final lockedBy = _auditName(setup.lockedByName, setup.lockedBy);
     await showDialog<void>(
       context: context,
       builder:
@@ -667,9 +664,6 @@ class _DaySetupHistoryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _auditLine('Created', createdBy, setup.createdAt),
-                      _auditLine('Updated', updatedBy, setup.updatedAt),
-                      _auditLine('Locked', lockedBy, setup.lockedAt),
-                      _auditLine('Deleted', deletedBy, setup.deletedAt),
                     ],
                   ),
                 ),

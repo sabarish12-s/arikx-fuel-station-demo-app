@@ -1334,8 +1334,8 @@ class _LeaderLinePainter extends CustomPainter {
       final active = touchedIndex == -1 || touchedIndex == i;
       final color = slices[i].color;
 
-      // Skip label for slices too tiny to be readable
-      if (pct >= 0.03) {
+      // Always label non-zero slices so small contributors are still visible.
+      if (pct > 0) {
         // Line: from pie edge → elbow → horizontal stub
         final edgePt = Offset(
           center.dx + (pieRadius + 2) * cosA,

@@ -86,13 +86,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
           ? _managementService.fetchEntries(
             fromDate: _filterFromDate,
             toDate: _filterToDate,
-            forceRefresh: true,
+            forceRefresh: forceRefresh,
           )
           : _managementService.fetchEntries(
             month: _filterMonth,
-            forceRefresh: true,
+            forceRefresh: forceRefresh,
           ),
-      _salesService.fetchDashboard(forceRefresh: true),
+      _salesService.fetchDashboard(forceRefresh: forceRefresh),
     ]);
 
     var entries = results[0] as List<ShiftEntryModel>;
