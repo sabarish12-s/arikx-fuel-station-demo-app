@@ -10,12 +10,13 @@ import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/responsive_text.dart';
-import 'closing_stock_entry_screen.dart';
 import 'credit_ledger_screen.dart';
 import 'daily_fuel_history_screen.dart';
 
 class SalesDashboardScreen extends StatefulWidget {
-  const SalesDashboardScreen({super.key});
+  const SalesDashboardScreen({super.key, this.onOpenSalesEntry});
+
+  final Future<void> Function()? onOpenSalesEntry;
 
   @override
   State<SalesDashboardScreen> createState() => _SalesDashboardScreenState();
@@ -90,20 +91,18 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
   }
 
   Future<void> _openSalesEntryPage() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const ClosingStockEntryScreen()),
-    );
-    if (!mounted) {
+    final onOpenSalesEntry = widget.onOpenSalesEntry;
+    if (onOpenSalesEntry == null) {
       return;
     }
+    await onOpenSalesEntry();
+    if (!mounted) return;
     await _refresh();
   }
 
   Future<void> _openDailyFuelHistory() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const DailyFuelHistoryScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const DailyFuelHistoryScreen()),
     );
     if (!mounted) {
       return;
@@ -167,13 +166,11 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           final today = bundle.today;
           final yesterday = bundle.yesterday;
           final cashByPump = _todayCashByPump(today);
-          final approvedEntries = today.todaysEntries
-              .where((entry) => entry.isFinalized)
-              .length;
+          final approvedEntries =
+              today.todaysEntries.where((entry) => entry.isFinalized).length;
           final pendingEntries = today.todaysEntries.length - approvedEntries;
-          final flaggedEntries = today.todaysEntries
-              .where((entry) => entry.flagged)
-              .length;
+          final flaggedEntries =
+              today.todaysEntries.where((entry) => entry.flagged).length;
 
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -281,7 +278,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 pendingMessage:
                     'Save petrol and diesel density before entering today\'s sales.',
                 primaryActionLabel:
-                    today.dailyFuelRecordComplete ? 'Edit Density' : 'Enter Density',
+                    today.dailyFuelRecordComplete
+                        ? 'Edit Density'
+                        : 'Enter Density',
                 onPrimaryAction: _openSalesEntryPage,
                 onHistory: _openDailyFuelHistory,
               ),

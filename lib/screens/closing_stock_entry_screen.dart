@@ -47,7 +47,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   Future<void> _load({String? date}) async {
     try {
-      final dashboard = await _salesService.fetchDashboardForDate(date: date);
+      final dashboard = await _salesService.fetchDashboardForDate(
+        date: date,
+        forceRefresh: true,
+      );
       if (!mounted) {
         return;
       }
@@ -391,7 +394,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return;
     }
     await _runPumpAction(
-      actionKey: '${pump.id}:update',
+      actionKey: 'pump:${pump.id}',
       action: () async {
         await _ensureSupportDataReady();
         if (!mounted) {
@@ -459,7 +462,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     }
 
     await _runPumpAction(
-      actionKey: '${pump.id}:cash',
+      actionKey: 'collection:${pump.id}',
       action: () async {
         final result = await showPumpCashCollectionDialog(
           context: context,
@@ -701,9 +704,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   Future<void> _openDailyFuelHistory() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const DailyFuelHistoryScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const DailyFuelHistoryScreen()),
     );
   }
 
@@ -979,13 +980,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                       (!canWorkOnEntry ||
                                               _selectedEntryApproved)
                                           ? null
-                                          : () => _runPumpAction(
-                                            actionKey: 'collection:${pump.id}',
-                                            action:
-                                                () => _editPumpCashCollection(
-                                                  pump,
-                                                ),
-                                          ),
+                                          : () => _editPumpCashCollection(pump),
                                   icon: const Icon(Icons.payments_outlined),
                                   label: const Text('Cash Collection'),
                                 ),
@@ -997,10 +992,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                       (!canWorkOnEntry ||
                                               _selectedEntryApproved)
                                           ? null
-                                          : () => _runPumpAction(
-                                            actionKey: 'pump:${pump.id}',
-                                            action: () => _editPump(pump),
-                                          ),
+                                          : () => _editPump(pump),
                                   icon:
                                       _busyPumpActionKey == 'pump:${pump.id}'
                                           ? const SizedBox(

@@ -234,23 +234,135 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
     _dieselController.text = diesel > 0 ? diesel.toString() : '';
   }
 
-  Future<void> _submit() async {
+  Future<bool> _submit({
+    void Function(String message)? onValidationError,
+  }) async {
     final petrol = double.tryParse(_petrolController.text.trim());
     final diesel = double.tryParse(_dieselController.text.trim());
     if (petrol == null || petrol <= 0 || diesel == null || diesel <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Enter petrol and diesel density values greater than zero.',
-          ),
-        ),
-      );
-      return;
+      const message =
+          'Enter petrol and diesel density values greater than zero.';
+      if (onValidationError != null) {
+        onValidationError(message);
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(message)));
+      }
+      return false;
     }
-    await widget.onSave({
-      'petrol': petrol,
-      'diesel': diesel,
-    });
+    await widget.onSave({'petrol': petrol, 'diesel': diesel});
+    return true;
+  }
+
+  Future<void> _openDensityDialog() async {
+    _syncControllers();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        var saving = false;
+        String? error;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> save() async {
+              setDialogState(() {
+                saving = true;
+                error = null;
+              });
+              final saved = await _submit(
+                onValidationError:
+                    (message) => setDialogState(() {
+                      error = message;
+                    }),
+              );
+              if (!context.mounted) {
+                return;
+              }
+              setDialogState(() {
+                saving = false;
+              });
+              if (saved) {
+                Navigator.of(dialogContext).pop();
+              }
+            }
+
+            final record = widget.record;
+            return AlertDialog(
+              title: Text(
+                record?.isComplete == true ? 'Update Density' : 'Enter Density',
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Density for ${formatDateLabel(widget.targetDate)}',
+                        style: const TextStyle(
+                          color: kClaySub,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _DensityInputCard(
+                        title: 'Petrol',
+                        accent: const Color(0xFF1E5CBA),
+                        openingStock: record?.openingStock['petrol'] ?? 0,
+                        price: record?.price['petrol'] ?? 0,
+                        controller: _petrolController,
+                      ),
+                      const SizedBox(height: 10),
+                      _DensityInputCard(
+                        title: 'Diesel',
+                        accent: const Color(0xFF0F8A73),
+                        openingStock: record?.openingStock['diesel'] ?? 0,
+                        price: record?.price['diesel'] ?? 0,
+                        controller: _dieselController,
+                      ),
+                      if (error != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          error!,
+                          style: const TextStyle(
+                            color: Color(0xFFB91C1C),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      saving ? null : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: saving || widget.busy ? null : save,
+                  icon:
+                      saving || widget.busy
+                          ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Icon(Icons.save_rounded),
+                  label: Text(
+                    record?.isComplete == true
+                        ? 'Update Density'
+                        : 'Save Density',
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -314,19 +426,19 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 560;
               final children = [
-                _DensityInputCard(
+                _DensityOverviewCard(
                   title: 'Petrol',
                   accent: const Color(0xFF1E5CBA),
                   openingStock: record?.openingStock['petrol'] ?? 0,
+                  density: record?.density['petrol'] ?? 0,
                   price: record?.price['petrol'] ?? 0,
-                  controller: _petrolController,
                 ),
-                _DensityInputCard(
+                _DensityOverviewCard(
                   title: 'Diesel',
                   accent: const Color(0xFF0F8A73),
                   openingStock: record?.openingStock['diesel'] ?? 0,
+                  density: record?.density['diesel'] ?? 0,
                   price: record?.price['diesel'] ?? 0,
-                  controller: _dieselController,
                 ),
               ];
               if (wide) {
@@ -349,7 +461,7 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
           ),
           const SizedBox(height: 14),
           FilledButton.icon(
-            onPressed: widget.busy ? null : _submit,
+            onPressed: widget.busy ? null : _openDensityDialog,
             icon:
                 widget.busy
                     ? const SizedBox(
@@ -360,8 +472,10 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
                         color: Colors.white,
                       ),
                     )
-                    : const Icon(Icons.save_rounded),
-            label: Text(record?.isComplete == true ? 'Update Density' : 'Save Density'),
+                    : const Icon(Icons.opacity_rounded),
+            label: Text(
+              record?.isComplete == true ? 'Update Density' : 'Enter Density',
+            ),
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
               backgroundColor: kClayHeroStart,
@@ -372,6 +486,54 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
             const SizedBox(height: 12),
             _AuditStrip(record: record),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DensityOverviewCard extends StatelessWidget {
+  const _DensityOverviewCard({
+    required this.title,
+    required this.accent,
+    required this.openingStock,
+    required this.density,
+    required this.price,
+  });
+
+  final String title;
+  final Color accent;
+  final double openingStock;
+  final double density;
+  final double price;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDensity = density > 0;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FD),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: accent,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _MetricRow(label: 'Opening stock', value: formatLiters(openingStock)),
+          _MetricRow(
+            label: 'Density',
+            value: hasDensity ? formatDensity(density) : 'Pending',
+          ),
+          _MetricRow(label: 'Price', value: formatPricePerLiter(price)),
         ],
       ),
     );
@@ -556,10 +718,6 @@ class _AuditStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final createdBy =
-        record.createdByName.trim().isNotEmpty
-            ? record.createdByName.trim()
-            : record.createdBy.trim();
     final updatedBy =
         record.updatedByName.trim().isNotEmpty
             ? record.updatedByName.trim()
@@ -574,23 +732,12 @@ class _AuditStrip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (createdBy.isNotEmpty || record.createdAt.trim().isNotEmpty)
+          if (updatedBy.isNotEmpty || record.updatedAt.trim().isNotEmpty)
             Text(
-              'Created${createdBy.isNotEmpty ? ' by $createdBy' : ''}${record.createdAt.trim().isNotEmpty ? ' on ${formatDateTimeLabel(record.createdAt)}' : ''}',
+              'Last updated${updatedBy.isNotEmpty ? ' by $updatedBy' : ''}${record.updatedAt.trim().isNotEmpty ? ' on ${formatDateTimeLabel(record.updatedAt)}' : ''}',
               style: const TextStyle(
                 color: kClaySub,
                 fontWeight: FontWeight.w700,
-              ),
-            ),
-          if (updatedBy.isNotEmpty || record.updatedAt.trim().isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Last updated${updatedBy.isNotEmpty ? ' by $updatedBy' : ''}${record.updatedAt.trim().isNotEmpty ? ' on ${formatDateTimeLabel(record.updatedAt)}' : ''}',
-                style: const TextStyle(
-                  color: kClaySub,
-                  fontWeight: FontWeight.w700,
-                ),
               ),
             ),
         ],

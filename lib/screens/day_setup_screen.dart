@@ -403,12 +403,482 @@ class _DaySetupHistoryCard extends StatelessWidget {
   final bool canDelete;
   final VoidCallback onDelete;
 
-  Widget _metric(String label, String value) {
+  String _price(String fuelKey, String field) {
+    return formatCurrency(setup.fuelPrices[fuelKey]?[field] ?? 0);
+  }
+
+  String _auditName(String name, String id) {
+    final trimmedName = name.trim();
+    if (trimmedName.isNotEmpty) {
+      return trimmedName;
+    }
+    return id.trim();
+  }
+
+  Widget _statusPill(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
+  Widget _detailGrid(List<_DaySetupDetailMetric> metrics) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth =
+            constraints.maxWidth >= 440
+                ? (constraints.maxWidth - 10) / 2
+                : constraints.maxWidth;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children:
+              metrics
+                  .map(
+                    (metric) => SizedBox(
+                      width: itemWidth,
+                      child: _DaySetupMetricTile(
+                        label: metric.label,
+                        value: metric.value,
+                        icon: metric.icon,
+                      ),
+                    ),
+                  )
+                  .toList(),
+        );
+      },
+    );
+  }
+
+  Widget _pumpReadingDetail(MapEntry<String, PumpReadings> entry) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE4E8F5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: kClayPrimary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.local_gas_station_rounded,
+                  color: kClayPrimary,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  formatPumpLabel(entry.key),
+                  style: const TextStyle(
+                    color: kClayPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _DaySetupInlineValue(
+                  label: 'Petrol',
+                  value: formatLiters(entry.value.petrol),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DaySetupInlineValue(
+                  label: 'Diesel',
+                  value: formatLiters(entry.value.diesel),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _auditLine(String label, String name, String time) {
+    final trimmedName = name.trim();
+    final trimmedTime = time.trim();
+    if (trimmedName.isEmpty && trimmedTime.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        '$label${trimmedName.isNotEmpty ? ' by $trimmedName' : ''}${trimmedTime.isNotEmpty ? ' on ${formatDateTimeLabel(trimmedTime)}' : ''}',
+        style: const TextStyle(
+          color: kClaySub,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDetails(BuildContext context) async {
+    final createdBy = _auditName(setup.createdByName, setup.createdBy);
+    final updatedBy = _auditName(setup.updatedByName, setup.updatedBy);
+    final deletedBy = _auditName(setup.deletedByName, setup.deletedBy);
+    final lockedBy = _auditName(setup.lockedByName, setup.lockedBy);
+    await showDialog<void>(
+      context: context,
+      builder:
+          (dialogContext) => ClayDialogShell(
+            title: formatDateLabel(setup.effectiveDate),
+            subtitle: 'Day setup details',
+            icon: Icons.fact_check_outlined,
+            actions: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4D66A9),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClayDialogSection(
+                  title: 'Starting stock',
+                  child: _detailGrid([
+                    _DaySetupDetailMetric(
+                      label: 'Petrol',
+                      value: formatLiters(setup.startingStock['petrol'] ?? 0),
+                      icon: Icons.opacity_rounded,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: 'Diesel',
+                      value: formatLiters(setup.startingStock['diesel'] ?? 0),
+                      icon: Icons.water_drop_outlined,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: '2T Oil',
+                      value: formatLiters(
+                        setup.startingStock['two_t_oil'] ?? 0,
+                      ),
+                      icon: Icons.oil_barrel_outlined,
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                ClayDialogSection(
+                  title: 'Fuel prices',
+                  child: _detailGrid([
+                    _DaySetupDetailMetric(
+                      label: 'Petrol cost',
+                      value: _price('petrol', 'costPrice'),
+                      icon: Icons.currency_rupee_rounded,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: 'Petrol selling',
+                      value: _price('petrol', 'sellingPrice'),
+                      icon: Icons.sell_outlined,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: 'Diesel cost',
+                      value: _price('diesel', 'costPrice'),
+                      icon: Icons.currency_rupee_rounded,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: 'Diesel selling',
+                      value: _price('diesel', 'sellingPrice'),
+                      icon: Icons.sell_outlined,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: '2T Oil cost',
+                      value: _price('two_t_oil', 'costPrice'),
+                      icon: Icons.currency_rupee_rounded,
+                    ),
+                    _DaySetupDetailMetric(
+                      label: '2T Oil selling',
+                      value: _price('two_t_oil', 'sellingPrice'),
+                      icon: Icons.sell_outlined,
+                    ),
+                  ]),
+                ),
+                const SizedBox(height: 12),
+                ClayDialogSection(
+                  title: 'Pump opening readings',
+                  child: Column(
+                    children: [
+                      for (final entry in setup.openingReadings.entries) ...[
+                        _pumpReadingDetail(entry),
+                        if (entry.key != setup.openingReadings.keys.last)
+                          const SizedBox(height: 10),
+                      ],
+                    ],
+                  ),
+                ),
+                if (setup.note.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ClayDialogSection(
+                    title: 'Note',
+                    child: Text(
+                      setup.note,
+                      style: const TextStyle(
+                        color: kClayPrimary,
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                ClayDialogSection(
+                  title: 'Status history',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _auditLine('Created', createdBy, setup.createdAt),
+                      _auditLine('Updated', updatedBy, setup.updatedAt),
+                      _auditLine('Locked', lockedBy, setup.lockedAt),
+                      _auditLine('Deleted', deletedBy, setup.deletedAt),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusPills = [
+      if (setup.isLocked) _statusPill('Locked', const Color(0xFF4D66A9)),
+      if (setup.isDeleted) _statusPill('Deleted', const Color(0xFFAD5162)),
+      if (!setup.isLocked && !setup.isDeleted)
+        _statusPill('Active', const Color(0xFF0F8A73)),
+    ];
+
+    return ClayCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      formatDateLabel(setup.effectiveDate),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: kClayPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${setup.openingReadings.length} pump readings saved',
+                      style: const TextStyle(
+                        color: kClaySub,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Wrap(spacing: 6, runSpacing: 6, children: statusPills),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _detailGrid([
+            _DaySetupDetailMetric(
+              label: 'Petrol stock',
+              value: formatLiters(setup.startingStock['petrol'] ?? 0),
+              icon: Icons.opacity_rounded,
+            ),
+            _DaySetupDetailMetric(
+              label: 'Diesel stock',
+              value: formatLiters(setup.startingStock['diesel'] ?? 0),
+              icon: Icons.water_drop_outlined,
+            ),
+            _DaySetupDetailMetric(
+              label: 'Petrol price',
+              value: _price('petrol', 'sellingPrice'),
+              icon: Icons.sell_outlined,
+            ),
+            _DaySetupDetailMetric(
+              label: 'Diesel price',
+              value: _price('diesel', 'sellingPrice'),
+              icon: Icons.sell_outlined,
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _showDetails(context),
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('View'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF4D66A9),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+              if (canDelete) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onDelete,
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text('Delete'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFAD5162),
+                      side: const BorderSide(color: Color(0xFFD8A8B1)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DaySetupDetailMetric {
+  const _DaySetupDetailMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+}
+
+class _DaySetupMetricTile extends StatelessWidget {
+  const _DaySetupMetricTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFFF6F8FD),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE8ECF7)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: kClayPrimary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: kClayPrimary, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: kClaySub,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: kClayPrimary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DaySetupInlineValue extends StatelessWidget {
+  const _DaySetupInlineValue({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FD),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,93 +888,19 @@ class _DaySetupHistoryCard extends StatelessWidget {
             style: const TextStyle(
               color: kClaySub,
               fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: kClayPrimary,
               fontWeight: FontWeight.w800,
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ClayCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  formatDateLabel(setup.effectiveDate),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: kClayPrimary,
-                  ),
-                ),
-              ),
-              if (setup.isLocked)
-                const _InfoPill(label: 'Status', value: 'Locked'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _metric(
-                'Stock',
-                'P ${formatLiters(setup.startingStock['petrol'] ?? 0)}  D ${formatLiters(setup.startingStock['diesel'] ?? 0)}  2T ${formatLiters(setup.startingStock['two_t_oil'] ?? 0)}',
-              ),
-              _metric(
-                'Prices',
-                'P ${formatCurrency(setup.fuelPrices['petrol']?['sellingPrice'] ?? 0)}  D ${formatCurrency(setup.fuelPrices['diesel']?['sellingPrice'] ?? 0)}  2T ${formatCurrency(setup.fuelPrices['two_t_oil']?['sellingPrice'] ?? 0)}',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...setup.openingReadings.entries.map(
-            (entry) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                '${entry.key}: Petrol ${formatLiters(entry.value.petrol)}, Diesel ${formatLiters(entry.value.diesel)}',
-                style: const TextStyle(
-                  color: kClayPrimary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontWeight: FontWeight.w900,
             ),
           ),
-          if (setup.note.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              setup.note,
-              style: const TextStyle(
-                color: kClaySub,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          if (canDelete) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Delete'),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -663,18 +1059,30 @@ class _DaySetupDialogState extends State<_DaySetupDialog> {
     required IconData icon,
     String? suffixText,
   }) {
+    final defaultBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFFD3DAEB), width: 1.2),
+    );
+    final focusedBorder = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFF4D66A9), width: 1.8),
+    );
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textInputAction: TextInputAction.next,
-      style: const TextStyle(
-        color: kClayPrimary,
-        fontWeight: FontWeight.w800,
-      ),
+      cursorColor: const Color(0xFF4D66A9),
+      style: const TextStyle(color: kClayPrimary, fontWeight: FontWeight.w800),
       decoration: clayDialogInputDecoration(
         label: label,
         prefixIcon: Icon(icon, color: kClaySub, size: 20),
       ).copyWith(
+        filled: true,
+        fillColor: const Color(0xFFFBFCFF),
+        border: defaultBorder,
+        enabledBorder: defaultBorder,
+        focusedBorder: focusedBorder,
+        suffixIcon: const Icon(Icons.edit_rounded, color: kClaySub, size: 18),
         suffixText: suffixText,
         suffixStyle: const TextStyle(
           color: kClaySub,
@@ -688,13 +1096,7 @@ class _DaySetupDialogState extends State<_DaySetupDialog> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 300) {
-          return Column(
-            children: [
-              first,
-              const SizedBox(height: 10),
-              second,
-            ],
-          );
+          return Column(children: [first, const SizedBox(height: 10), second]);
         }
 
         return Row(
@@ -781,7 +1183,8 @@ class _DaySetupDialogState extends State<_DaySetupDialog> {
   Widget _pumpReadingsSection() {
     return ClayDialogSection(
       title: 'Pump opening readings',
-      subtitle: 'Capture each pump meter before starting entries for the day.',
+      subtitle:
+          'Tap the reading boxes to edit each pump meter before starting entries for the day.',
       child: Column(
         children: [
           for (final pump in widget.station.pumps) ...[

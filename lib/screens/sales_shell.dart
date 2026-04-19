@@ -21,6 +21,7 @@ class SalesShell extends StatefulWidget {
 
 class _SalesShellState extends State<SalesShell> {
   int _index = 0;
+  int _salesRefreshToken = 0;
   final Set<int> _loadedScreens = {0};
   late final List<Widget> _screens;
 
@@ -28,8 +29,8 @@ class _SalesShellState extends State<SalesShell> {
   void initState() {
     super.initState();
     _screens = [
-      const SalesDashboardScreen(),
-      const ClosingStockEntryScreen(),
+      SalesDashboardScreen(onOpenSalesEntry: () => _selectIndex(1)),
+      ClosingStockEntryScreen(key: ValueKey(_salesRefreshToken)),
       const InventoryHubScreen(),
       const EntryHistoryScreen(),
       AccountScreen(user: widget.user),
@@ -41,6 +42,12 @@ class _SalesShellState extends State<SalesShell> {
       return;
     }
     setState(() {
+      if (value == 1) {
+        _salesRefreshToken += 1;
+        _screens[1] = ClosingStockEntryScreen(
+          key: ValueKey(_salesRefreshToken),
+        );
+      }
       _index = value;
       _loadedScreens.add(value);
     });

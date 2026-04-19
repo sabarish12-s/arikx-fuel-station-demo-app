@@ -23,6 +23,7 @@ class ManagementShell extends StatefulWidget {
 
 class _ManagementShellState extends State<ManagementShell> {
   int _index = 0;
+  int _entryRefreshToken = 0;
   final _settingsKey = GlobalKey<SettingsHomeScreenState>();
   final Set<int> _loadedScreens = {0};
   late final List<Widget> _screens;
@@ -32,7 +33,7 @@ class _ManagementShellState extends State<ManagementShell> {
     super.initState();
     _screens = [
       ManagementDashboardScreen(user: widget.user),
-      const EntryManagementScreen(),
+      EntryManagementScreen(key: ValueKey(_entryRefreshToken)),
       const MonthlyReportScreen(),
       const InventoryHubScreen(
         canManagePlanning: true,
@@ -44,6 +45,10 @@ class _ManagementShellState extends State<ManagementShell> {
 
   void _selectIndex(int value) {
     setState(() {
+      if (value == 1 && _index != value) {
+        _entryRefreshToken += 1;
+        _screens[1] = EntryManagementScreen(key: ValueKey(_entryRefreshToken));
+      }
       _index = value;
       _loadedScreens.add(value);
     });
@@ -104,9 +109,10 @@ class _ManagementShellState extends State<ManagementShell> {
         index: _index,
         children: List.generate(
           _screens.length,
-          (index) => _loadedScreens.contains(index)
-              ? _screens[index]
-              : const SizedBox.shrink(),
+          (index) =>
+              _loadedScreens.contains(index)
+                  ? _screens[index]
+                  : const SizedBox.shrink(),
         ),
       ),
       bottomNavigationBar: AppBottomNavBar(

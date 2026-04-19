@@ -86,13 +86,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
           ? _managementService.fetchEntries(
             fromDate: _filterFromDate,
             toDate: _filterToDate,
-            forceRefresh: forceRefresh,
+            forceRefresh: true,
           )
           : _managementService.fetchEntries(
             month: _filterMonth,
-            forceRefresh: forceRefresh,
+            forceRefresh: true,
           ),
-      _salesService.fetchDashboard(forceRefresh: forceRefresh),
+      _salesService.fetchDashboard(forceRefresh: true),
     ]);
 
     var entries = results[0] as List<ShiftEntryModel>;
@@ -421,9 +421,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     try {
       final dashboard = await _salesService.fetchDashboardForDate(
         date: preselectedDate,
+        forceRefresh: true,
       );
       if (!dashboard.dailyFuelRecordComplete) {
-        throw Exception('Save petrol and diesel density before creating an entry.');
+        throw Exception(
+          'Save petrol and diesel density before creating an entry.',
+        );
       }
       final date = preselectedDate ?? dashboard.allowedEntryDate;
       if (!dashboard.setupExists || date.trim().isEmpty) {
@@ -444,9 +447,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         ? 'Daily Admin Entry'
                         : 'Edit Daily Entry',
                 station: dashboard.station,
-                openingReadings:
-                    dashboard.selectedEntry?.openingReadings ??
-                    dashboard.openingReadings,
+                openingReadings: dashboard.openingReadings,
                 priceSnapshot: mergePriceSnapshots(
                   primary:
                       dashboard.selectedEntry?.priceSnapshot ??
@@ -549,9 +550,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     }
     setState(() => _submitting = true);
     try {
-      final detailedEntry = await _managementService.fetchEntryDetail(entry.id);
+      final detailedEntry = await _managementService.fetchEntryDetail(
+        entry.id,
+        forceRefresh: true,
+      );
       final dailyFuelRecord = await _inventoryService.fetchDailyFuelRecord(
         date: detailedEntry.date,
+        forceRefresh: true,
       );
       if (!mounted) return;
 
@@ -601,7 +606,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     }
   }
 
-  Future<void> _saveDailyFuelRecord(SalesDashboardModel dashboard, Map<String, double> density) async {
+  Future<void> _saveDailyFuelRecord(
+    SalesDashboardModel dashboard,
+    Map<String, double> density,
+  ) async {
     setState(() {
       _savingDailyFuel = true;
     });
@@ -621,9 +629,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(userFacingErrorMessage(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingErrorMessage(error))));
     } finally {
       if (mounted) {
         setState(() {
@@ -635,9 +643,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
   Future<void> _openDailyFuelHistory() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const DailyFuelHistoryScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const DailyFuelHistoryScreen()),
     );
   }
 
@@ -991,7 +997,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   record: data.dashboard.dailyFuelRecord,
                   busy: _savingDailyFuel,
                   onSave:
-                      (density) => _saveDailyFuelRecord(data.dashboard, density),
+                      (density) =>
+                          _saveDailyFuelRecord(data.dashboard, density),
                   onHistory: _openDailyFuelHistory,
                 ),
                 const SizedBox(height: 14),
