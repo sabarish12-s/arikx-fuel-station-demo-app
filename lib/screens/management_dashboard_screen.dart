@@ -145,9 +145,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
   Future<void> _openDailyFuelHistory() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const DailyFuelHistoryScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const DailyFuelHistoryScreen()),
     );
     if (!mounted) {
       return;
@@ -817,7 +815,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   pendingMessage:
                       data.entryLockedReason.isNotEmpty
                           ? data.entryLockedReason
-                          : 'Save petrol and diesel density from Entries before creating today\'s sales entry.',
+                          : 'Density is tracked separately from sales entries.',
                   primaryActionLabel:
                       data.dailyFuelRecordComplete
                           ? 'Open Entries'

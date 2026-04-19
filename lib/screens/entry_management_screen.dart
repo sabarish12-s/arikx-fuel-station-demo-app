@@ -423,11 +423,6 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         date: preselectedDate,
         forceRefresh: true,
       );
-      if (!dashboard.dailyFuelRecordComplete) {
-        throw Exception(
-          'Save petrol and diesel density before creating an entry.',
-        );
-      }
       final date = preselectedDate ?? dashboard.allowedEntryDate;
       if (!dashboard.setupExists || date.trim().isEmpty) {
         throw Exception(
@@ -1004,16 +999,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 const SizedBox(height: 14),
                 _ClayButton(
                   icon: Icons.add_rounded,
-                  label:
-                      _submitting
-                          ? 'Opening...'
-                          : data.dashboard.dailyFuelRecordComplete
-                          ? 'New Entry'
-                          : 'Save Density First',
-                  onTap:
-                      (_submitting || !data.dashboard.dailyFuelRecordComplete)
-                          ? null
-                          : _openAdminEntryDialog,
+                  label: _submitting ? 'Opening...' : 'New Entry',
+                  onTap: _submitting ? null : _openAdminEntryDialog,
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(

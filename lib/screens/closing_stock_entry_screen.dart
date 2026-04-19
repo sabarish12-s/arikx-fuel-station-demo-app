@@ -32,6 +32,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       const <String, Map<String, double>>{};
   List<CreditCustomerSummaryModel> _suggestedCustomers = const [];
   String? _selectedDate;
+  String? _persistedEntryId;
   DailyEntryDraft? _draft;
   bool _submitting = false;
   bool _savingDailyFuel = false;
@@ -58,6 +59,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         _dashboard = dashboard;
         _resolvedPriceSnapshot = dashboard.priceSnapshot;
         _selectedDate = dashboard.date;
+        _persistedEntryId = dashboard.selectedEntry?.id;
         _draft = _seedDraft(dashboard);
         _error = null;
       });
@@ -236,33 +238,64 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     );
   }
 
-  void _savePumpEdit(String pumpId, PumpEntryDraft pumpDraft) {
+  DailyEntryDraft? _savePumpEdit(String pumpId, PumpEntryDraft pumpDraft) {
     final draft = _draft;
     if (draft == null) {
-      return;
+      return null;
     }
     final remainingCredits =
         draft.creditEntries.where((item) => item.pumpId != pumpId).toList();
+    final updatedDraft = draft.copyWith(
+      closingReadings: {
+        ...draft.closingReadings,
+        if (pumpDraft.closingReadings != null)
+          pumpId: pumpDraft.closingReadings!,
+      },
+      pumpAttendants: {...draft.pumpAttendants, pumpId: pumpDraft.attendant},
+      pumpTesting: {...draft.pumpTesting, pumpId: pumpDraft.testing},
+      pumpPayments: {...draft.pumpPayments, pumpId: pumpDraft.payments},
+      pumpCollections: {
+        ...draft.pumpCollections,
+        pumpId: pumpDraft.payments.total,
+      },
+      creditEntries: [...remainingCredits, ...pumpDraft.creditEntries],
+      pumpMismatchReasons: {
+        ...draft.pumpMismatchReasons,
+        pumpId: pumpDraft.mismatchReason,
+      },
+    );
     setState(() {
-      _draft = draft.copyWith(
-        closingReadings: {
-          ...draft.closingReadings,
-          if (pumpDraft.closingReadings != null)
-            pumpId: pumpDraft.closingReadings!,
-        },
-        pumpAttendants: {...draft.pumpAttendants, pumpId: pumpDraft.attendant},
-        pumpTesting: {...draft.pumpTesting, pumpId: pumpDraft.testing},
-        pumpPayments: {...draft.pumpPayments, pumpId: pumpDraft.payments},
-        pumpCollections: {
-          ...draft.pumpCollections,
-          pumpId: pumpDraft.payments.total,
-        },
-        creditEntries: [...remainingCredits, ...pumpDraft.creditEntries],
-        pumpMismatchReasons: {
-          ...draft.pumpMismatchReasons,
-          pumpId: pumpDraft.mismatchReason,
-        },
-      );
+      _draft = updatedDraft;
+    });
+    return updatedDraft;
+  }
+
+  Future<void> _saveDraft(DailyEntryDraft draft) async {
+    final selectedEntry = _dashboard?.selectedEntry;
+    if (_selectedEntryApproved ||
+        (selectedEntry != null &&
+            selectedEntry.status.trim().toLowerCase() != 'draft')) {
+      return;
+    }
+
+    final saved = await _salesService.saveDraftEntry(
+      date: draft.date,
+      closingReadings: draft.closingReadings,
+      pumpAttendants: draft.pumpAttendants,
+      pumpTesting: draft.pumpTesting,
+      pumpPayments: draft.pumpPayments,
+      pumpCollections: draft.pumpCollections,
+      paymentBreakdown: draft.paymentBreakdown,
+      creditEntries: draft.creditEntries,
+      creditCollections: draft.creditCollections,
+      mismatchReason: _buildEntryMismatchReason(draft),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _persistedEntryId = saved.id;
+      _error = null;
     });
   }
 
@@ -325,6 +358,16 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
 
   bool get _selectedEntryApproved =>
       _dashboard?.selectedEntry?.status.trim().toLowerCase() == 'approved';
+
+  String _entryStatusLabel(SalesDashboardModel dashboard) {
+    final selectedStatus =
+        dashboard.selectedEntry?.status.trim().toLowerCase() ?? '';
+    if (selectedStatus == 'draft' ||
+        (dashboard.selectedEntry == null && _persistedEntryId != null)) {
+      return 'Draft';
+    }
+    return dashboard.todaysEntries.isNotEmpty ? 'Added' : 'Pending';
+  }
 
   bool _supportsTwoT(String pumpId) => true;
 
@@ -438,7 +481,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           return;
         }
 
-        _savePumpEdit(result.key, result.value);
+        final updatedDraft = _savePumpEdit(result.key, result.value);
+        if (updatedDraft != null) {
+          await _saveDraft(updatedDraft);
+        }
       },
     );
   }
@@ -492,7 +538,10 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           return;
         }
 
-        _savePumpEdit(result.key, result.value);
+        final updatedDraft = _savePumpEdit(result.key, result.value);
+        if (updatedDraft != null) {
+          await _saveDraft(updatedDraft);
+        }
       },
     );
   }
@@ -607,7 +656,11 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       }
 
       final existingEntry = dashboard.selectedEntry;
-      if (existingEntry == null) {
+      final existingEntryId = existingEntry?.id ?? _persistedEntryId;
+      final wasDraft =
+          existingEntry?.status.trim().toLowerCase() == 'draft' ||
+          (existingEntry == null && _persistedEntryId != null);
+      if (existingEntryId == null) {
         await _salesService.submitEntry(
           date: draft.date,
           closingReadings: draft.closingReadings,
@@ -622,7 +675,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         );
       } else {
         await _salesService.updateEntry(
-          entryId: existingEntry.id,
+          entryId: existingEntryId,
           date: draft.date,
           closingReadings: draft.closingReadings,
           pumpAttendants: draft.pumpAttendants,
@@ -642,7 +695,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            existingEntry == null
+            existingEntryId == null || wasDraft
                 ? 'Entry submitted. Collected ${formatCurrency(preview.paymentTotal)}.'
                 : 'Entry updated. Collected ${formatCurrency(preview.paymentTotal)}.',
           ),
@@ -712,11 +765,9 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
   Widget build(BuildContext context) {
     final dashboard = _dashboard;
     final draft = _draft;
-    final dailyFuelReady = dashboard?.dailyFuelRecordComplete ?? false;
     final canWorkOnEntry =
         dashboard != null &&
         dashboard.setupExists &&
-        dailyFuelReady &&
         dashboard.allowedEntryDate.trim().isNotEmpty &&
         dashboard.date == dashboard.allowedEntryDate;
     final summary =
@@ -842,9 +893,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                                         : 'Setup status',
                                 value:
                                     dashboard.setupExists
-                                        ? (dashboard.todaysEntries.isNotEmpty
-                                            ? 'Added'
-                                            : 'Pending')
+                                        ? _entryStatusLabel(dashboard)
                                         : 'Required',
                               ),
                             ),
@@ -1209,8 +1258,6 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                           ? 'Submitting...'
                           : _selectedEntryApproved
                           ? 'Entry Approved'
-                          : !dailyFuelReady
-                          ? 'Save Density First'
                           : dashboard.selectedEntry == null
                           ? 'Submit Entry'
                           : 'Update Entry',

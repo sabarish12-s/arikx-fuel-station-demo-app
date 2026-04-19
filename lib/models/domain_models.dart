@@ -1400,7 +1400,7 @@ class ShiftEntryModel {
   final Map<String, Map<String, double>> priceSnapshot;
 
   bool get isFinalized {
-    if (status.trim() == 'preview') {
+    if (<String>{'draft', 'preview'}.contains(status.trim().toLowerCase())) {
       return false;
     }
     return approvedAt.trim().isNotEmpty || status.trim() == 'approved';
@@ -1810,7 +1810,8 @@ class SalesDashboardModel {
                 json['dailyFuelRecord'] as Map<String, dynamic>,
               )
               : null,
-      dailyFuelRecordComplete: json['dailyFuelRecordComplete'] as bool? ?? false,
+      dailyFuelRecordComplete:
+          json['dailyFuelRecordComplete'] as bool? ?? false,
       priceSnapshot: (json['priceSnapshot'] as Map<String, dynamic>? ??
               const {})
           .map((key, value) {
@@ -2114,7 +2115,8 @@ class ManagementDashboardModel {
                 json['dailyFuelRecord'] as Map<String, dynamic>,
               )
               : null,
-      dailyFuelRecordComplete: json['dailyFuelRecordComplete'] as bool? ?? false,
+      dailyFuelRecordComplete:
+          json['dailyFuelRecordComplete'] as bool? ?? false,
       fuelTypes:
           (json['fuelTypes'] as List<dynamic>? ?? const [])
               .map(

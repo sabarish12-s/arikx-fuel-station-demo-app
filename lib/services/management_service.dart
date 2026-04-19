@@ -75,6 +75,7 @@ class ManagementService {
       '/management/entries$suffix',
       useCache: true,
       forceRefresh: forceRefresh,
+      cachePolicy: ApiCachePolicy.networkFirst,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -98,6 +99,7 @@ class ManagementService {
       _entryPath(entryId),
       useCache: true,
       forceRefresh: forceRefresh,
+      cachePolicy: ApiCachePolicy.networkFirst,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(

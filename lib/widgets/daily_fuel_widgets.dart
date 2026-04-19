@@ -394,7 +394,7 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Opening stock is auto-filled from the previous day closing. Price comes from settings. Save density before entering pump sales.',
+            'Opening stock is auto-filled from the previous day closing. Price comes from settings. Density can be saved separately from pump sales.',
             style: const TextStyle(
               color: kClaySub,
               fontWeight: FontWeight.w600,

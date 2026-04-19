@@ -276,7 +276,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 targetDate: today.date,
                 record: today.dailyFuelRecord,
                 pendingMessage:
-                    'Save petrol and diesel density before entering today\'s sales.',
+                    'Density is separate from today\'s sales entry.',
                 primaryActionLabel:
                     today.dailyFuelRecordComplete
                         ? 'Edit Density'

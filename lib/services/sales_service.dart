@@ -55,6 +55,7 @@ class SalesService {
       '/sales/entries$suffix',
       useCache: true,
       forceRefresh: forceRefresh,
+      cachePolicy: ApiCachePolicy.networkFirst,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -102,29 +103,58 @@ class SalesService {
   }) async {
     final response = await _apiClient.post(
       '/sales/entries',
-      body: jsonEncode({
-        'date': date,
-        'closingReadings': closingReadings.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpAttendants': pumpAttendants,
-        'pumpTesting': pumpTesting.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpPayments': pumpPayments.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpCollections': pumpCollections,
-        'paymentBreakdown': paymentBreakdown.toJson(),
-        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
-        'creditCollections':
-            creditCollections.map((entry) => entry.toJson()).toList(),
-        'mismatchReason': mismatchReason,
-      }),
+      body: _entryBody(
+        date: date,
+        closingReadings: closingReadings,
+        pumpAttendants: pumpAttendants,
+        pumpTesting: pumpTesting,
+        pumpPayments: pumpPayments,
+        pumpCollections: pumpCollections,
+        paymentBreakdown: paymentBreakdown,
+        creditEntries: creditEntries,
+        creditCollections: creditCollections,
+        mismatchReason: mismatchReason,
+      ),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         _apiClient.errorMessage(response, fallback: 'Failed to submit entry.'),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
+  }
+
+  Future<ShiftEntryModel> saveDraftEntry({
+    required String date,
+    required Map<String, PumpReadings> closingReadings,
+    required Map<String, String> pumpAttendants,
+    required Map<String, PumpTestingModel> pumpTesting,
+    required Map<String, PumpPaymentBreakdownModel> pumpPayments,
+    required Map<String, double> pumpCollections,
+    required PaymentBreakdownModel paymentBreakdown,
+    required List<CreditEntryModel> creditEntries,
+    required List<CreditCollectionModel> creditCollections,
+    String mismatchReason = '',
+  }) async {
+    final response = await _apiClient.post(
+      '/sales/entries/draft',
+      body: _entryBody(
+        date: date,
+        closingReadings: closingReadings,
+        pumpAttendants: pumpAttendants,
+        pumpTesting: pumpTesting,
+        pumpPayments: pumpPayments,
+        pumpCollections: pumpCollections,
+        paymentBreakdown: paymentBreakdown,
+        creditEntries: creditEntries,
+        creditCollections: creditCollections,
+        mismatchReason: mismatchReason,
+      ),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(response, fallback: 'Failed to save draft.'),
       );
     }
     final json = _apiClient.decodeObject(response);
@@ -146,25 +176,18 @@ class SalesService {
   }) async {
     final response = await _apiClient.patch(
       '/sales/entries/$entryId',
-      body: jsonEncode({
-        'date': date,
-        'closingReadings': closingReadings.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpAttendants': pumpAttendants,
-        'pumpTesting': pumpTesting.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpPayments': pumpPayments.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpCollections': pumpCollections,
-        'paymentBreakdown': paymentBreakdown.toJson(),
-        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
-        'creditCollections':
-            creditCollections.map((entry) => entry.toJson()).toList(),
-        'mismatchReason': mismatchReason,
-      }),
+      body: _entryBody(
+        date: date,
+        closingReadings: closingReadings,
+        pumpAttendants: pumpAttendants,
+        pumpTesting: pumpTesting,
+        pumpPayments: pumpPayments,
+        pumpCollections: pumpCollections,
+        paymentBreakdown: paymentBreakdown,
+        creditEntries: creditEntries,
+        creditCollections: creditCollections,
+        mismatchReason: mismatchReason,
+      ),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -189,25 +212,18 @@ class SalesService {
   }) async {
     final response = await _apiClient.post(
       '/sales/entries/preview',
-      body: jsonEncode({
-        'date': date,
-        'closingReadings': closingReadings.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpAttendants': pumpAttendants,
-        'pumpTesting': pumpTesting.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpPayments': pumpPayments.map(
-          (key, value) => MapEntry(key, value.toJson()),
-        ),
-        'pumpCollections': pumpCollections,
-        'paymentBreakdown': paymentBreakdown.toJson(),
-        'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
-        'creditCollections':
-            creditCollections.map((entry) => entry.toJson()).toList(),
-        'mismatchReason': mismatchReason,
-      }),
+      body: _entryBody(
+        date: date,
+        closingReadings: closingReadings,
+        pumpAttendants: pumpAttendants,
+        pumpTesting: pumpTesting,
+        pumpPayments: pumpPayments,
+        pumpCollections: pumpCollections,
+        paymentBreakdown: paymentBreakdown,
+        creditEntries: creditEntries,
+        creditCollections: creditCollections,
+        mismatchReason: mismatchReason,
+      ),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -216,5 +232,38 @@ class SalesService {
     }
     final json = _apiClient.decodeObject(response);
     return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
+  }
+
+  String _entryBody({
+    required String date,
+    required Map<String, PumpReadings> closingReadings,
+    required Map<String, String> pumpAttendants,
+    required Map<String, PumpTestingModel> pumpTesting,
+    required Map<String, PumpPaymentBreakdownModel> pumpPayments,
+    required Map<String, double> pumpCollections,
+    required PaymentBreakdownModel paymentBreakdown,
+    required List<CreditEntryModel> creditEntries,
+    required List<CreditCollectionModel> creditCollections,
+    required String mismatchReason,
+  }) {
+    return jsonEncode({
+      'date': date,
+      'closingReadings': closingReadings.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
+      'pumpAttendants': pumpAttendants,
+      'pumpTesting': pumpTesting.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
+      'pumpPayments': pumpPayments.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
+      'pumpCollections': pumpCollections,
+      'paymentBreakdown': paymentBreakdown.toJson(),
+      'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
+      'creditCollections':
+          creditCollections.map((entry) => entry.toJson()).toList(),
+      'mismatchReason': mismatchReason,
+    });
   }
 }

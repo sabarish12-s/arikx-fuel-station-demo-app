@@ -8,6 +8,8 @@ import '../utils/user_facing_errors.dart';
 import 'api_response_cache.dart';
 import 'auth_service.dart';
 
+enum ApiCachePolicy { cacheFirst, networkFirst }
+
 class ApiClient {
   ApiClient(this._authService, {http.Client? httpClient})
     : _httpClient = httpClient ?? http.Client();
@@ -27,6 +29,7 @@ class ApiClient {
     String path, {
     bool useCache = false,
     bool forceRefresh = false,
+    ApiCachePolicy cachePolicy = ApiCachePolicy.cacheFirst,
   }) async {
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final headers = await authorizedHeaders();
@@ -38,7 +41,9 @@ class ApiClient {
             )
             : null;
 
-    if (cacheKey != null && !forceRefresh) {
+    if (cacheKey != null &&
+        !forceRefresh &&
+        cachePolicy == ApiCachePolicy.cacheFirst) {
       final cached = await ApiResponseCache.read(cacheKey);
       if (cached != null) {
         unawaited(_refreshCachedGet(uri, path, headers, cacheKey));
@@ -50,7 +55,24 @@ class ApiClient {
       }
     }
 
-    final response = await _httpClient.get(uri, headers: headers);
+    late final http.Response response;
+    try {
+      response = await _httpClient.get(uri, headers: headers);
+    } catch (_) {
+      if (cacheKey != null &&
+          !forceRefresh &&
+          cachePolicy == ApiCachePolicy.networkFirst) {
+        final cached = await ApiResponseCache.read(cacheKey);
+        if (cached != null) {
+          return http.Response(
+            cached.body,
+            cached.statusCode,
+            headers: {...cached.headers, 'x-rk-cache': 'fallback'},
+          );
+        }
+      }
+      rethrow;
+    }
     if (cacheKey != null && _isSuccess(response)) {
       await ApiResponseCache.write(
         key: cacheKey,

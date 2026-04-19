@@ -87,6 +87,74 @@ void main() {
     expect(client.requests, hasLength(1));
   });
 
+  test(
+    'networkFirst cache policy returns fresh entries instead of stale cache',
+    () async {
+      final authService = AuthService();
+      final cacheKey = await ApiResponseCache.scopedKey(
+        authService: authService,
+        path: '/sales/entries',
+      );
+      expect(cacheKey, isNotNull);
+      await ApiResponseCache.write(
+        key: cacheKey!,
+        path: '/sales/entries',
+        statusCode: 200,
+        body: '{"entries":[{"id":"old"}]}',
+        headers: const {},
+      );
+
+      final client = _FakeHttpClient([
+        http.Response('{"entries":[{"id":"fresh"}]}', 200),
+      ]);
+      final apiClient = ApiClient(authService, httpClient: client);
+
+      final response = await apiClient.get(
+        '/sales/entries',
+        useCache: true,
+        cachePolicy: ApiCachePolicy.networkFirst,
+      );
+
+      expect(response.body, '{"entries":[{"id":"fresh"}]}');
+      expect(response.headers['x-rk-cache'], isNull);
+      final updated = await ApiResponseCache.read(cacheKey);
+      expect(updated?.body, '{"entries":[{"id":"fresh"}]}');
+      expect(client.requests, hasLength(1));
+    },
+  );
+
+  test(
+    'networkFirst cache policy falls back to cache only after network failure',
+    () async {
+      final authService = AuthService();
+      final cacheKey = await ApiResponseCache.scopedKey(
+        authService: authService,
+        path: '/management/entries',
+      );
+      expect(cacheKey, isNotNull);
+      await ApiResponseCache.write(
+        key: cacheKey!,
+        path: '/management/entries',
+        statusCode: 200,
+        body: '{"entries":[{"id":"cached"}]}',
+        headers: const {},
+      );
+
+      final client = _FakeHttpClient(const []);
+      final apiClient = ApiClient(authService, httpClient: client);
+
+      final response = await apiClient.get(
+        '/management/entries',
+        useCache: true,
+        cachePolicy: ApiCachePolicy.networkFirst,
+      );
+
+      expect(response.body, '{"entries":[{"id":"cached"}]}');
+      expect(response.headers['x-rk-cache'], 'fallback');
+      expect(client.requests, hasLength(1));
+    },
+  );
+
   test('cache keys are scoped by user, station, and path', () async {
     final authService = AuthService();
     final first = await ApiResponseCache.scopedKey(
