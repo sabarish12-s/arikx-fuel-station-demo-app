@@ -57,20 +57,31 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   final CreditService _creditService = CreditService();
   final InventoryService _inventoryService = InventoryService();
   final ReportExportService _reportExportService = ReportExportService();
+  static const List<String> _monthNames = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   late Future<_MonthlyReportViewData> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
-  final String _month = currentMonthKey();
+  String _filterMonth = currentMonthKey();
   DateTime? _fromDate;
   DateTime? _toDate;
+  bool _filterByDateRange = false;
   bool _exporting = false;
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    _fromDate = today.subtract(const Duration(days: 29));
-    _toDate = today;
     _future = _fetchReport();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted || !update.background) {
@@ -126,9 +137,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   Future<_MonthlyReportViewData> _fetchReport({
     bool forceRefresh = false,
   }) async {
-    final monthParam = _fromDate == null && _toDate == null ? _month : null;
-    final fromDateParam = _fromDate == null ? null : _toApiDate(_fromDate!);
-    final toDateParam = _toDate == null ? null : _toApiDate(_toDate!);
+    final monthParam = _filterByDateRange ? null : _filterMonth;
+    final fromDateParam = _filterByDateRange && _fromDate != null
+        ? _toApiDate(_fromDate!)
+        : null;
+    final toDateParam = _filterByDateRange && _toDate != null
+        ? _toApiDate(_toDate!)
+        : null;
     final reportFuture = _managementService.fetchMonthlyReport(
       month: monthParam,
       fromDate: fromDateParam,
@@ -247,8 +262,6 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     }
   }
 
-  void _reload() => setState(() => _future = _fetchReport(forceRefresh: true));
-
   Future<void> _refresh() async {
     setState(() => _future = _fetchReport(forceRefresh: true));
     await _future;
@@ -260,21 +273,21 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     return '${date.year}-$m-$d';
   }
 
-  Future<void> _pickDateRange() async {
-    final picked = await showAppDateRangePicker(
-      context: context,
-      fromDate: _fromDate,
-      toDate: _toDate,
-      firstDate: DateTime(2024),
-      lastDate: DateTime(2100),
-      helpText: 'Select report range',
-    );
-    if (picked == null) return;
-    setState(() {
-      _fromDate = picked.start;
-      _toDate = picked.end;
-      _future = _fetchReport();
-    });
+  String get _activeFilterLabel {
+    if (_filterByDateRange) {
+      if (_fromDate == null || _toDate == null) {
+        return 'Custom Range';
+      }
+      return '${_fmtShort(_fromDate!)} - ${_fmtShort(_toDate!)}';
+    }
+    final parts = _filterMonth.split('-');
+    if (parts.length != 2) return _filterMonth;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null || month < 1 || month > 12) {
+      return _filterMonth;
+    }
+    return '${_shortMonths[month - 1]} $year';
   }
 
   static const List<String> _shortMonths = [
@@ -297,59 +310,219 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
   String _fmtShort(DateTime d) => '${_shortMonths[d.month - 1]} ${d.day}';
 
-  void _applyLast30Days() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+  Future<void> _openFilterDialog() async {
+    final today = DateTime.now();
+    bool byRange = _filterByDateRange;
+    final parts = _filterMonth.split('-');
+    int selYear = int.tryParse(parts.firstOrNull ?? '') ?? today.year;
+    int selMonth =
+        int.tryParse(parts.length > 1 ? parts[1] : '') ?? today.month;
+    DateTime? fromDt = _fromDate;
+    DateTime? toDt = _toDate;
+    final now = DateTime(today.year, today.month, today.day);
+
+    String formatDialogDate(DateTime? dt) {
+      if (dt == null) return 'Tap to choose';
+      return formatDateLabel(_toApiDate(dt));
+    }
+
+    String formatDialogRange() {
+      if (fromDt == null || toDt == null) return 'Tap to choose';
+      return '${formatDialogDate(fromDt)} to ${formatDialogDate(toDt)}';
+    }
+
+    bool matchesQuickRange(int dayCount) {
+      if (fromDt == null || toDt == null) return false;
+      final expectedFrom = now.subtract(Duration(days: dayCount - 1));
+      return DateTime(fromDt!.year, fromDt!.month, fromDt!.day) ==
+              expectedFrom &&
+          DateTime(toDt!.year, toDt!.month, toDt!.day) == now;
+    }
+
+    void applyQuickRange(StateSetter set, int dayCount) {
+      set(() {
+        byRange = true;
+        fromDt = now.subtract(Duration(days: dayCount - 1));
+        toDt = now;
+      });
+    }
+
+    Future<void> pickRange(
+      BuildContext pickerContext,
+      StateSetter setDialogState,
+    ) async {
+      final picked = await showAppDateRangePicker(
+        context: pickerContext,
+        fromDate: fromDt,
+        toDate: toDt,
+        firstDate: DateTime(2024),
+        lastDate: today,
+        helpText: 'Select report range',
+      );
+      if (picked == null) return;
+      setDialogState(() {
+        byRange = true;
+        fromDt = picked.start;
+        toDt = picked.end;
+      });
+    }
+
+    final applied = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final years = List<int>.generate(
+              today.year - 2024 + 1,
+              (i) => today.year - i,
+            );
+
+            return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              title: const Text('Filter Reports'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECEFF8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        children: [
+                          _ReportToggleTab(
+                            label: 'By Month',
+                            selected: !byRange,
+                            onTap: () => setDialogState(() => byRange = false),
+                          ),
+                          _ReportToggleTab(
+                            label: 'Date Range',
+                            selected: byRange,
+                            onTap: () => setDialogState(() => byRange = true),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    if (!byRange) ...[
+                      _ReportDropdownField<int>(
+                        label: 'Year',
+                        icon: Icons.event_note_rounded,
+                        value: selYear,
+                        items: years
+                            .map(
+                              (y) => DropdownMenuItem<int>(
+                                value: y,
+                                child: Text('$y'),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selYear = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _ReportDropdownField<int>(
+                        label: 'Month',
+                        icon: Icons.calendar_month_rounded,
+                        value: selMonth,
+                        items: List.generate(
+                          _monthNames.length,
+                          (i) => DropdownMenuItem<int>(
+                            value: i + 1,
+                            child: Text(_monthNames[i]),
+                          ),
+                        ),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selMonth = v);
+                        },
+                      ),
+                    ] else ...[
+                      _ReportDateTile(
+                        label: 'Date Range',
+                        value: formatDialogRange(),
+                        selected: false,
+                        onTap: () => pickRange(dialogContext, setDialogState),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _PresetPill(
+                              label: 'Last 7 Days',
+                              selected: matchesQuickRange(7),
+                              onTap: () => applyQuickRange(setDialogState, 7),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _PresetPill(
+                              label: 'Last 30 Days',
+                              selected: matchesQuickRange(30),
+                              onTap: () => applyQuickRange(setDialogState, 30),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              actions: [
+                SizedBox(
+                  width: double.maxFinite,
+                  child: Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (byRange && (fromDt == null || toDt == null)) {
+                            return;
+                          }
+                          Navigator.of(dialogContext).pop(true);
+                        },
+                        icon: const Icon(Icons.filter_alt_rounded),
+                        label: const Text('Apply'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (applied != true) return;
+
     setState(() {
-      _fromDate = today.subtract(const Duration(days: 29));
-      _toDate = today;
+      _filterByDateRange = byRange;
+      if (byRange) {
+        _fromDate = fromDt;
+        _toDate = toDt;
+      } else {
+        _filterMonth = '$selYear-${selMonth.toString().padLeft(2, '0')}';
+        _fromDate = null;
+        _toDate = null;
+      }
       _future = _fetchReport();
     });
-  }
-
-  void _applyThisMonth() {
-    final now = DateTime.now();
-    setState(() {
-      _fromDate = DateTime(now.year, now.month, 1);
-      _toDate = DateTime(now.year, now.month + 1, 0);
-      _future = _fetchReport();
-    });
-  }
-
-  void _applyLastMonth() {
-    final now = DateTime.now();
-    setState(() {
-      _fromDate = DateTime(now.year, now.month - 1, 1);
-      _toDate = DateTime(now.year, now.month, 0);
-      _future = _fetchReport();
-    });
-  }
-
-  bool get _isLast30Days {
-    if (_fromDate == null || _toDate == null) return false;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day) ==
-            today.subtract(const Duration(days: 29)) &&
-        DateTime(_toDate!.year, _toDate!.month, _toDate!.day) == today;
-  }
-
-  bool get _isThisMonth {
-    if (_fromDate == null || _toDate == null) return false;
-    final now = DateTime.now();
-    return DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day) ==
-            DateTime(now.year, now.month, 1) &&
-        DateTime(_toDate!.year, _toDate!.month, _toDate!.day) ==
-            DateTime(now.year, now.month + 1, 0);
-  }
-
-  bool get _isLastMonth {
-    if (_fromDate == null || _toDate == null) return false;
-    final now = DateTime.now();
-    return DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day) ==
-            DateTime(now.year, now.month - 1, 1) &&
-        DateTime(_toDate!.year, _toDate!.month, _toDate!.day) ==
-            DateTime(now.year, now.month, 0);
   }
 
   List<TrendPointModel> _latestDailyPreview(List<TrendPointModel> points) {
@@ -921,108 +1094,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 // ── Filter card ───────────────────────────────────────
-                _ClayCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.tune_rounded,
-                            color: Color(0xFF1A3A7A),
-                            size: 18,
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Report Filters',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF1A2561),
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: _reload,
-                            child: Container(
-                              padding: const EdgeInsets.all(7),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFECEFF8),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFFB8C0DC,
-                                    ).withValues(alpha: 0.6),
-                                    offset: const Offset(2, 2),
-                                    blurRadius: 5,
-                                  ),
-                                  const BoxShadow(
-                                    color: Colors.white,
-                                    offset: Offset(-2, -2),
-                                    blurRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.refresh_rounded,
-                                size: 16,
-                                color: Color(0xFF4A5598),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      // Preset pills
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _PresetPill(
-                              label: 'Last 30 days',
-                              selected: _isLast30Days,
-                              onTap: _applyLast30Days,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _PresetPill(
-                              label: 'This Month',
-                              selected: _isThisMonth,
-                              onTap: _applyThisMonth,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _PresetPill(
-                              label: 'Last Month',
-                              selected: _isLastMonth,
-                              onTap: _applyLastMonth,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Date tiles
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ReportDateTile(
-                              label: 'DATE RANGE',
-                              value: _fromDate != null && _toDate != null
-                                  ? '${_fmtDt(_fromDate!)} to ${_fmtDt(_toDate!)}'
-                                  : '—',
-                              onTap: _pickDateRange,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 14),
+                const SizedBox.shrink(),
 
                 // ── Loading / error ───────────────────────────────────
                 if (snapshot.connectionState != ConnectionState.done)
@@ -1064,10 +1136,6 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     );
     final dailyPreview = _latestDailyPreview(report.trend);
 
-    final rangeLabel = (_fromDate != null && _toDate != null)
-        ? '${_fmtShort(_fromDate!)} – ${_fmtShort(_toDate!)}'
-        : 'Month ${report.month}';
-
     return [
       // ── Summary hero card ─────────────────────────────────────
       Container(
@@ -1090,25 +1158,70 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              rangeLabel,
-              style: const TextStyle(
-                color: Colors.white60,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.4,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reports',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _openFilterDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_rounded,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        OneLineScaleText(
+                          _activeFilterLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white60,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Summary',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.3,
-              ),
-            ),
+            const SizedBox(height: 16),
+            Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -1706,38 +1819,40 @@ class _PresetPill extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF1A3A7A) : const Color(0xFFECEFF8),
           borderRadius: BorderRadius.circular(14),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                    offset: const Offset(0, 4),
-                    blurRadius: 10,
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.22),
+                    offset: const Offset(0, 6),
+                    blurRadius: 14,
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.6),
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
                     offset: const Offset(3, 3),
-                    blurRadius: 7,
+                    blurRadius: 8,
                   ),
                   const BoxShadow(
                     color: Colors.white,
                     offset: Offset(-2, -2),
-                    blurRadius: 5,
+                    blurRadius: 6,
                   ),
                 ],
         ),
-        child: OneLineScaleText(
-          label,
-          alignment: Alignment.center,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: selected ? Colors.white : const Color(0xFF4A5598),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF1A2561),
+            ),
           ),
         ),
       ),
@@ -1750,24 +1865,31 @@ class _ReportDateTile extends StatelessWidget {
   const _ReportDateTile({
     required this.label,
     required this.value,
+    this.selected = false,
     required this.onTap,
   });
   final String label;
   final String value;
+  final bool selected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final hasValue = value != 'Tap to choose';
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           color: const Color(0xFFECEFF8),
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? const Color(0xFF1E5CBA) : Colors.transparent,
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFB8C0DC).withValues(alpha: 0.55),
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
               offset: const Offset(3, 3),
               blurRadius: 8,
             ),
@@ -1782,10 +1904,12 @@ class _ReportDateTile extends StatelessWidget {
           children: [
             Icon(
               Icons.calendar_today_rounded,
-              size: 14,
-              color: const Color(0xFF4A5598),
+              size: 16,
+              color: hasValue
+                  ? const Color(0xFF1E5CBA)
+                  : const Color(0xFF8A93B8),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1793,10 +1917,9 @@ class _ReportDateTile extends StatelessWidget {
                   Text(
                     label,
                     style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                       color: Color(0xFF8A93B8),
-                      letterSpacing: 0.8,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1804,16 +1927,139 @@ class _ReportDateTile extends StatelessWidget {
                     value,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1A2561),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: hasValue
+                          ? const Color(0xFF1A2561)
+                          : const Color(0xFFAAB3D0),
                     ),
                   ),
                 ],
               ),
             ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF8A93B8),
+              size: 18,
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportToggleTab extends StatelessWidget {
+  const _ReportToggleTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                      offset: const Offset(2, 2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? const Color(0xFF1A2561)
+                  : const Color(0xFF8A93B8),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReportDropdownField<T> extends StatelessWidget {
+  const _ReportDropdownField({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final IconData icon;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+            offset: const Offset(3, 3),
+            blurRadius: 8,
+          ),
+          const BoxShadow(
+            color: Colors.white,
+            offset: Offset(-2, -2),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        items: items,
+        onChanged: onChanged,
+        isExpanded: true,
+        borderRadius: BorderRadius.circular(16),
+        icon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF8A93B8),
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF1A3A7A), size: 18),
+          filled: true,
+          fillColor: Colors.transparent,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          labelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF8A93B8),
+          ),
         ),
       ),
     );
@@ -2133,6 +2379,7 @@ class _DailyBreakdownScreenState extends State<_DailyBreakdownScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFECEFF8),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFECEFF8),
         title: const Text('Daily Breakdown'),
       ),

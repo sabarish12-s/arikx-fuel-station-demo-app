@@ -84,14 +84,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final results = await Future.wait([
       _filterByDateRange
           ? _managementService.fetchEntries(
-            fromDate: _filterFromDate,
-            toDate: _filterToDate,
-            forceRefresh: forceRefresh,
-          )
+              fromDate: _filterFromDate,
+              toDate: _filterToDate,
+              forceRefresh: forceRefresh,
+            )
           : _managementService.fetchEntries(
-            month: _filterMonth,
-            forceRefresh: forceRefresh,
-          ),
+              month: _filterMonth,
+              forceRefresh: forceRefresh,
+            ),
       _salesService.fetchDashboard(forceRefresh: forceRefresh),
     ]);
 
@@ -99,27 +99,27 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
     // Client-side safety filter for date range mode
     if (_filterByDateRange) {
-      final from =
-          _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
-      final to =
-          _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
-      entries =
-          entries.where((e) {
-            final d = DateTime.tryParse(e.date);
-            if (d == null) {
-              return true;
-            }
-            final day = DateTime(d.year, d.month, d.day);
-            if (from != null &&
-                day.isBefore(DateTime(from.year, from.month, from.day))) {
-              return false;
-            }
-            if (to != null &&
-                day.isAfter(DateTime(to.year, to.month, to.day))) {
-              return false;
-            }
-            return true;
-          }).toList();
+      final from = _filterFromDate != null
+          ? DateTime.tryParse(_filterFromDate!)
+          : null;
+      final to = _filterToDate != null
+          ? DateTime.tryParse(_filterToDate!)
+          : null;
+      entries = entries.where((e) {
+        final d = DateTime.tryParse(e.date);
+        if (d == null) {
+          return true;
+        }
+        final day = DateTime(d.year, d.month, d.day);
+        if (from != null &&
+            day.isBefore(DateTime(from.year, from.month, from.day))) {
+          return false;
+        }
+        if (to != null && day.isAfter(DateTime(to.year, to.month, to.day))) {
+          return false;
+        }
+        return true;
+      }).toList();
     }
 
     return _EntryManagementData(
@@ -198,16 +198,19 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
   Future<void> _openFilterDialog() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
 
     // Local dialog state
     bool byRange = _filterByDateRange;
     final parts = _filterMonth.split('-');
     int selYear = int.tryParse(parts.firstOrNull ?? '') ?? now.year;
     int selMonth = int.tryParse(parts.length > 1 ? parts[1] : '') ?? now.month;
-    DateTime? fromDt =
-        _filterFromDate != null ? DateTime.tryParse(_filterFromDate!) : null;
-    DateTime? toDt =
-        _filterToDate != null ? DateTime.tryParse(_filterToDate!) : null;
+    DateTime? fromDt = _filterFromDate != null
+        ? DateTime.tryParse(_filterFromDate!)
+        : null;
+    DateTime? toDt = _filterToDate != null
+        ? DateTime.tryParse(_filterToDate!)
+        : null;
 
     Future<void> pickRange(BuildContext pickerContext, StateSetter set) async {
       final picked = await showAppDateRangePicker(
@@ -236,6 +239,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     String formatDialogRange() {
       if (fromDt == null || toDt == null) return 'Tap to choose';
       return '${formatDialogDate(fromDt)} to ${formatDialogDate(toDt)}';
+    }
+
+    void applyQuickRange(StateSetter set, int dayCount) {
+      set(() {
+        byRange = true;
+        fromDt = today.subtract(Duration(days: dayCount - 1));
+        toDt = today;
+      });
     }
 
     final applied = await showDialog<bool>(
@@ -287,12 +298,28 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
                     if (!byRange) ...[
                       // ── Month mode ───────────────────────────
-                      DropdownButtonFormField<int>(
-                        initialValue: selMonth,
-                        decoration: const InputDecoration(
-                          labelText: 'Month',
-                          filled: true,
-                        ),
+                      _DialogDropdownField<int>(
+                        label: 'Year',
+                        icon: Icons.event_note_rounded,
+                        value: selYear,
+                        items: years
+                            .map(
+                              (y) => DropdownMenuItem<int>(
+                                value: y,
+                                child: Text('$y'),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selYear = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _DialogDropdownField<int>(
+                        label: 'Month',
+                        icon: Icons.calendar_month_rounded,
+                        value: selMonth,
                         items: List.generate(
                           _monthNames.length,
                           (i) => DropdownMenuItem<int>(
@@ -305,31 +332,6 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                           setDialogState(() => selMonth = v);
                         },
                       ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<int>(
-                        initialValue: selYear,
-                        decoration: const InputDecoration(
-                          labelText: 'Year',
-                          filled: true,
-                        ),
-                        items:
-                            years
-                                .map(
-                                  (y) => DropdownMenuItem<int>(
-                                    value: y,
-                                    child: Text('$y'),
-                                  ),
-                                )
-                                .toList(),
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setDialogState(() => selYear = v);
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _PreviewBox(
-                        text: '${_monthNames[selMonth - 1]} $selYear',
-                      ),
                     ] else ...[
                       // ── Date range mode ──────────────────────
                       _DatePickerRow(
@@ -338,6 +340,37 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         onTap: () => pickRange(dialogContext, setDialogState),
                       ),
                       const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _QuickRangeButton(
+                              label: 'Last 7 Days',
+                              selected:
+                                  fromDt != null &&
+                                  toDt != null &&
+                                  fromDt!.isAtSameMomentAs(
+                                    today.subtract(const Duration(days: 6)),
+                                  ) &&
+                                  toDt!.isAtSameMomentAs(today),
+                              onTap: () => applyQuickRange(setDialogState, 7),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickRangeButton(
+                              label: 'Last 30 Days',
+                              selected:
+                                  fromDt != null &&
+                                  toDt != null &&
+                                  fromDt!.isAtSameMomentAs(
+                                    today.subtract(const Duration(days: 29)),
+                                  ) &&
+                                  toDt!.isAtSameMomentAs(today),
+                              onTap: () => applyQuickRange(setDialogState, 30),
+                            ),
+                          ),
+                        ],
+                      ),
                       if (fromDt != null && toDt != null)
                         _PreviewBox(
                           text:
@@ -347,29 +380,29 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   ],
                 ),
               ),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               actions: [
-                TextButton(
-                  onPressed: () {
-                    final cur = currentMonthKey().split('-');
-                    setDialogState(() {
-                      byRange = false;
-                      selYear = int.tryParse(cur[0]) ?? now.year;
-                      selMonth = int.tryParse(cur[1]) ?? now.month;
-                    });
-                  },
-                  child: const Text('This Month'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: () {
-                    if (byRange && (fromDt == null || toDt == null)) return;
-                    Navigator.of(dialogContext).pop(true);
-                  },
-                  icon: const Icon(Icons.filter_alt_rounded),
-                  label: const Text('Apply'),
+                SizedBox(
+                  width: double.maxFinite,
+                  child: Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (byRange && (fromDt == null || toDt == null)) {
+                            return;
+                          }
+                          Navigator.of(dialogContext).pop(true);
+                        },
+                        icon: const Icon(Icons.filter_alt_rounded),
+                        label: const Text('Apply'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             );
@@ -383,14 +416,12 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     setState(() {
       _filterByDateRange = byRange;
       if (byRange) {
-        _filterFromDate =
-            fromDt != null
-                ? '${fromDt!.year}-${fromDt!.month.toString().padLeft(2, '0')}-${fromDt!.day.toString().padLeft(2, '0')}'
-                : null;
-        _filterToDate =
-            toDt != null
-                ? '${toDt!.year}-${toDt!.month.toString().padLeft(2, '0')}-${toDt!.day.toString().padLeft(2, '0')}'
-                : null;
+        _filterFromDate = fromDt != null
+            ? '${fromDt!.year}-${fromDt!.month.toString().padLeft(2, '0')}-${fromDt!.day.toString().padLeft(2, '0')}'
+            : null;
+        _filterToDate = toDt != null
+            ? '${toDt!.year}-${toDt!.month.toString().padLeft(2, '0')}-${toDt!.day.toString().padLeft(2, '0')}'
+            : null;
       } else {
         _filterMonth = '$selYear-${selMonth.toString().padLeft(2, '0')}';
         _filterFromDate = null;
@@ -435,81 +466,74 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
       final created = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
-          builder:
-              (_) => EntryWorkflowScreen(
-                title:
-                    dashboard.selectedEntry == null
-                        ? 'Daily Admin Entry'
-                        : 'Edit Daily Entry',
-                station: dashboard.station,
-                openingReadings: dashboard.openingReadings,
-                priceSnapshot: mergePriceSnapshots(
-                  primary:
-                      dashboard.selectedEntry?.priceSnapshot ??
-                      const <String, Map<String, double>>{},
-                  fallback: dashboard.priceSnapshot,
-                ),
-                initialDraft:
-                    dashboard.selectedEntry == null
-                        ? DailyEntryDraft(
-                          date: date,
-                          closingReadings: const {},
-                          pumpAttendants: {
-                            for (final pump in dashboard.station.pumps)
-                              pump.id: '',
-                          },
-                          pumpTesting: {
-                            for (final pump in dashboard.station.pumps)
-                              pump.id: const PumpTestingModel(
-                                petrol: 0,
-                                diesel: 0,
-                              ),
-                          },
-                          pumpPayments: const {},
-                          pumpCollections: const {},
-                          paymentBreakdown: const PaymentBreakdownModel(
-                            cash: 0,
-                            check: 0,
-                            upi: 0,
-                          ),
-                          creditEntries: const [],
-                          creditCollections: const [],
-                        )
-                        : _draftFromEntry(dashboard.selectedEntry!),
-                dailyFuelRecord: dashboard.dailyFuelRecord,
-                isAdmin: true,
-                existingEntryId: dashboard.selectedEntry?.id,
-                canChangeDate: false,
-                onSubmit: (draft, mismatchReason) async {
-                  if (dashboard.selectedEntry == null) {
-                    await _salesService.submitEntry(
-                      date: draft.date,
-                      closingReadings: draft.closingReadings,
-                      pumpAttendants: draft.pumpAttendants,
-                      pumpTesting: draft.pumpTesting,
-                      pumpPayments: draft.pumpPayments,
-                      pumpCollections: draft.pumpCollections,
-                      paymentBreakdown: draft.paymentBreakdown,
-                      creditEntries: draft.creditEntries,
-                      creditCollections: draft.creditCollections,
-                      mismatchReason: mismatchReason,
-                    );
-                  } else {
-                    await _managementService.updateEntry(
-                      entryId: dashboard.selectedEntry!.id,
-                      closingReadings: draft.closingReadings,
-                      pumpAttendants: draft.pumpAttendants,
-                      pumpTesting: draft.pumpTesting,
-                      pumpPayments: draft.pumpPayments,
-                      pumpCollections: draft.pumpCollections,
-                      paymentBreakdown: draft.paymentBreakdown,
-                      creditEntries: draft.creditEntries,
-                      creditCollections: draft.creditCollections,
-                      mismatchReason: mismatchReason,
-                    );
-                  }
-                },
-              ),
+          builder: (_) => EntryWorkflowScreen(
+            title: dashboard.selectedEntry == null
+                ? 'Daily Admin Entry'
+                : 'Edit Daily Entry',
+            station: dashboard.station,
+            openingReadings: dashboard.openingReadings,
+            priceSnapshot: mergePriceSnapshots(
+              primary:
+                  dashboard.selectedEntry?.priceSnapshot ??
+                  const <String, Map<String, double>>{},
+              fallback: dashboard.priceSnapshot,
+            ),
+            initialDraft: dashboard.selectedEntry == null
+                ? DailyEntryDraft(
+                    date: date,
+                    closingReadings: const {},
+                    pumpAttendants: {
+                      for (final pump in dashboard.station.pumps) pump.id: '',
+                    },
+                    pumpTesting: {
+                      for (final pump in dashboard.station.pumps)
+                        pump.id: const PumpTestingModel(petrol: 0, diesel: 0),
+                    },
+                    pumpPayments: const {},
+                    pumpCollections: const {},
+                    paymentBreakdown: const PaymentBreakdownModel(
+                      cash: 0,
+                      check: 0,
+                      upi: 0,
+                    ),
+                    creditEntries: const [],
+                    creditCollections: const [],
+                  )
+                : _draftFromEntry(dashboard.selectedEntry!),
+            dailyFuelRecord: dashboard.dailyFuelRecord,
+            isAdmin: true,
+            existingEntryId: dashboard.selectedEntry?.id,
+            canChangeDate: false,
+            onSubmit: (draft, mismatchReason) async {
+              if (dashboard.selectedEntry == null) {
+                await _salesService.submitEntry(
+                  date: draft.date,
+                  closingReadings: draft.closingReadings,
+                  pumpAttendants: draft.pumpAttendants,
+                  pumpTesting: draft.pumpTesting,
+                  pumpPayments: draft.pumpPayments,
+                  pumpCollections: draft.pumpCollections,
+                  paymentBreakdown: draft.paymentBreakdown,
+                  creditEntries: draft.creditEntries,
+                  creditCollections: draft.creditCollections,
+                  mismatchReason: mismatchReason,
+                );
+              } else {
+                await _managementService.updateEntry(
+                  entryId: dashboard.selectedEntry!.id,
+                  closingReadings: draft.closingReadings,
+                  pumpAttendants: draft.pumpAttendants,
+                  pumpTesting: draft.pumpTesting,
+                  pumpPayments: draft.pumpPayments,
+                  pumpCollections: draft.pumpCollections,
+                  paymentBreakdown: draft.paymentBreakdown,
+                  creditEntries: draft.creditEntries,
+                  creditCollections: draft.creditCollections,
+                  mismatchReason: mismatchReason,
+                );
+              }
+            },
+          ),
         ),
       );
       if (created != true) return;
@@ -557,32 +581,31 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
       final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute<bool>(
-          builder:
-              (_) => EntryWorkflowScreen(
-                title: 'Edit Daily Entry',
-                station: station,
-                openingReadings: detailedEntry.openingReadings,
-                priceSnapshot: detailedEntry.priceSnapshot,
-                initialDraft: _draftFromEntry(detailedEntry),
-                dailyFuelRecord: dailyFuelRecord,
-                isAdmin: true,
-                existingEntryId: detailedEntry.id,
-                canChangeDate: false,
-                onSubmit: (draft, mismatchReason) async {
-                  await _managementService.updateEntry(
-                    entryId: detailedEntry.id,
-                    closingReadings: draft.closingReadings,
-                    pumpAttendants: draft.pumpAttendants,
-                    pumpTesting: draft.pumpTesting,
-                    pumpPayments: draft.pumpPayments,
-                    pumpCollections: draft.pumpCollections,
-                    paymentBreakdown: draft.paymentBreakdown,
-                    creditEntries: draft.creditEntries,
-                    creditCollections: draft.creditCollections,
-                    mismatchReason: mismatchReason,
-                  );
-                },
-              ),
+          builder: (_) => EntryWorkflowScreen(
+            title: 'Edit Daily Entry',
+            station: station,
+            openingReadings: detailedEntry.openingReadings,
+            priceSnapshot: detailedEntry.priceSnapshot,
+            initialDraft: _draftFromEntry(detailedEntry),
+            dailyFuelRecord: dailyFuelRecord,
+            isAdmin: true,
+            existingEntryId: detailedEntry.id,
+            canChangeDate: false,
+            onSubmit: (draft, mismatchReason) async {
+              await _managementService.updateEntry(
+                entryId: detailedEntry.id,
+                closingReadings: draft.closingReadings,
+                pumpAttendants: draft.pumpAttendants,
+                pumpTesting: draft.pumpTesting,
+                pumpPayments: draft.pumpPayments,
+                pumpCollections: draft.pumpCollections,
+                paymentBreakdown: draft.paymentBreakdown,
+                creditEntries: draft.creditEntries,
+                creditCollections: draft.creditCollections,
+                mismatchReason: mismatchReason,
+              );
+            },
+          ),
         ),
       );
 
@@ -664,23 +687,22 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   Future<bool> _confirmApproveEntry(ShiftEntryModel entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Approve Entry'),
-            content: Text(
-              'Approve the entry for ${formatDateLabel(entry.date)}? Once approved, the date cannot be changed and sales staff cannot edit it.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Approve'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Approve Entry'),
+        content: Text(
+          'Approve the entry for ${formatDateLabel(entry.date)}? Once approved, the date cannot be changed and sales staff cannot edit it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
     );
     return confirmed == true;
   }
@@ -721,28 +743,27 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     final isApproved = entry.isFinalized;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
-            content: Text(
-              isApproved
-                  ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
-                  : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFB91C1C),
-                ),
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(isApproved ? 'Override Delete' : 'Delete'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text(isApproved ? 'Override Delete Entry' : 'Delete Entry'),
+        content: Text(
+          isApproved
+              ? 'This entry is already approved. Deleting it will override that approval and recalculate opening readings for later dates. Continue?'
+              : 'Delete the entry for ${formatDateLabel(entry.date)}? Later dates will be recalculated automatically.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
           ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(isApproved ? 'Override Delete' : 'Delete'),
+          ),
+        ],
+      ),
     );
     return confirmed == true;
   }
@@ -810,24 +831,23 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
 
             final data = snapshot.data!;
             final allEntries = data.entries;
-            final approvedCount =
-                allEntries.where((e) => e.status == 'approved').length;
-            final flaggedCount =
-                allEntries
-                    .where((e) => e.flagged && e.status != 'approved')
-                    .length;
+            final approvedCount = allEntries
+                .where((e) => e.status == 'approved')
+                .length;
+            final flaggedCount = allEntries
+                .where((e) => e.flagged && e.status != 'approved')
+                .length;
             final pendingCount = allEntries.length - approvedCount;
 
-            final entries =
-                _statusFilter == null
-                    ? allEntries
-                    : _statusFilter == 'approved'
-                    ? allEntries.where((e) => e.status == 'approved').toList()
-                    : _statusFilter == 'flagged'
-                    ? allEntries
-                        .where((e) => e.flagged && e.status != 'approved')
-                        .toList()
-                    : allEntries.where((e) => e.status != 'approved').toList();
+            final entries = _statusFilter == null
+                ? allEntries
+                : _statusFilter == 'approved'
+                ? allEntries.where((e) => e.status == 'approved').toList()
+                : _statusFilter == 'flagged'
+                ? allEntries
+                      .where((e) => e.flagged && e.status != 'approved')
+                      .toList()
+                : allEntries.where((e) => e.status != 'approved').toList();
             final periodLabel = _periodLabel;
             final periodShort = _periodShort;
 
@@ -861,16 +881,6 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  data.dashboard.station.name,
-                                  style: const TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
                                 const Text(
                                   'Entries',
                                   style: TextStyle(
@@ -928,6 +938,11 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         ],
                       ),
                       const SizedBox(height: 18),
+                      Container(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                      const SizedBox(height: 18),
                       Row(
                         children: [
                           _HeroStat(
@@ -941,42 +956,33 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                             label: 'Approved',
                             value: '$approvedCount',
                             active: _statusFilter == 'approved',
-                            onTap:
-                                () => setState(
-                                  () =>
-                                      _statusFilter =
-                                          _statusFilter == 'approved'
-                                              ? null
-                                              : 'approved',
-                                ),
+                            onTap: () => setState(
+                              () => _statusFilter = _statusFilter == 'approved'
+                                  ? null
+                                  : 'approved',
+                            ),
                           ),
                           const SizedBox(width: 8),
                           _HeroStat(
                             label: 'Pending',
                             value: '$pendingCount',
                             active: _statusFilter == 'pending',
-                            onTap:
-                                () => setState(
-                                  () =>
-                                      _statusFilter =
-                                          _statusFilter == 'pending'
-                                              ? null
-                                              : 'pending',
-                                ),
+                            onTap: () => setState(
+                              () => _statusFilter = _statusFilter == 'pending'
+                                  ? null
+                                  : 'pending',
+                            ),
                           ),
                           const SizedBox(width: 8),
                           _HeroStat(
                             label: 'Flagged',
                             value: '$flaggedCount',
                             active: _statusFilter == 'flagged',
-                            onTap:
-                                () => setState(
-                                  () =>
-                                      _statusFilter =
-                                          _statusFilter == 'flagged'
-                                              ? null
-                                              : 'flagged',
-                                ),
+                            onTap: () => setState(
+                              () => _statusFilter = _statusFilter == 'flagged'
+                                  ? null
+                                  : 'flagged',
+                            ),
                           ),
                         ],
                       ),
@@ -991,9 +997,8 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   targetDate: data.dashboard.date,
                   record: data.dashboard.dailyFuelRecord,
                   busy: _savingDailyFuel,
-                  onSave:
-                      (density) =>
-                          _saveDailyFuelRecord(data.dashboard, density),
+                  onSave: (density) =>
+                      _saveDailyFuelRecord(data.dashboard, density),
                   onHistory: _openDailyFuelHistory,
                 ),
                 const SizedBox(height: 14),
@@ -1059,21 +1064,21 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   ...entries.reversed.map((entry) {
                     final submittedLabel =
                         entry.submittedByName.trim().isNotEmpty
-                            ? entry.submittedByName.trim()
-                            : entry.submittedBy.trim();
+                        ? entry.submittedByName.trim()
+                        : entry.submittedBy.trim();
                     return _EntryCard(
                       entry: entry,
                       station: data.dashboard.station,
                       submittedLabel: submittedLabel,
                       submitting: _submitting,
-                      activeAction:
-                          _activeEntryId == entry.id ? _activeAction : null,
-                      onEdit:
-                          () => _editEntry(
-                            entry,
-                            data.dashboard.station,
-                            data.dashboard.allowedEntryDate,
-                          ),
+                      activeAction: _activeEntryId == entry.id
+                          ? _activeAction
+                          : null,
+                      onEdit: () => _editEntry(
+                        entry,
+                        data.dashboard.station,
+                        data.dashboard.allowedEntryDate,
+                      ),
                       onDelete: () => _deleteEntry(entry),
                       onApprove: () => _approveEntry(entry),
                     );
@@ -1110,13 +1115,12 @@ class _ClayButtonState extends State<_ClayButton> {
     final disabled = widget.onTap == null;
     return GestureDetector(
       onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
-      onTapUp:
-          disabled
-              ? null
-              : (_) {
-                setState(() => _pressed = false);
-                widget.onTap!();
-              },
+      onTapUp: disabled
+          ? null
+          : (_) {
+              setState(() => _pressed = false);
+              widget.onTap!();
+            },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 100),
@@ -1125,22 +1129,21 @@ class _ClayButtonState extends State<_ClayButton> {
         decoration: BoxDecoration(
           color: const Color(0xFF1A3A7A),
           borderRadius: BorderRadius.circular(18),
-          boxShadow:
-              _pressed || disabled
-                  ? [
-                    BoxShadow(
-                      color: const Color(0xFF0D2460).withValues(alpha: 0.3),
-                      offset: const Offset(2, 2),
-                      blurRadius: 6,
-                    ),
-                  ]
-                  : [
-                    BoxShadow(
-                      color: const Color(0xFF0D2460).withValues(alpha: 0.5),
-                      offset: const Offset(0, 8),
-                      blurRadius: 20,
-                    ),
-                  ],
+          boxShadow: _pressed || disabled
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.3),
+                    offset: const Offset(2, 2),
+                    blurRadius: 6,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.5),
+                    offset: const Offset(0, 8),
+                    blurRadius: 20,
+                  ),
+                ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1185,15 +1188,13 @@ class _HeroStat extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                active
-                    ? Colors.white.withValues(alpha: 0.22)
-                    : Colors.white.withValues(alpha: 0.10),
+            color: active
+                ? Colors.white.withValues(alpha: 0.22)
+                : Colors.white.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14),
-            border:
-                active
-                    ? Border.all(color: Colors.white.withValues(alpha: 0.45))
-                    : Border.all(color: Colors.transparent),
+            border: active
+                ? Border.all(color: Colors.white.withValues(alpha: 0.45))
+                : Border.all(color: Colors.transparent),
           ),
           child: Column(
             children: [
@@ -1263,14 +1264,13 @@ class _EntryCard extends StatelessWidget {
       for (final pump in station.pumps)
         pump.id: formatPumpLabel(pump.id, pump.label),
     };
-    final attendantLabels =
-        entry.pumpAttendants.entries
-            .where((item) => item.value.trim().isNotEmpty)
-            .map(
-              (item) =>
-                  '${pumpLabels[item.key] ?? formatPumpLabel(item.key)}: ${item.value.trim()}',
-            )
-            .toList();
+    final attendantLabels = entry.pumpAttendants.entries
+        .where((item) => item.value.trim().isNotEmpty)
+        .map(
+          (item) =>
+              '${pumpLabels[item.key] ?? formatPumpLabel(item.key)}: ${item.value.trim()}',
+        )
+        .toList();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1356,10 +1356,9 @@ class _EntryCard extends StatelessWidget {
                   _EntryMetricItem(
                     label: 'Difference',
                     value: formatCurrency(diff),
-                    accent:
-                        diff >= 0
-                            ? const Color(0xFF2AA878)
-                            : const Color(0xFFB91C1C),
+                    accent: diff >= 0
+                        ? const Color(0xFF2AA878)
+                        : const Color(0xFFB91C1C),
                   ),
                 ],
               );
@@ -1410,12 +1409,11 @@ class _EntryCard extends StatelessWidget {
               const SizedBox(width: 8),
               _ActionBtn(
                 icon: Icons.delete_outline_rounded,
-                label:
-                    isDeleting
-                        ? 'Deleting...'
-                        : isApproved
-                        ? 'Override'
-                        : 'Delete',
+                label: isDeleting
+                    ? 'Deleting...'
+                    : isApproved
+                    ? 'Override'
+                    : 'Delete',
                 onTap: submitting ? null : onDelete,
                 danger: true,
                 loading: isDeleting,
@@ -1693,13 +1691,12 @@ class _ActionBtnState extends State<_ActionBtn> {
     return Expanded(
       child: GestureDetector(
         onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
-        onTapUp:
-            disabled
-                ? null
-                : (_) {
-                  setState(() => _pressed = false);
-                  widget.onTap!();
-                },
+        onTapUp: disabled
+            ? null
+            : (_) {
+                setState(() => _pressed = false);
+                widget.onTap!();
+              },
         onTapCancel: () => setState(() => _pressed = false),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 80),
@@ -1707,29 +1704,28 @@ class _ActionBtnState extends State<_ActionBtn> {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(12),
-            boxShadow:
-                widget.filled && !_pressed && !disabled
-                    ? [
-                      BoxShadow(
-                        color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                        offset: const Offset(0, 4),
-                        blurRadius: 10,
-                      ),
-                    ]
-                    : !widget.filled && !widget.danger && !_pressed && !disabled
-                    ? [
-                      BoxShadow(
-                        color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-                        offset: const Offset(3, 3),
-                        blurRadius: 8,
-                      ),
-                      const BoxShadow(
-                        color: Colors.white,
-                        offset: Offset(-2, -2),
-                        blurRadius: 6,
-                      ),
-                    ]
-                    : [],
+            boxShadow: widget.filled && !_pressed && !disabled
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                      offset: const Offset(0, 4),
+                      blurRadius: 10,
+                    ),
+                  ]
+                : !widget.filled && !widget.danger && !_pressed && !disabled
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+                      offset: const Offset(3, 3),
+                      blurRadius: 8,
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      offset: Offset(-2, -2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : [],
           ),
           child: Center(
             child: Padding(
@@ -1741,20 +1737,20 @@ class _ActionBtnState extends State<_ActionBtn> {
                   children: [
                     widget.loading
                         ? SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              fg.withValues(alpha: 0.85),
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                fg.withValues(alpha: 0.85),
+                              ),
                             ),
-                          ),
-                        )
+                          )
                         : Icon(
-                          widget.icon,
-                          size: 14,
-                          color: disabled ? fg.withValues(alpha: 0.4) : fg,
-                        ),
+                            widget.icon,
+                            size: 14,
+                            color: disabled ? fg.withValues(alpha: 0.4) : fg,
+                          ),
                     const SizedBox(width: 5),
                     Text(
                       widget.label,
@@ -1806,16 +1802,15 @@ class _ToggleTab extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? Colors.white : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
-            boxShadow:
-                selected
-                    ? [
-                      BoxShadow(
-                        color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
-                        offset: const Offset(2, 2),
-                        blurRadius: 6,
-                      ),
-                    ]
-                    : [],
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                      offset: const Offset(2, 2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : [],
           ),
           child: Text(
             label,
@@ -1823,8 +1818,9 @@ class _ToggleTab extends StatelessWidget {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color:
-                  selected ? const Color(0xFF1A2561) : const Color(0xFF8A93B8),
+              color: selected
+                  ? const Color(0xFF1A2561)
+                  : const Color(0xFF8A93B8),
             ),
           ),
         ),
@@ -1872,8 +1868,9 @@ class _DatePickerRow extends StatelessWidget {
             Icon(
               Icons.calendar_today_rounded,
               size: 16,
-              color:
-                  hasValue ? const Color(0xFF1A3A7A) : const Color(0xFF8A93B8),
+              color: hasValue
+                  ? const Color(0xFF1A3A7A)
+                  : const Color(0xFF8A93B8),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1896,10 +1893,9 @@ class _DatePickerRow extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color:
-                          hasValue
-                              ? const Color(0xFF1A2561)
-                              : const Color(0xFFAAB3D0),
+                      color: hasValue
+                          ? const Color(0xFF1A2561)
+                          : const Color(0xFFAAB3D0),
                     ),
                   ),
                 ],
@@ -1923,20 +1919,128 @@ class _PreviewBox extends StatelessWidget {
   final String text;
 
   @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
+}
+
+class _DialogDropdownField<T> extends StatelessWidget {
+  const _DialogDropdownField({
+    required this.label,
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final IconData icon;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+            offset: const Offset(3, 3),
+            blurRadius: 8,
+          ),
+          const BoxShadow(
+            color: Colors.white,
+            offset: Offset(-2, -2),
+            blurRadius: 6,
+          ),
+        ],
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF1A2561),
-          fontSize: 13,
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        items: items,
+        onChanged: onChanged,
+        isExpanded: true,
+        borderRadius: BorderRadius.circular(16),
+        icon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF8A93B8),
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF1A3A7A), size: 18),
+          filled: true,
+          fillColor: Colors.transparent,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          labelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF8A93B8),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickRangeButton extends StatelessWidget {
+  const _QuickRangeButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1A3A7A) : const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.22),
+                    offset: const Offset(0, 6),
+                    blurRadius: 14,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                    offset: const Offset(3, 3),
+                    blurRadius: 8,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-2, -2),
+                    blurRadius: 6,
+                  ),
+                ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF1A2561),
+            ),
+          ),
         ),
       ),
     );

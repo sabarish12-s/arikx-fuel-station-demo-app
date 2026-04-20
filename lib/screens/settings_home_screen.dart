@@ -99,8 +99,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
 
   Widget _buildHome() {
     final name = widget.user.name.trim();
-    final initial =
-        (name.isNotEmpty ? name[0] : widget.user.email[0]).toUpperCase();
+    final initial = (name.isNotEmpty ? name[0] : widget.user.email[0])
+        .toUpperCase();
     final roleLabel =
         widget.user.role[0].toUpperCase() + widget.user.role.substring(1);
 
@@ -203,8 +203,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Station details, code, city, and pump names',
             icon: Icons.location_city_rounded,
             iconColor: const Color(0xFF1A3A7A),
-            onTap:
-                () => setState(() => _panel = _SettingsPanel.stationSettings),
+            onTap: () =>
+                setState(() => _panel = _SettingsPanel.stationSettings),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -233,8 +233,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Approve sales-submitted price changes',
             icon: Icons.fact_check_outlined,
             iconColor: const Color(0xFF2AA878),
-            onTap:
-                () => setState(() => _panel = _SettingsPanel.fuelPriceRequests),
+            onTap: () =>
+                setState(() => _panel = _SettingsPanel.fuelPriceRequests),
           ),
 
           const SizedBox(height: 20),
@@ -247,8 +247,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Lead time and alert timing for inventory',
             icon: Icons.inventory_2_rounded,
             iconColor: const Color(0xFF4858C8),
-            onTap:
-                () => setState(() => _panel = _SettingsPanel.inventoryPlanning),
+            onTap: () =>
+                setState(() => _panel = _SettingsPanel.inventoryPlanning),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -256,8 +256,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             subtitle: 'Fuel categories and labels used in the app',
             icon: Icons.local_gas_station_rounded,
             iconColor: const Color(0xFF2AA878),
-            onTap:
-                () => setState(() => _panel = _SettingsPanel.fuelTypeManager),
+            onTap: () =>
+                setState(() => _panel = _SettingsPanel.fuelTypeManager),
           ),
 
           if (_isSuperAdmin) ...[
@@ -271,8 +271,8 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
               subtitle: 'Manage admin and station access',
               icon: Icons.manage_accounts_rounded,
               iconColor: const Color(0xFF4858C8),
-              onTap:
-                  () => setState(() => _panel = _SettingsPanel.userManagement),
+              onTap: () =>
+                  setState(() => _panel = _SettingsPanel.userManagement),
             ),
           ],
         ],
@@ -341,27 +341,26 @@ class _SettingsTileState extends State<_SettingsTile> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow:
-              _pressed
-                  ? [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.3),
-                      offset: const Offset(2, 2),
-                      blurRadius: 5,
-                    ),
-                  ]
-                  : [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.75),
-                      offset: const Offset(6, 6),
-                      blurRadius: 16,
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      offset: Offset(-5, -5),
-                      blurRadius: 12,
-                    ),
-                  ],
+          boxShadow: _pressed
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.3),
+                    offset: const Offset(2, 2),
+                    blurRadius: 5,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.75),
+                    offset: const Offset(6, 6),
+                    blurRadius: 16,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-5, -5),
+                    blurRadius: 12,
+                  ),
+                ],
         ),
         child: Row(
           children: [

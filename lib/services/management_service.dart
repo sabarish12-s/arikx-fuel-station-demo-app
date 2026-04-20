@@ -29,8 +29,9 @@ class ManagementService {
     if (toDate != null && toDate.isNotEmpty) {
       params['to'] = toDate;
     }
-    final suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/management/dashboard$suffix',
       useCache: true,
@@ -69,16 +70,16 @@ class ManagementService {
       params['approvedOnly'] = 'true';
     }
     params['view'] = summary ? 'summary' : 'detail';
-    final String suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final String suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/management/entries$suffix',
       useCache: true,
       forceRefresh: forceRefresh,
-      cachePolicy:
-          forceRefresh
-              ? ApiCachePolicy.networkFirst
-              : ApiCachePolicy.cacheFirst,
+      cachePolicy: forceRefresh
+          ? ApiCachePolicy.networkFirst
+          : ApiCachePolicy.cacheFirst,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -144,8 +145,9 @@ class ManagementService {
         'pumpCollections': pumpCollections,
         'paymentBreakdown': paymentBreakdown.toJson(),
         'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
-        'creditCollections':
-            creditCollections.map((entry) => entry.toJson()).toList(),
+        'creditCollections': creditCollections
+            .map((entry) => entry.toJson())
+            .toList(),
         'mismatchReason': mismatchReason,
       }),
     );
@@ -214,8 +216,9 @@ class ManagementService {
     if (toDate != null && toDate.isNotEmpty) {
       params['to'] = toDate;
     }
-    final String suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final String suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/management/reports/monthly$suffix',
       useCache: true,

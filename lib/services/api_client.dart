@@ -33,13 +33,12 @@ class ApiClient {
   }) async {
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final headers = await authorizedHeaders();
-    final cacheKey =
-        useCache
-            ? await ApiResponseCache.scopedKey(
-              authService: _authService,
-              path: path,
-            )
-            : null;
+    final cacheKey = useCache
+        ? await ApiResponseCache.scopedKey(
+            authService: _authService,
+            path: path,
+          )
+        : null;
 
     if (cacheKey != null &&
         !forceRefresh &&

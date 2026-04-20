@@ -34,16 +34,14 @@ DateTimeRange normalizedAppDateRange({
     firstDate: firstDate,
     lastDate: lastDate,
   );
-  var start =
-      fromDate == null
-          ? (toDate == null
-              ? fallback
-              : clampAppDate(toDate, firstDate: firstDate, lastDate: lastDate))
-          : clampAppDate(fromDate, firstDate: firstDate, lastDate: lastDate);
-  var end =
-      toDate == null
-          ? start
-          : clampAppDate(toDate, firstDate: firstDate, lastDate: lastDate);
+  var start = fromDate == null
+      ? (toDate == null
+            ? fallback
+            : clampAppDate(toDate, firstDate: firstDate, lastDate: lastDate))
+      : clampAppDate(fromDate, firstDate: firstDate, lastDate: lastDate);
+  var end = toDate == null
+      ? start
+      : clampAppDate(toDate, firstDate: firstDate, lastDate: lastDate);
 
   if (end.isBefore(start)) {
     final previousStart = start;

@@ -98,22 +98,18 @@ class UserManagementOverview {
       permissions: UserManagementPermissions.fromJson(
         json['permissions'] as Map<String, dynamic>? ?? const {},
       ),
-      users:
-          (json['users'] as List<dynamic>? ?? const [])
-              .map((item) => ManagedUser.fromJson(item as Map<String, dynamic>))
-              .toList(),
-      requests:
-          (json['requests'] as List<dynamic>? ?? const [])
-              .map((item) => AccessRequest.fromJson(item as Map<String, dynamic>))
-              .toList(),
+      users: (json['users'] as List<dynamic>? ?? const [])
+          .map((item) => ManagedUser.fromJson(item as Map<String, dynamic>))
+          .toList(),
+      requests: (json['requests'] as List<dynamic>? ?? const [])
+          .map((item) => AccessRequest.fromJson(item as Map<String, dynamic>))
+          .toList(),
     );
   }
 }
 
 class UserManagementPermissions {
-  const UserManagementPermissions({
-    required this.canManageSuperAdmins,
-  });
+  const UserManagementPermissions({required this.canManageSuperAdmins});
 
   final bool canManageSuperAdmins;
 

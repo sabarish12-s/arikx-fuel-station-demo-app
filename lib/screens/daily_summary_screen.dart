@@ -56,6 +56,7 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         iconTheme: const IconThemeData(color: kClayPrimary),
         title: const Text('Daily Summary'),
@@ -261,68 +262,65 @@ class _DailySummaryScreenState extends State<DailySummaryScreen> {
                 const _SectionLabel(label: 'PAYMENTS'),
                 const SizedBox(height: 10),
                 ClayCard(
-                  child:
-                      entry == null
-                          ? const Text(
-                            'No daily entry saved for this date.',
-                            style: TextStyle(
-                              color: kClaySub,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                          : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _SummaryMetricRow(
-                                label: 'Cash',
-                                value: formatCurrency(
-                                  entry.paymentBreakdown.cash,
-                                ),
-                              ),
-                              const Divider(color: kClayBg, height: 24),
-                              _SummaryMetricRow(
-                                label: 'HP Pay',
-                                value: formatCurrency(
-                                  entry.paymentBreakdown.check,
-                                ),
-                              ),
-                              const Divider(color: kClayBg, height: 24),
-                              _SummaryMetricRow(
-                                label: 'UPI',
-                                value: formatCurrency(
-                                  entry.paymentBreakdown.upi,
-                                ),
-                              ),
-                              const Divider(color: kClayBg, height: 24),
-                              _SummaryMetricRow(
-                                label: 'Credit',
-                                value: formatCurrency(
-                                  entry.creditEntries.fold<double>(
-                                    0,
-                                    (sum, item) => sum + item.amount,
-                                  ),
-                                ),
-                              ),
-                              if (entry.varianceNote.isNotEmpty) ...[
-                                const SizedBox(height: 16),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF2F2),
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Text(
-                                    entry.varianceNote,
-                                    style: const TextStyle(
-                                      color: Color(0xFFB91C1C),
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                  child: entry == null
+                      ? const Text(
+                          'No daily entry saved for this date.',
+                          style: TextStyle(
+                            color: kClaySub,
+                            fontWeight: FontWeight.w600,
                           ),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SummaryMetricRow(
+                              label: 'Cash',
+                              value: formatCurrency(
+                                entry.paymentBreakdown.cash,
+                              ),
+                            ),
+                            const Divider(color: kClayBg, height: 24),
+                            _SummaryMetricRow(
+                              label: 'HP Pay',
+                              value: formatCurrency(
+                                entry.paymentBreakdown.check,
+                              ),
+                            ),
+                            const Divider(color: kClayBg, height: 24),
+                            _SummaryMetricRow(
+                              label: 'UPI',
+                              value: formatCurrency(entry.paymentBreakdown.upi),
+                            ),
+                            const Divider(color: kClayBg, height: 24),
+                            _SummaryMetricRow(
+                              label: 'Credit',
+                              value: formatCurrency(
+                                entry.creditEntries.fold<double>(
+                                  0,
+                                  (sum, item) => sum + item.amount,
+                                ),
+                              ),
+                            ),
+                            if (entry.varianceNote.isNotEmpty) ...[
+                              const SizedBox(height: 16),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEF2F2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Text(
+                                  entry.varianceNote,
+                                  style: const TextStyle(
+                                    color: Color(0xFFB91C1C),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                 ),
               ],
             );

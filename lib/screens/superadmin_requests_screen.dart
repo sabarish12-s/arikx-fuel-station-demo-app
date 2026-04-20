@@ -47,6 +47,7 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         iconTheme: const IconThemeData(color: kClayPrimary),
         title: const Row(

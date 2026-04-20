@@ -41,16 +41,14 @@ class AuthService {
       return _googleSignIn!;
     }
 
-    _resolvedServerClientId =
-        googleWebClientId.isNotEmpty
-            ? googleWebClientId
-            : await NativeConfigService.defaultWebClientId();
-    _resolvedClientId =
-        kIsWeb
-            ? (_resolvedServerClientId?.isNotEmpty ?? false)
-                ? _resolvedServerClientId
-                : null
-            : (googleClientId.isEmpty ? null : googleClientId);
+    _resolvedServerClientId = googleWebClientId.isNotEmpty
+        ? googleWebClientId
+        : await NativeConfigService.defaultWebClientId();
+    _resolvedClientId = kIsWeb
+        ? (_resolvedServerClientId?.isNotEmpty ?? false)
+              ? _resolvedServerClientId
+              : null
+        : (googleClientId.isEmpty ? null : googleClientId);
 
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&

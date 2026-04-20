@@ -5,6 +5,7 @@ import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class DaySetupScreen extends StatefulWidget {
   const DaySetupScreen({
@@ -86,26 +87,23 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
       return;
     }
 
-    final targetDate =
-        state.nextAllowedSetupDate.trim().isNotEmpty
-            ? state.nextAllowedSetupDate
-            : state.allowedEntryDate;
-    final matching =
-        _activeHistory
-            .where((item) => item.effectiveDate == targetDate)
-            .toList();
+    final targetDate = state.nextAllowedSetupDate.trim().isNotEmpty
+        ? state.nextAllowedSetupDate
+        : state.allowedEntryDate;
+    final matching = _activeHistory
+        .where((item) => item.effectiveDate == targetDate)
+        .toList();
     final existing = matching.isEmpty ? null : matching.first;
     final fallback =
         existing ?? (_activeHistory.isEmpty ? null : _activeHistory.last);
     final result = await showDialog<_DaySetupFormValue>(
       context: context,
-      builder:
-          (context) => _DaySetupDialog(
-            station: station,
-            initialDate: targetDate,
-            initialSetup: existing,
-            fallbackSetup: fallback,
-          ),
+      builder: (context) => _DaySetupDialog(
+        station: station,
+        initialDate: targetDate,
+        initialSetup: existing,
+        fallbackSetup: fallback,
+      ),
     );
     if (result == null) {
       return;
@@ -186,6 +184,7 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
       return Scaffold(
         backgroundColor: kClayBg,
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: kClayBg,
           title: const Text('Day Setup'),
         ),
@@ -195,102 +194,26 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
 
     return Scaffold(
       backgroundColor: kClayBg,
-      appBar:
-          widget.embedded
-              ? null
-              : AppBar(
-                backgroundColor: kClayBg,
-                title: const Text('Day Setup'),
-              ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: kClayBg,
+              title: const Text('Day Setup'),
+            ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          if (widget.embedded)
-            ClaySubHeader(title: 'Day Setup', onBack: widget.onBack),
-          if (widget.embedded) const SizedBox(height: 16),
-          ClayCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Operational Start Chain',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: kClayPrimary,
-                        ),
-                      ),
-                    ),
-                    if (widget.canEdit)
-                      FilledButton.icon(
-                        onPressed: _busy ? null : _openSetupDialog,
-                        icon: const Icon(Icons.event_note_rounded),
-                        label: const Text('Update Day Setup'),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  state.setupExists
-                      ? 'Sales entry is enforced from one dated setup chain. The next pending sales date is fixed from this setup history.'
-                      : 'Create the first day setup to start the sales, stock, and pricing chain.',
-                  style: const TextStyle(
-                    color: kClaySub,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _InfoPill(
-                      label: 'Next setup date',
-                      value:
-                          state.nextAllowedSetupDate.isEmpty
-                              ? 'Not ready'
-                              : formatDateLabel(state.nextAllowedSetupDate),
-                    ),
-                    _InfoPill(
-                      label: 'Allowed sales date',
-                      value:
-                          state.allowedEntryDate.isEmpty
-                              ? 'Blocked'
-                              : formatDateLabel(state.allowedEntryDate),
-                    ),
-                    _InfoPill(
-                      label: 'Active setup',
-                      value:
-                          state.activeSetupDate.isEmpty
-                              ? 'Not set'
-                              : formatDateLabel(state.activeSetupDate),
-                    ),
-                  ],
-                ),
-                if (state.entryLockedReason.trim().isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F4FB),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      state.entryLockedReason,
-                      style: const TextStyle(
-                        color: kClayPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+          _DaySetupHeroCard(
+            canEdit: widget.canEdit,
+            busy: _busy,
+            setupExists: state.setupExists,
+            nextSetupDate: state.nextAllowedSetupDate,
+            allowedSalesDate: state.allowedEntryDate,
+            activeSetupDate: state.activeSetupDate,
+            lockedReason: state.entryLockedReason,
+            onBack: widget.embedded ? widget.onBack : null,
+            onUpdate: _openSetupDialog,
           ),
           const SizedBox(height: 16),
           Row(
@@ -299,8 +222,9 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
                 child: OutlinedButton(
                   onPressed: () => setState(() => _showDeleted = false),
                   style: OutlinedButton.styleFrom(
-                    backgroundColor:
-                        !_showDeleted ? const Color(0xFFE8EDF9) : Colors.white,
+                    backgroundColor: !_showDeleted
+                        ? const Color(0xFFE8EDF9)
+                        : Colors.white,
                   ),
                   child: Text('Active (${_activeHistory.length})'),
                 ),
@@ -310,8 +234,9 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
                 child: OutlinedButton(
                   onPressed: () => setState(() => _showDeleted = true),
                   style: OutlinedButton.styleFrom(
-                    backgroundColor:
-                        _showDeleted ? const Color(0xFFE8EDF9) : Colors.white,
+                    backgroundColor: _showDeleted
+                        ? const Color(0xFFE8EDF9)
+                        : Colors.white,
                   ),
                   child: Text('Deleted (${_deletedHistory.length})'),
                 ),
@@ -353,8 +278,190 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
   }
 }
 
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label, required this.value});
+class _DaySetupHeroCard extends StatelessWidget {
+  const _DaySetupHeroCard({
+    required this.canEdit,
+    required this.busy,
+    required this.setupExists,
+    required this.nextSetupDate,
+    required this.allowedSalesDate,
+    required this.activeSetupDate,
+    required this.lockedReason,
+    required this.onUpdate,
+    this.onBack,
+  });
+
+  final bool canEdit;
+  final bool busy;
+  final bool setupExists;
+  final String nextSetupDate;
+  final String allowedSalesDate;
+  final String activeSetupDate;
+  final String lockedReason;
+  final VoidCallback onUpdate;
+  final VoidCallback? onBack;
+
+  String _dateLabel(String value, String fallback) {
+    return value.isEmpty ? fallback : formatDateLabel(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmedReason = lockedReason.trim();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [kClayHeroStart, kClayHeroEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: kClayHeroEnd.withValues(alpha: 0.45),
+            offset: const Offset(0, 10),
+            blurRadius: 24,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Spacer(),
+              if (canEdit)
+                _HeroActionPill(
+                  icon: Icons.event_note_rounded,
+                  label: 'Update',
+                  onTap: busy ? null : onUpdate,
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'OPERATIONS',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Day Setup',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            setupExists
+                ? 'Sales entry follows one dated setup chain. The next pending sales date is fixed from this setup history.'
+                : 'Create the first day setup to start the sales, stock, and pricing chain.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              height: 1.4,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _HeroInfoPill(
+                label: 'Next setup date',
+                value: _dateLabel(nextSetupDate, 'Not ready'),
+              ),
+              _HeroInfoPill(
+                label: 'Allowed sales date',
+                value: _dateLabel(allowedSalesDate, 'Blocked'),
+              ),
+              _HeroInfoPill(
+                label: 'Active setup',
+                value: _dateLabel(activeSetupDate, 'Not set'),
+              ),
+            ],
+          ),
+          if (trimmedReason.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: Text(
+                trimmedReason,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroActionPill extends StatelessWidget {
+  const _HeroActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Opacity(
+        opacity: onTap == null ? 0.52 : 1,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: Colors.white),
+              const SizedBox(width: 6),
+              OneLineScaleText(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroInfoPill extends StatelessWidget {
+  const _HeroInfoPill({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -364,16 +471,17 @@ class _InfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F4FB),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: kClaySub,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.64),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -382,8 +490,8 @@ class _InfoPill extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: kClayPrimary,
-              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -437,26 +545,24 @@ class _DaySetupHistoryCard extends StatelessWidget {
   Widget _detailGrid(List<_DaySetupDetailMetric> metrics) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth =
-            constraints.maxWidth >= 440
-                ? (constraints.maxWidth - 10) / 2
-                : constraints.maxWidth;
+        final itemWidth = constraints.maxWidth >= 440
+            ? (constraints.maxWidth - 10) / 2
+            : constraints.maxWidth;
         return Wrap(
           spacing: 10,
           runSpacing: 10,
-          children:
-              metrics
-                  .map(
-                    (metric) => SizedBox(
-                      width: itemWidth,
-                      child: _DaySetupMetricTile(
-                        label: metric.label,
-                        value: metric.value,
-                        icon: metric.icon,
-                      ),
-                    ),
-                  )
-                  .toList(),
+          children: metrics
+              .map(
+                (metric) => SizedBox(
+                  width: itemWidth,
+                  child: _DaySetupMetricTile(
+                    label: metric.label,
+                    value: metric.value,
+                    icon: metric.icon,
+                  ),
+                ),
+              )
+              .toList(),
         );
       },
     );
@@ -548,128 +654,123 @@ class _DaySetupHistoryCard extends StatelessWidget {
     final createdBy = _auditName(setup.createdByName, setup.createdBy);
     await showDialog<void>(
       context: context,
-      builder:
-          (dialogContext) => ClayDialogShell(
-            title: formatDateLabel(setup.effectiveDate),
-            subtitle: 'Day setup details',
-            icon: Icons.fact_check_outlined,
-            actions: [
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF4D66A9),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
+      builder: (dialogContext) => ClayDialogShell(
+        title: formatDateLabel(setup.effectiveDate),
+        subtitle: 'Day setup details',
+        icon: Icons.fact_check_outlined,
+        actions: [
+          Expanded(
+            child: FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4D66A9),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Text('Close'),
+            ),
+          ),
+        ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClayDialogSection(
+              title: 'Starting stock',
+              child: _detailGrid([
+                _DaySetupDetailMetric(
+                  label: 'Petrol',
+                  value: formatLiters(setup.startingStock['petrol'] ?? 0),
+                  icon: Icons.opacity_rounded,
+                ),
+                _DaySetupDetailMetric(
+                  label: 'Diesel',
+                  value: formatLiters(setup.startingStock['diesel'] ?? 0),
+                  icon: Icons.water_drop_outlined,
+                ),
+                _DaySetupDetailMetric(
+                  label: '2T Oil',
+                  value: formatLiters(setup.startingStock['two_t_oil'] ?? 0),
+                  icon: Icons.oil_barrel_outlined,
+                ),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            ClayDialogSection(
+              title: 'Fuel prices',
+              child: _detailGrid([
+                _DaySetupDetailMetric(
+                  label: 'Petrol cost',
+                  value: _price('petrol', 'costPrice'),
+                  icon: Icons.currency_rupee_rounded,
+                ),
+                _DaySetupDetailMetric(
+                  label: 'Petrol selling',
+                  value: _price('petrol', 'sellingPrice'),
+                  icon: Icons.sell_outlined,
+                ),
+                _DaySetupDetailMetric(
+                  label: 'Diesel cost',
+                  value: _price('diesel', 'costPrice'),
+                  icon: Icons.currency_rupee_rounded,
+                ),
+                _DaySetupDetailMetric(
+                  label: 'Diesel selling',
+                  value: _price('diesel', 'sellingPrice'),
+                  icon: Icons.sell_outlined,
+                ),
+                _DaySetupDetailMetric(
+                  label: '2T Oil cost',
+                  value: _price('two_t_oil', 'costPrice'),
+                  icon: Icons.currency_rupee_rounded,
+                ),
+                _DaySetupDetailMetric(
+                  label: '2T Oil selling',
+                  value: _price('two_t_oil', 'sellingPrice'),
+                  icon: Icons.sell_outlined,
+                ),
+              ]),
+            ),
+            const SizedBox(height: 12),
+            ClayDialogSection(
+              title: 'Pump opening readings',
+              child: Column(
+                children: [
+                  for (final entry in setup.openingReadings.entries) ...[
+                    _pumpReadingDetail(entry),
+                    if (entry.key != setup.openingReadings.keys.last)
+                      const SizedBox(height: 10),
+                  ],
+                ],
+              ),
+            ),
+            if (setup.note.trim().isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ClayDialogSection(
+                title: 'Note',
+                child: Text(
+                  setup.note,
+                  style: const TextStyle(
+                    color: kClayPrimary,
+                    fontWeight: FontWeight.w700,
+                    height: 1.4,
                   ),
-                  child: const Text('Close'),
                 ),
               ),
             ],
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ClayDialogSection(
-                  title: 'Starting stock',
-                  child: _detailGrid([
-                    _DaySetupDetailMetric(
-                      label: 'Petrol',
-                      value: formatLiters(setup.startingStock['petrol'] ?? 0),
-                      icon: Icons.opacity_rounded,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: 'Diesel',
-                      value: formatLiters(setup.startingStock['diesel'] ?? 0),
-                      icon: Icons.water_drop_outlined,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: '2T Oil',
-                      value: formatLiters(
-                        setup.startingStock['two_t_oil'] ?? 0,
-                      ),
-                      icon: Icons.oil_barrel_outlined,
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 12),
-                ClayDialogSection(
-                  title: 'Fuel prices',
-                  child: _detailGrid([
-                    _DaySetupDetailMetric(
-                      label: 'Petrol cost',
-                      value: _price('petrol', 'costPrice'),
-                      icon: Icons.currency_rupee_rounded,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: 'Petrol selling',
-                      value: _price('petrol', 'sellingPrice'),
-                      icon: Icons.sell_outlined,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: 'Diesel cost',
-                      value: _price('diesel', 'costPrice'),
-                      icon: Icons.currency_rupee_rounded,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: 'Diesel selling',
-                      value: _price('diesel', 'sellingPrice'),
-                      icon: Icons.sell_outlined,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: '2T Oil cost',
-                      value: _price('two_t_oil', 'costPrice'),
-                      icon: Icons.currency_rupee_rounded,
-                    ),
-                    _DaySetupDetailMetric(
-                      label: '2T Oil selling',
-                      value: _price('two_t_oil', 'sellingPrice'),
-                      icon: Icons.sell_outlined,
-                    ),
-                  ]),
-                ),
-                const SizedBox(height: 12),
-                ClayDialogSection(
-                  title: 'Pump opening readings',
-                  child: Column(
-                    children: [
-                      for (final entry in setup.openingReadings.entries) ...[
-                        _pumpReadingDetail(entry),
-                        if (entry.key != setup.openingReadings.keys.last)
-                          const SizedBox(height: 10),
-                      ],
-                    ],
-                  ),
-                ),
-                if (setup.note.trim().isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  ClayDialogSection(
-                    title: 'Note',
-                    child: Text(
-                      setup.note,
-                      style: const TextStyle(
-                        color: kClayPrimary,
-                        fontWeight: FontWeight.w700,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                ClayDialogSection(
-                  title: 'Status history',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _auditLine('Created', createdBy, setup.createdAt),
-                    ],
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            ClayDialogSection(
+              title: 'Status history',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [_auditLine('Created', createdBy, setup.createdAt)],
+              ),
             ),
-          ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1067,22 +1168,27 @@ class _DaySetupDialogState extends State<_DaySetupDialog> {
       textInputAction: TextInputAction.next,
       cursorColor: const Color(0xFF4D66A9),
       style: const TextStyle(color: kClayPrimary, fontWeight: FontWeight.w800),
-      decoration: clayDialogInputDecoration(
-        label: label,
-        prefixIcon: Icon(icon, color: kClaySub, size: 20),
-      ).copyWith(
-        filled: true,
-        fillColor: const Color(0xFFFBFCFF),
-        border: defaultBorder,
-        enabledBorder: defaultBorder,
-        focusedBorder: focusedBorder,
-        suffixIcon: const Icon(Icons.edit_rounded, color: kClaySub, size: 18),
-        suffixText: suffixText,
-        suffixStyle: const TextStyle(
-          color: kClaySub,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
+      decoration:
+          clayDialogInputDecoration(
+            label: label,
+            prefixIcon: Icon(icon, color: kClaySub, size: 20),
+          ).copyWith(
+            filled: true,
+            fillColor: const Color(0xFFFBFCFF),
+            border: defaultBorder,
+            enabledBorder: defaultBorder,
+            focusedBorder: focusedBorder,
+            suffixIcon: const Icon(
+              Icons.edit_rounded,
+              color: kClaySub,
+              size: 18,
+            ),
+            suffixText: suffixText,
+            suffixStyle: const TextStyle(
+              color: kClaySub,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
     );
   }
 
@@ -1159,17 +1265,21 @@ class _DaySetupDialogState extends State<_DaySetupDialog> {
           color: kClayPrimary,
           fontWeight: FontWeight.w800,
         ),
-        decoration: clayDialogInputDecoration(
-          label: 'Effective date',
-          hintText: 'YYYY-MM-DD',
-          prefixIcon: const Icon(Icons.event_rounded, color: kClaySub),
-        ).copyWith(
-          suffixIcon: IconButton(
-            tooltip: 'Pick date',
-            onPressed: _pickDate,
-            icon: const Icon(Icons.calendar_month_rounded, color: kClayPrimary),
-          ),
-        ),
+        decoration:
+            clayDialogInputDecoration(
+              label: 'Effective date',
+              hintText: 'YYYY-MM-DD',
+              prefixIcon: const Icon(Icons.event_rounded, color: kClaySub),
+            ).copyWith(
+              suffixIcon: IconButton(
+                tooltip: 'Pick date',
+                onPressed: _pickDate,
+                icon: const Icon(
+                  Icons.calendar_month_rounded,
+                  color: kClayPrimary,
+                ),
+              ),
+            ),
       ),
     );
   }

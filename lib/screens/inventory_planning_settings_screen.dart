@@ -164,27 +164,6 @@ class _InventoryPlanningSettingsScreenState
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                if (widget.embedded)
-                  ClaySubHeader(
-                    title: 'Reorder Alert Rules',
-                    onBack: widget.onBack,
-                    trailing:
-                        widget.canEdit
-                            ? _EditTogglePill(
-                              isEditing: _isEditing,
-                              onTap: () {
-                                setState(() {
-                                  if (_isEditing) {
-                                    _isEditing = false;
-                                    _resetFromStation(station);
-                                  } else {
-                                    _isEditing = true;
-                                  }
-                                });
-                              },
-                            )
-                            : null,
-                  ),
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   decoration: BoxDecoration(
@@ -205,6 +184,28 @@ class _InventoryPlanningSettingsScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (widget.embedded) ...[
+                        Row(
+                          children: [
+                            const Spacer(),
+                            if (widget.canEdit)
+                              _EmbeddedEditHeroPill(
+                                isEditing: _isEditing,
+                                onTap: () {
+                                  setState(() {
+                                    if (_isEditing) {
+                                      _isEditing = false;
+                                      _resetFromStation(station);
+                                    } else {
+                                      _isEditing = true;
+                                    }
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                      ],
                       const Text(
                         'REORDER ALERTS',
                         style: TextStyle(
@@ -272,16 +273,16 @@ class _InventoryPlanningSettingsScreenState
                 ),
                 if (widget.canEdit)
                   FilledButton.icon(
-                    onPressed:
-                        _isEditing && !_saving ? () => _save(station) : null,
-                    icon:
-                        _saving
-                            ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                            : const Icon(Icons.notifications_active_outlined),
+                    onPressed: _isEditing && !_saving
+                        ? () => _save(station)
+                        : null,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.notifications_active_outlined),
                     label: Text(_saving ? 'Saving...' : 'Save Alert Rules'),
                   ),
               ],
@@ -296,6 +297,7 @@ class _InventoryPlanningSettingsScreenState
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Reorder Alert Rules'),
         actions: [
@@ -305,19 +307,18 @@ class _InventoryPlanningSettingsScreenState
               builder: (context, snapshot) {
                 final station = snapshot.data;
                 return TextButton(
-                  onPressed:
-                      station == null
-                          ? null
-                          : () {
-                            setState(() {
-                              if (_isEditing) {
-                                _isEditing = false;
-                                _resetFromStation(station);
-                              } else {
-                                _isEditing = true;
-                              }
-                            });
-                          },
+                  onPressed: station == null
+                      ? null
+                      : () {
+                          setState(() {
+                            if (_isEditing) {
+                              _isEditing = false;
+                              _resetFromStation(station);
+                            } else {
+                              _isEditing = true;
+                            }
+                          });
+                        },
                   child: Text(_isEditing ? 'Cancel' : 'Edit'),
                 );
               },
@@ -329,10 +330,15 @@ class _InventoryPlanningSettingsScreenState
   }
 }
 
-class _EditTogglePill extends StatelessWidget {
-  const _EditTogglePill({required this.isEditing, required this.onTap});
+class _HeroActionPill extends StatelessWidget {
+  const _HeroActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
-  final bool isEditing;
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -340,33 +346,44 @@ class _EditTogglePill extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-              offset: const Offset(4, 4),
-              blurRadius: 10,
-            ),
-            const BoxShadow(
-              color: Colors.white,
-              offset: Offset(-3, -3),
-              blurRadius: 8,
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 6),
+            OneLineScaleText(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ],
         ),
-        child: OneLineScaleText(
-          isEditing ? 'Cancel' : 'Edit',
-          alignment: Alignment.center,
-          style: TextStyle(
-            color: isEditing ? const Color(0xFFCE5828) : kClayPrimary,
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
-        ),
       ),
+    );
+  }
+}
+
+class _EmbeddedEditHeroPill extends StatelessWidget {
+  const _EmbeddedEditHeroPill({required this.isEditing, required this.onTap});
+
+  final bool isEditing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HeroActionPill(
+      icon: isEditing ? Icons.close_rounded : Icons.edit_rounded,
+      label: isEditing ? 'Cancel' : 'Edit',
+      onTap: onTap,
     );
   }
 }

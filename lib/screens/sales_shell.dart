@@ -58,6 +58,7 @@ class _SalesShellState extends State<SalesShell> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         scrolledUnderElevation: 0,
         elevation: 0,
@@ -80,10 +81,9 @@ class _SalesShellState extends State<SalesShell> {
         index: _index,
         children: List.generate(
           _screens.length,
-          (index) =>
-              _loadedScreens.contains(index)
-                  ? _screens[index]
-                  : const SizedBox.shrink(),
+          (index) => _loadedScreens.contains(index)
+              ? _screens[index]
+              : const SizedBox.shrink(),
         ),
       ),
       bottomNavigationBar: AppBottomNavBar(

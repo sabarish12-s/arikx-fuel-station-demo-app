@@ -47,13 +47,28 @@ class ManagementDashboardScreen extends StatefulWidget {
 
 class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   final ManagementService _managementService = ManagementService();
+  static const List<String> _monthNames = <String>[
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   late Future<ManagementDashboardModel> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
 
   // Default to last7 — "today" is not useful since entries are logged next day
-  String _preset = 'last7';
+  String _filterMonth = currentMonthKey();
   String? _fromDate;
   String? _toDate;
+  bool _filterByDateRange = false;
   int _pumpTouchedIndex = -1;
   int _staffTouchedIndex = -1;
 
@@ -79,9 +94,8 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
   Future<ManagementDashboardModel> _load({bool forceRefresh = false}) =>
       _managementService.fetchDashboard(
-        preset: _preset == 'custom' ? null : _preset,
-        fromDate: _fromDate,
-        toDate: _toDate,
+        fromDate: _filterByDateRange ? _fromDate : _monthStart(_filterMonth),
+        toDate: _filterByDateRange ? _toDate : _monthEnd(_filterMonth),
         forceRefresh: forceRefresh,
       );
 
@@ -90,33 +104,262 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     await _future;
   }
 
-  Future<void> _applyPreset(String preset) async {
-    setState(() {
-      _preset = preset;
-      _fromDate = null;
-      _toDate = null;
-      _pumpTouchedIndex = -1;
-      _staffTouchedIndex = -1;
-      _future = _load();
-    });
+  bool get _isSuperAdmin => widget.user.role == 'superadmin';
+
+  String _formatIsoDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String _monthStart(String monthKey) => '$monthKey-01';
+
+  String _monthEnd(String monthKey) {
+    final parts = monthKey.split('-');
+    final year = int.tryParse(parts.firstOrNull ?? '') ?? DateTime.now().year;
+    final month =
+        int.tryParse(parts.length > 1 ? parts[1] : '') ?? DateTime.now().month;
+    return _formatIsoDate(DateTime(year, month + 1, 0));
   }
 
-  Future<void> _pickCustomRange() async {
-    final range = await showAppDateRangePicker(
+  String get _activeFilterLabel {
+    if (_filterByDateRange) {
+      if (_fromDate == null || _toDate == null) {
+        return 'Custom Range';
+      }
+      return '${_shortDateLabel(_fromDate!)} - ${_shortDateLabel(_toDate!)}';
+    }
+    final parts = _filterMonth.split('-');
+    if (parts.length != 2) return _filterMonth;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null || month < 1 || month > 12) {
+      return _filterMonth;
+    }
+    const short = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${short[month - 1]} $year';
+  }
+
+  Future<void> _openFilterDialog() async {
+    final today = DateTime.now();
+    bool byRange = _filterByDateRange;
+    final parts = _filterMonth.split('-');
+    int selYear = int.tryParse(parts.firstOrNull ?? '') ?? today.year;
+    int selMonth =
+        int.tryParse(parts.length > 1 ? parts[1] : '') ?? today.month;
+    DateTime? fromDt = _fromDate != null ? DateTime.tryParse(_fromDate!) : null;
+    DateTime? toDt = _toDate != null ? DateTime.tryParse(_toDate!) : null;
+    final now = DateTime(today.year, today.month, today.day);
+
+    String formatDialogDate(DateTime? dt) {
+      if (dt == null) return 'Tap to choose';
+      return formatDateLabel(_formatIsoDate(dt));
+    }
+
+    String formatDialogRange() {
+      if (fromDt == null || toDt == null) return 'Tap to choose';
+      return '${formatDialogDate(fromDt)} to ${formatDialogDate(toDt)}';
+    }
+
+    bool matchesQuickRange(int dayCount) {
+      if (fromDt == null || toDt == null) return false;
+      final expectedFrom = now.subtract(Duration(days: dayCount - 1));
+      return fromDt!.isAtSameMomentAs(expectedFrom) &&
+          toDt!.isAtSameMomentAs(now);
+    }
+
+    void applyQuickRange(StateSetter set, int dayCount) {
+      set(() {
+        byRange = true;
+        fromDt = now.subtract(Duration(days: dayCount - 1));
+        toDt = now;
+      });
+    }
+
+    Future<void> pickRange(
+      BuildContext pickerContext,
+      StateSetter setDialogState,
+    ) async {
+      final range = await showAppDateRangePicker(
+        context: pickerContext,
+        fromDate: fromDt,
+        toDate: toDt,
+        firstDate: DateTime(2024),
+        lastDate: today,
+        helpText: 'Select dashboard range',
+      );
+      if (range == null) return;
+      setDialogState(() {
+        byRange = true;
+        fromDt = range.start;
+        toDt = range.end;
+      });
+    }
+
+    final applied = await showDialog<bool>(
       context: context,
-      fromDate: DateTime.tryParse(_fromDate ?? ''),
-      toDate: DateTime.tryParse(_toDate ?? ''),
-      firstDate: DateTime(2024),
-      lastDate: DateTime.now(),
-      helpText: 'Select dashboard range',
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final years = List<int>.generate(
+              today.year - 2024 + 1,
+              (i) => today.year - i,
+            );
+
+            return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 24,
+              ),
+              title: const Text('Filter Dashboard'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFECEFF8),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: Row(
+                        children: [
+                          _DashboardToggleTab(
+                            label: 'By Month',
+                            selected: !byRange,
+                            onTap: () => setDialogState(() => byRange = false),
+                          ),
+                          _DashboardToggleTab(
+                            label: 'Date Range',
+                            selected: byRange,
+                            onTap: () => setDialogState(() => byRange = true),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    if (!byRange) ...[
+                      _DashboardDropdownField<int>(
+                        label: 'Year',
+                        icon: Icons.event_note_rounded,
+                        value: selYear,
+                        items: years
+                            .map(
+                              (y) => DropdownMenuItem<int>(
+                                value: y,
+                                child: Text('$y'),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selYear = v);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      _DashboardDropdownField<int>(
+                        label: 'Month',
+                        icon: Icons.calendar_month_rounded,
+                        value: selMonth,
+                        items: List.generate(
+                          _monthNames.length,
+                          (i) => DropdownMenuItem<int>(
+                            value: i + 1,
+                            child: Text(_monthNames[i]),
+                          ),
+                        ),
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setDialogState(() => selMonth = v);
+                        },
+                      ),
+                    ] else ...[
+                      _DashboardDatePickerRow(
+                        label: 'Date Range',
+                        value: formatDialogRange(),
+                        selected: false,
+                        onTap: () => pickRange(dialogContext, setDialogState),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _DashboardQuickRangeButton(
+                              label: 'Last 7 Days',
+                              selected: matchesQuickRange(7),
+                              onTap: () => applyQuickRange(setDialogState, 7),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _DashboardQuickRangeButton(
+                              label: 'Last 30 Days',
+                              selected: matchesQuickRange(30),
+                              onTap: () => applyQuickRange(setDialogState, 30),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+              actions: [
+                SizedBox(
+                  width: double.maxFinite,
+                  child: Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(dialogContext).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: () {
+                          if (byRange && (fromDt == null || toDt == null)) {
+                            return;
+                          }
+                          Navigator.of(dialogContext).pop(true);
+                        },
+                        icon: const Icon(Icons.filter_alt_rounded),
+                        label: const Text('Apply'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
-    if (range == null) return;
-    String fmt(DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    if (applied != true) return;
+
     setState(() {
-      _preset = 'custom';
-      _fromDate = fmt(range.start);
-      _toDate = fmt(range.end);
+      _filterByDateRange = byRange;
+      if (byRange) {
+        _fromDate = fromDt != null ? _formatIsoDate(fromDt!) : null;
+        _toDate = toDt != null ? _formatIsoDate(toDt!) : null;
+      } else {
+        _filterMonth = '$selYear-${selMonth.toString().padLeft(2, '0')}';
+        _fromDate = null;
+        _toDate = null;
+      }
       _pumpTouchedIndex = -1;
       _staffTouchedIndex = -1;
       _future = _load();
@@ -126,15 +369,15 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   Future<void> _openEntriesShortcut() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder:
-            (_) => Scaffold(
-              backgroundColor: const Color(0xFFECEFF8),
-              appBar: AppBar(
-                backgroundColor: const Color(0xFFECEFF8),
-                title: const Text('Entries'),
-              ),
-              body: const EntryManagementScreen(),
-            ),
+        builder: (_) => Scaffold(
+          backgroundColor: const Color(0xFFECEFF8),
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            backgroundColor: const Color(0xFFECEFF8),
+            title: const Text('Entries'),
+          ),
+          body: const EntryManagementScreen(),
+        ),
       ),
     );
     if (!mounted) {
@@ -193,7 +436,8 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
   }
 
   // ── Compact horizontal filter bar ─────────────────────────────────────────
-  Widget _buildFilterBar() {
+  Widget _buildFilterBar() => const SizedBox.shrink();
+  /*
     final presets = <MapEntry<String, String>>[
       const MapEntry('last7', 'Last 7 Days'),
       const MapEntry('thisMonth', 'This Month'),
@@ -217,19 +461,19 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             label: _preset == 'custom' ? 'Custom ✓' : 'Custom Range',
             selected: _preset == 'custom',
             icon: Icons.date_range_rounded,
-            onTap: _pickCustomRange,
+            onTap: () {},
           ),
         ],
       ),
     );
   }
+  */
 
   // ── Hero snapshot card ─────────────────────────────────────────────────────
   Widget _buildHeroCard(ManagementDashboardModel data) {
+    final pendingUserCount = _isSuperAdmin ? data.pendingRequests : 0;
     final hasAlert =
-        data.varianceCount > 0 ||
-        data.flaggedCount > 0 ||
-        data.pendingRequests > 0;
+        data.varianceCount > 0 || data.flaggedCount > 0 || pendingUserCount > 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -253,32 +497,65 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  data.station.name.toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 11,
-                    letterSpacing: 1.5,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Dashboard',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  data.range.label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: _openFilterDialog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_rounded,
+                          color: Colors.white70,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 6),
+                        OneLineScaleText(
+                          _activeFilterLabel,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Colors.white60,
+                          size: 16,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Approved entries only',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
@@ -328,13 +605,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     label: 'Approved Entries',
                     value: '${data.entriesCompleted}',
                   ),
-                  right:
-                      data.twoTSold > 0
-                          ? _HeroMetricCell(
-                            label: '2T Oil Sold',
-                            value: formatLiters(data.twoTSold),
-                          )
-                          : const SizedBox.shrink(),
+                  right: data.twoTSold > 0
+                      ? _HeroMetricCell(
+                          label: '2T Oil Sold',
+                          value: formatLiters(data.twoTSold),
+                        )
+                      : const SizedBox.shrink(),
                 ),
               ],
             ),
@@ -364,12 +640,14 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                     count: data.flaggedCount,
                     color: const Color(0xFFEF4444),
                   ),
-                  const SizedBox(width: 8),
-                  _AlertBadge(
-                    label: 'Pending Users',
-                    count: data.pendingRequests,
-                    color: const Color(0xFF34D399),
-                  ),
+                  if (_isSuperAdmin) ...[
+                    const SizedBox(width: 8),
+                    _AlertBadge(
+                      label: 'Pending Users',
+                      count: pendingUserCount,
+                      color: const Color(0xFF34D399),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -385,7 +663,9 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'No flags, variances, or pending users',
+                    _isSuperAdmin
+                        ? 'No flags, variances, or pending users'
+                        : 'No flags or variances',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.5),
                       fontSize: 12,
@@ -402,21 +682,19 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
   // ── Pump + Staff contribution ──────────────────────────────────────────────
   Widget _buildContributionSection(ManagementDashboardModel data) {
-    final pumpSlices =
-        data.pumpPerformance
-            .map(
-              (item) => _ContributionSlice(
-                label: formatPumpLabel(item.pumpId, item.pumpLabel),
-                amount: item.collectedAmount,
-                liters: item.liters,
-                subtitle:
-                    item.attendantsSeen.isEmpty
-                        ? 'No attendants recorded'
-                        : item.attendantsSeen.join(', '),
-                color: _pumpColor(item.pumpId),
-              ),
-            )
-            .toList();
+    final pumpSlices = data.pumpPerformance
+        .map(
+          (item) => _ContributionSlice(
+            label: formatPumpLabel(item.pumpId, item.pumpLabel),
+            amount: item.collectedAmount,
+            liters: item.liters,
+            subtitle: item.attendantsSeen.isEmpty
+                ? 'No attendants recorded'
+                : item.attendantsSeen.join(', '),
+            color: _pumpColor(item.pumpId),
+          ),
+        )
+        .toList();
 
     final staffColors = _uniqueStaffColors(data.attendantPerformance.length);
     final staffSlices = [
@@ -425,40 +703,36 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           label: data.attendantPerformance[i].attendantName,
           amount: data.attendantPerformance[i].collectedAmount,
           liters: data.attendantPerformance[i].liters,
-          subtitle:
-              data.attendantPerformance[i].pumpsWorked.isEmpty
-                  ? 'No pumps recorded'
-                  : data.attendantPerformance[i].pumpsWorked.join(', '),
+          subtitle: data.attendantPerformance[i].pumpsWorked.isEmpty
+              ? 'No pumps recorded'
+              : data.attendantPerformance[i].pumpsWorked.join(', '),
           color: staffColors[i],
         ),
     ];
 
-    final pumpItems =
-        data.pumpPerformance
-            .map(
-              (item) => _PerformanceItem(
-                title: formatPumpLabel(item.pumpId, item.pumpLabel),
-                subtitle:
-                    item.attendantsSeen.isEmpty
-                        ? 'No attendants recorded'
-                        : item.attendantsSeen.join(', '),
-                liters: item.liters,
-                collectedAmount: item.collectedAmount,
-                computedSalesValue: item.computedSalesValue,
-                variance: item.variance,
-                accent: _pumpColor(item.pumpId),
-              ),
-            )
-            .toList();
+    final pumpItems = data.pumpPerformance
+        .map(
+          (item) => _PerformanceItem(
+            title: formatPumpLabel(item.pumpId, item.pumpLabel),
+            subtitle: item.attendantsSeen.isEmpty
+                ? 'No attendants recorded'
+                : item.attendantsSeen.join(', '),
+            liters: item.liters,
+            collectedAmount: item.collectedAmount,
+            computedSalesValue: item.computedSalesValue,
+            variance: item.variance,
+            accent: _pumpColor(item.pumpId),
+          ),
+        )
+        .toList();
 
     final staffItems = [
       for (int i = 0; i < data.attendantPerformance.length; i++)
         _PerformanceItem(
           title: data.attendantPerformance[i].attendantName,
-          subtitle:
-              data.attendantPerformance[i].pumpsWorked.isEmpty
-                  ? '${data.attendantPerformance[i].activeDays} active days'
-                  : '${data.attendantPerformance[i].activeDays} active days  ·  ${data.attendantPerformance[i].pumpsWorked.join(', ')}',
+          subtitle: data.attendantPerformance[i].pumpsWorked.isEmpty
+              ? '${data.attendantPerformance[i].activeDays} active days'
+              : '${data.attendantPerformance[i].activeDays} active days  ·  ${data.attendantPerformance[i].pumpsWorked.join(', ')}',
           liters: data.attendantPerformance[i].liters,
           collectedAmount: data.attendantPerformance[i].collectedAmount,
           computedSalesValue: data.attendantPerformance[i].computedSalesValue,
@@ -550,10 +824,9 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
     final List<int> uniqueDateIndices = [];
     final seenDates = <String>{};
     for (int i = 0; i < trend.length; i++) {
-      final dateKey =
-          trend[i].date.length >= 10
-              ? trend[i].date.substring(0, 10)
-              : trend[i].date;
+      final dateKey = trend[i].date.length >= 10
+          ? trend[i].date.substring(0, 10)
+          : trend[i].date;
       if (seenDates.add(dateKey)) {
         uniqueDateIndices.add(i);
       }
@@ -584,59 +857,52 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          getDrawingHorizontalLine:
-              (_) => const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
+          getDrawingHorizontalLine: (_) =>
+              const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
-        lineTouchData:
-            compact
-                ? const LineTouchData(enabled: false)
-                : LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipItems:
-                        (spots) =>
-                            spots.map((s) {
-                              final idx = s.x.toInt();
-                              final point =
-                                  trend[idx.clamp(0, trend.length - 1)];
-                              final isFirst = s.barIndex == 0;
-                              return LineTooltipItem(
-                                isFirst
-                                    ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
-                                    : 'Diesel ${formatLiters(s.y)}',
-                                TextStyle(
-                                  color:
-                                      isFirst
-                                          ? const Color(0xFF1E5CBA)
-                                          : const Color(0xFF0F9D58),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              );
-                            }).toList(),
-                  ),
+        lineTouchData: compact
+            ? const LineTouchData(enabled: false)
+            : LineTouchData(
+                touchTooltipData: LineTouchTooltipData(
+                  getTooltipItems: (spots) => spots.map((s) {
+                    final idx = s.x.toInt();
+                    final point = trend[idx.clamp(0, trend.length - 1)];
+                    final isFirst = s.barIndex == 0;
+                    return LineTooltipItem(
+                      isFirst
+                          ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
+                          : 'Diesel ${formatLiters(s.y)}',
+                      TextStyle(
+                        color: isFirst
+                            ? const Color(0xFF1E5CBA)
+                            : const Color(0xFF0F9D58),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    );
+                  }).toList(),
                 ),
+              ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(),
           rightTitles: const AxisTitles(),
-          leftTitles:
-              compact
-                  ? const AxisTitles()
-                  : AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 48,
-                      interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
-                      getTitlesWidget:
-                          (value, _) => Text(
-                            '${value.toInt()} L',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF6B7280),
-                            ),
-                          ),
+          leftTitles: compact
+              ? const AxisTitles()
+              : AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 48,
+                    interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
+                    getTitlesWidget: (value, _) => Text(
+                      '${value.toInt()} L',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF6B7280),
+                      ),
                     ),
                   ),
+                ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -676,13 +942,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
-              getDotPainter:
-                  (p, i, b, j) => FlDotCirclePainter(
-                    radius: 3,
-                    color: const Color(0xFF1E5CBA),
-                    strokeWidth: 0,
-                    strokeColor: Colors.transparent,
-                  ),
+              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
+                radius: 3,
+                color: const Color(0xFF1E5CBA),
+                strokeWidth: 0,
+                strokeColor: Colors.transparent,
+              ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -699,13 +964,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
-              getDotPainter:
-                  (p, i, b, j) => FlDotCirclePainter(
-                    radius: 3,
-                    color: const Color(0xFF0F9D58),
-                    strokeWidth: 0,
-                    strokeColor: Colors.transparent,
-                  ),
+              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
+                radius: 3,
+                color: const Color(0xFF0F9D58),
+                strokeWidth: 0,
+                strokeColor: Colors.transparent,
+              ),
             ),
             belowBarData: BarAreaData(
               show: true,
@@ -736,19 +1000,17 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 icon: const Icon(Icons.open_in_full_rounded, size: 18),
                 color: const Color(0xFF9CA3AF),
                 tooltip: 'Expand',
-                onPressed:
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        fullscreenDialog: true,
-                        builder:
-                            (_) => _TrendChartPage(
-                              trend: trend,
-                              rangeLabel: data.range.label,
-                              buildChartData: buildChartData,
-                              legend: legend,
-                            ),
-                      ),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    fullscreenDialog: true,
+                    builder: (_) => _TrendChartPage(
+                      trend: trend,
+                      rangeLabel: data.range.label,
+                      buildChartData: buildChartData,
+                      legend: legend,
                     ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -792,8 +1054,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 32),
             children: [
-              // Filter bar
-              const SizedBox(height: 12),
               _buildFilterBar(),
               const SizedBox(height: 16),
 
@@ -807,19 +1067,16 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: DailyFuelStatusCard(
                   title: 'Daily Fuel Status',
-                  targetDate:
-                      data.allowedEntryDate.isNotEmpty
-                          ? data.allowedEntryDate
-                          : data.today,
+                  targetDate: data.allowedEntryDate.isNotEmpty
+                      ? data.allowedEntryDate
+                      : data.today,
                   record: data.dailyFuelRecord,
-                  pendingMessage:
-                      data.entryLockedReason.isNotEmpty
-                          ? data.entryLockedReason
-                          : 'Density is tracked separately from sales entries.',
-                  primaryActionLabel:
-                      data.dailyFuelRecordComplete
-                          ? 'Open Entries'
-                          : 'Enter Density',
+                  pendingMessage: data.entryLockedReason.isNotEmpty
+                      ? data.entryLockedReason
+                      : 'Density is tracked separately from sales entries.',
+                  primaryActionLabel: data.dailyFuelRecordComplete
+                      ? 'Open Entries'
+                      : 'Enter Density',
                   onPrimaryAction: _openEntriesShortcut,
                   onHistory: _openDailyFuelHistory,
                 ),
@@ -889,62 +1146,156 @@ class _SectionHeader extends StatelessWidget {
 }
 
 // ─── Filter pill ───────────────────────────────────────────────────────────────
-class _FilterPill extends StatelessWidget {
-  const _FilterPill({
+class _DashboardDropdownField<T> extends StatelessWidget {
+  const _DashboardDropdownField({
     required this.label,
-    required this.selected,
-    required this.onTap,
-    this.icon,
+    required this.icon,
+    required this.value,
+    required this.items,
+    required this.onChanged,
   });
+
   final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final IconData? icon;
+  final IconData icon;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFECEFF8),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+            offset: const Offset(3, 3),
+            blurRadius: 8,
+          ),
+          const BoxShadow(
+            color: Colors.white,
+            offset: Offset(-2, -2),
+            blurRadius: 6,
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        items: items,
+        onChanged: onChanged,
+        isExpanded: true,
+        borderRadius: BorderRadius.circular(16),
+        icon: const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF8A93B8),
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: const Color(0xFF1A3A7A), size: 18),
+          filled: true,
+          fillColor: Colors.transparent,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+          labelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF8A93B8),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Hero metric row (2 columns) ───────────────────────────────────────────────
+class _DashboardDatePickerRow extends StatelessWidget {
+  const _DashboardDatePickerRow({
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasValue = value != 'Tap to choose';
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1E5CBA) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? const Color(0xFF1E5CBA) : const Color(0xFFE5E7EB),
+            color: selected ? const Color(0xFF1E5CBA) : Colors.transparent,
+            width: 1.2,
           ),
-          boxShadow:
-              selected
-                  ? [
-                    BoxShadow(
-                      color: const Color(0xFF1E5CBA).withValues(alpha: 0.25),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ]
-                  : [],
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+              offset: const Offset(3, 3),
+              blurRadius: 8,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-2, -2),
+              blurRadius: 6,
+            ),
+          ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 14,
-                color: selected ? Colors.white : const Color(0xFF6B7280),
+            Icon(
+              Icons.date_range_rounded,
+              size: 16,
+              color: hasValue
+                  ? const Color(0xFF1E5CBA)
+                  : const Color(0xFF8A93B8),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF8A93B8),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: hasValue
+                          ? const Color(0xFF1A2561)
+                          : const Color(0xFFAAB3D0),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 5),
-            ],
-            Flexible(
-              child: OneLineScaleText(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : const Color(0xFF374151),
-                ),
-              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF8A93B8),
+              size: 18,
             ),
           ],
         ),
@@ -953,7 +1304,113 @@ class _FilterPill extends StatelessWidget {
   }
 }
 
-// ─── Hero metric row (2 columns) ───────────────────────────────────────────────
+class _DashboardToggleTab extends StatelessWidget {
+  const _DashboardToggleTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                      offset: const Offset(2, 2),
+                      blurRadius: 6,
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected
+                  ? const Color(0xFF1A2561)
+                  : const Color(0xFF8A93B8),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardQuickRangeButton extends StatelessWidget {
+  const _DashboardQuickRangeButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF1A3A7A) : const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.22),
+                    offset: const Offset(0, 6),
+                    blurRadius: 14,
+                  ),
+                ]
+              : [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+                    offset: const Offset(3, 3),
+                    blurRadius: 8,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-2, -2),
+                    blurRadius: 6,
+                  ),
+                ],
+        ),
+        child: Center(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF1A2561),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _HeroMetricRow extends StatelessWidget {
   const _HeroMetricRow({required this.left, required this.right});
   final Widget left;
@@ -1027,10 +1484,9 @@ class _AlertBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color:
-            active
-                ? color.withValues(alpha: 0.18)
-                : Colors.white.withValues(alpha: 0.08),
+        color: active
+            ? color.withValues(alpha: 0.18)
+            : Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: active ? color.withValues(alpha: 0.5) : Colors.transparent,
@@ -1237,16 +1693,15 @@ class _PieWithLeaderLabels extends StatelessWidget {
                       for (int i = 0; i < slices.length; i++)
                         PieChartSectionData(
                           value: slices[i].amount,
-                          color:
-                              (touchedIndex == -1 || touchedIndex == i)
-                                  ? slices[i].color
-                                  : slices[i].color.withValues(alpha: 0.3),
-                          radius:
-                              touchedIndex == i ? pieR + touchExpansion : pieR,
-                          title:
-                              (slices[i].amount / total) >= 0.08
-                                  ? '${((slices[i].amount / total) * 100).round()}%'
-                                  : '',
+                          color: (touchedIndex == -1 || touchedIndex == i)
+                              ? slices[i].color
+                              : slices[i].color.withValues(alpha: 0.3),
+                          radius: touchedIndex == i
+                              ? pieR + touchExpansion
+                              : pieR,
+                          title: (slices[i].amount / total) >= 0.08
+                              ? '${((slices[i].amount / total) * 100).round()}%'
+                              : '',
                           titleStyle: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
@@ -1350,15 +1805,13 @@ class _LeaderLinePainter extends CustomPainter {
           elbowPt.dy,
         );
 
-        final linePaint =
-            Paint()
-              ..color =
-                  active
-                      ? color.withValues(alpha: 0.6)
-                      : color.withValues(alpha: 0.2)
-              ..strokeWidth = 1.2
-              ..style = PaintingStyle.stroke
-              ..strokeCap = StrokeCap.round;
+        final linePaint = Paint()
+          ..color = active
+              ? color.withValues(alpha: 0.6)
+              : color.withValues(alpha: 0.2)
+          ..strokeWidth = 1.2
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round;
 
         canvas.drawLine(edgePt, elbowPt, linePaint);
         canvas.drawLine(elbowPt, stubPt, linePaint);
@@ -1371,10 +1824,9 @@ class _LeaderLinePainter extends CustomPainter {
         );
 
         // Name label
-        final name =
-            slices[i].label.length > 10
-                ? '${slices[i].label.substring(0, 9)}.'
-                : slices[i].label;
+        final name = slices[i].label.length > 10
+            ? '${slices[i].label.substring(0, 9)}.'
+            : slices[i].label;
         _drawLabel(
           canvas,
           name,
@@ -1626,6 +2078,7 @@ class _TrendChartPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

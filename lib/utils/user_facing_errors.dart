@@ -4,8 +4,9 @@ String userFacingErrorMessage(
   Object? error, {
   String fallback = defaultUserFacingErrorMessage,
 }) {
-  final String safeFallback =
-      fallback.trim().isEmpty ? defaultUserFacingErrorMessage : fallback.trim();
+  final String safeFallback = fallback.trim().isEmpty
+      ? defaultUserFacingErrorMessage
+      : fallback.trim();
   final String raw = error?.toString().trim() ?? '';
   if (raw.isEmpty) {
     return safeFallback;

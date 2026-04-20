@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 
 class AppLogo extends StatelessWidget {
-  const AppLogo({
-    super.key,
-    this.size,
-    this.padding = 0,
-    this.backgroundColor,
-  });
+  const AppLogo({super.key, this.size, this.padding = 0, this.backgroundColor});
 
   static const String assetPath = 'assets/images/hp_logo.webp';
 

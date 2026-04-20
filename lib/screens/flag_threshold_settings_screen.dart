@@ -147,18 +147,6 @@ class _FlagThresholdSettingsScreenState
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                if (widget.embedded && widget.onBack != null)
-                  ClaySubHeader(
-                    title: 'Variance Rules',
-                    onBack: widget.onBack,
-                    trailing:
-                        widget.canEdit && !_isEditing
-                            ? _ClayEditButton(
-                              onTap: () => setState(() => _isEditing = true),
-                            )
-                            : null,
-                  ),
-
                 // ── Hero card ──────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -180,6 +168,42 @@ class _FlagThresholdSettingsScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (widget.embedded) ...[
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Variance Rules',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.4,
+                                ),
+                              ),
+                            ),
+                            if (widget.canEdit)
+                              _EmbeddedEditHeroPill(
+                                isEditing: _isEditing,
+                                onTap: () {
+                                  setState(() {
+                                    if (_isEditing) {
+                                      _isEditing = false;
+                                      _seeded = false;
+                                      _thresholdController.text = station
+                                          .flagThreshold
+                                          .toStringAsFixed(2);
+                                      _seeded = true;
+                                    } else {
+                                      _isEditing = true;
+                                    }
+                                  });
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                      ],
                       const Text(
                         'VARIANCE THRESHOLD',
                         style: TextStyle(
@@ -256,19 +280,18 @@ class _FlagThresholdSettingsScreenState
                         Row(
                           children: [
                             TextButton(
-                              onPressed:
-                                  _saving
-                                      ? null
-                                      : () {
-                                        setState(() {
-                                          _isEditing = false;
-                                          _seeded = false;
-                                          _thresholdController.text = station
-                                              .flagThreshold
-                                              .toStringAsFixed(2);
-                                          _seeded = true;
-                                        });
-                                      },
+                              onPressed: _saving
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _isEditing = false;
+                                        _seeded = false;
+                                        _thresholdController.text = station
+                                            .flagThreshold
+                                            .toStringAsFixed(2);
+                                        _seeded = true;
+                                      });
+                                    },
                               child: const Text('Cancel'),
                             ),
                             const SizedBox(width: 10),
@@ -287,10 +310,9 @@ class _FlagThresholdSettingsScreenState
                         const SizedBox(height: 8),
                         _InfoRow(
                           label: 'Effect',
-                          value:
-                              station.flagThreshold == 0
-                                  ? 'Every mismatch is flagged'
-                                  : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
+                          value: station.flagThreshold == 0
+                              ? 'Every mismatch is flagged'
+                              : 'Differences below ₹${station.flagThreshold.toStringAsFixed(2)} are ignored',
                         ),
                       ],
                     ],
@@ -346,8 +368,15 @@ class _FlagThresholdSettingsScreenState
 }
 
 // ─── Clay edit button pill ──────────────────────────────────────────────────
-class _ClayEditButton extends StatelessWidget {
-  const _ClayEditButton({required this.onTap});
+class _HeroActionPill extends StatelessWidget {
+  const _HeroActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
   final VoidCallback onTap;
 
   @override
@@ -355,39 +384,44 @@ class _ClayEditButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-              offset: const Offset(4, 4),
-              blurRadius: 10,
-            ),
-            const BoxShadow(
-              color: Colors.white,
-              offset: Offset(-3, -3),
-              blurRadius: 8,
-            ),
-          ],
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
         ),
-        child: const Row(
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.edit_rounded, size: 15, color: kClayPrimary),
-            SizedBox(width: 5),
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 6),
             OneLineScaleText(
-              'Edit',
-              style: TextStyle(
-                color: kClayPrimary,
-                fontWeight: FontWeight.w700,
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
                 fontSize: 13,
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _EmbeddedEditHeroPill extends StatelessWidget {
+  const _EmbeddedEditHeroPill({required this.isEditing, required this.onTap});
+
+  final bool isEditing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HeroActionPill(
+      icon: isEditing ? Icons.close_rounded : Icons.edit_rounded,
+      label: isEditing ? 'Cancel' : 'Edit',
+      onTap: onTap,
     );
   }
 }

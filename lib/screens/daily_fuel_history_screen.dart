@@ -12,10 +12,7 @@ import '../widgets/app_date_range_picker.dart';
 import '../widgets/clay_widgets.dart';
 
 class DailyFuelHistoryScreen extends StatefulWidget {
-  const DailyFuelHistoryScreen({
-    super.key,
-    this.embedded = false,
-  });
+  const DailyFuelHistoryScreen({super.key, this.embedded = false});
 
   final bool embedded;
 
@@ -179,29 +176,28 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
           'Updated By',
           'Updated At',
         ],
-        rows:
-            records
-                .map(
-                  (record) => [
-                    record.date,
-                    record.sourceClosingDate,
-                    (record.openingStock['petrol'] ?? 0).toStringAsFixed(2),
-                    (record.density['petrol'] ?? 0).toStringAsFixed(3),
-                    (record.price['petrol'] ?? 0).toStringAsFixed(2),
-                    (record.openingStock['diesel'] ?? 0).toStringAsFixed(2),
-                    (record.density['diesel'] ?? 0).toStringAsFixed(3),
-                    (record.price['diesel'] ?? 0).toStringAsFixed(2),
-                    record.createdByName.isNotEmpty
-                        ? record.createdByName
-                        : record.createdBy,
-                    record.createdAt,
-                    record.updatedByName.isNotEmpty
-                        ? record.updatedByName
-                        : record.updatedBy,
-                    record.updatedAt,
-                  ],
-                )
-                .toList(),
+        rows: records
+            .map(
+              (record) => [
+                record.date,
+                record.sourceClosingDate,
+                (record.openingStock['petrol'] ?? 0).toStringAsFixed(2),
+                (record.density['petrol'] ?? 0).toStringAsFixed(3),
+                (record.price['petrol'] ?? 0).toStringAsFixed(2),
+                (record.openingStock['diesel'] ?? 0).toStringAsFixed(2),
+                (record.density['diesel'] ?? 0).toStringAsFixed(3),
+                (record.price['diesel'] ?? 0).toStringAsFixed(2),
+                record.createdByName.isNotEmpty
+                    ? record.createdByName
+                    : record.createdBy,
+                record.createdAt,
+                record.updatedByName.isNotEmpty
+                    ? record.updatedByName
+                    : record.updatedBy,
+                record.updatedAt,
+              ],
+            )
+            .toList(),
         notificationTitle: 'Daily fuel history downloaded',
       );
       if (!mounted) {
@@ -214,9 +210,9 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(userFacingErrorMessage(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(userFacingErrorMessage(error))));
     } finally {
       if (mounted) {
         setState(() => _exporting = false);
@@ -225,7 +221,9 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
   }
 
   Future<void> _editRecord(DailyFuelRecordModel record) async {
-    final refreshed = await _inventoryService.fetchDailyFuelRecord(date: record.date);
+    final refreshed = await _inventoryService.fetchDailyFuelRecord(
+      date: record.date,
+    );
     if (!mounted) {
       return;
     }
@@ -324,15 +322,14 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
                   fontSize: 16,
                 ),
                 iconEnabledColor: Colors.white,
-                items:
-                    _DailyFuelHistorySort.values
-                        .map(
-                          (item) => DropdownMenuItem(
-                            value: item,
-                            child: Text(_sortLabel(item)),
-                          ),
-                        )
-                        .toList(),
+                items: _DailyFuelHistorySort.values
+                    .map(
+                      (item) => DropdownMenuItem(
+                        value: item,
+                        child: Text(_sortLabel(item)),
+                      ),
+                    )
+                    .toList(),
                 onChanged: (value) {
                   if (value == null) {
                     return;
@@ -392,18 +389,16 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
                   ),
                   IconButton(
                     tooltip: 'Download history',
-                    onPressed:
-                        _exporting || records.isEmpty
-                            ? null
-                            : () => _download(records),
-                    icon:
-                        _exporting
-                            ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                            : const Icon(Icons.download_rounded),
+                    onPressed: _exporting || records.isEmpty
+                        ? null
+                        : () => _download(records),
+                    icon: _exporting
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download_rounded),
                   ),
                 ],
               ),
@@ -443,6 +438,7 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Daily Fuel History'),
       ),
@@ -452,20 +448,19 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
 }
 
 class _DailyFuelHistoryCard extends StatelessWidget {
-  const _DailyFuelHistoryCard({
-    required this.record,
-    required this.onTap,
-  });
+  const _DailyFuelHistoryCard({required this.record, required this.onTap});
 
   final DailyFuelRecordModel record;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final createdBy =
-        record.createdByName.isNotEmpty ? record.createdByName : record.createdBy;
-    final updatedBy =
-        record.updatedByName.isNotEmpty ? record.updatedByName : record.updatedBy;
+    final createdBy = record.createdByName.isNotEmpty
+        ? record.createdByName
+        : record.createdBy;
+    final updatedBy = record.updatedByName.isNotEmpty
+        ? record.updatedByName
+        : record.updatedBy;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
@@ -573,10 +568,7 @@ class _FuelSummaryTile extends StatelessWidget {
         children: [
           Text(
             title,
-            style: TextStyle(
-              color: accent,
-              fontWeight: FontWeight.w900,
-            ),
+            style: TextStyle(color: accent, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           Text(
@@ -659,10 +651,7 @@ class _DailyFuelEditDialogState extends State<_DailyFuelEditDialog> {
     try {
       await _inventoryService.saveDailyFuelRecord(
         date: widget.record.date,
-        density: {
-          'petrol': petrol,
-          'diesel': diesel,
-        },
+        density: {'petrol': petrol, 'diesel': diesel},
       );
       if (!mounted) {
         return;

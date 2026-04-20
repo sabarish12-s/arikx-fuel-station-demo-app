@@ -25,8 +25,10 @@ String formatCurrency(double value) {
 }
 
 String formatLiters(double value) => '${value.toStringAsFixed(2)}${_nbsp}L';
-String formatPricePerLiter(double value) => '${formatCurrency(value)}/${_nbsp}L';
-String formatDensity(double value) => '${value.toStringAsFixed(3)}${_nbsp}kg/m3';
+String formatPricePerLiter(double value) =>
+    '${formatCurrency(value)}/${_nbsp}L';
+String formatDensity(double value) =>
+    '${value.toStringAsFixed(3)}${_nbsp}kg/m3';
 
 String formatCompactNumber(double value) => value.toStringAsFixed(0);
 
@@ -51,10 +53,9 @@ String _defaultPumpName(String pumpId) {
 
 String formatPumpLabel(String pumpId, [String? label]) {
   final normalizedId = pumpId.trim().toLowerCase();
-  final baseLabel =
-      label != null && label.trim().isNotEmpty
-          ? label.trim()
-          : _defaultPumpName(normalizedId);
+  final baseLabel = label != null && label.trim().isNotEmpty
+      ? label.trim()
+      : _defaultPumpName(normalizedId);
   final sideName = _pumpSideNames[normalizedId];
   if (sideName == null || sideName.isEmpty) {
     return baseLabel;
@@ -122,7 +123,11 @@ String formatDateTimeLabel(String raw) {
     'Dec',
   ];
   final hour24 = date.hour;
-  final hour12 = hour24 == 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+  final hour12 = hour24 == 0
+      ? 12
+      : hour24 > 12
+      ? hour24 - 12
+      : hour24;
   final minute = date.minute.toString().padLeft(2, '0');
   final meridiem = hour24 >= 12 ? 'PM' : 'AM';
   return '${months[date.month - 1]} ${date.day}, ${date.year} $hour12:$minute $meridiem';

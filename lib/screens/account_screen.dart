@@ -28,8 +28,9 @@ class AccountScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canManageDaySetup = user.role == 'admin' || user.role == 'superadmin';
-    final displayName =
-        user.name.trim().isEmpty ? user.email : user.name.trim();
+    final displayName = user.name.trim().isEmpty
+        ? user.email
+        : user.name.trim();
     final roleLabel = '${user.role[0].toUpperCase()}${user.role.substring(1)}';
 
     return Scaffold(
@@ -149,10 +150,9 @@ class AccountScreen extends StatelessWidget {
                   onTap: () {
                     Navigator.of(context).push<void>(
                       MaterialPageRoute<void>(
-                        builder:
-                            (_) => const FuelPriceUpdateRequestsScreen(
-                              canReview: false,
-                            ),
+                        builder: (_) => const FuelPriceUpdateRequestsScreen(
+                          canReview: false,
+                        ),
                       ),
                     );
                   },
@@ -160,24 +160,22 @@ class AccountScreen extends StatelessWidget {
                 const Divider(color: kClayBg, height: 24),
                 _AccountActionTile(
                   title: 'Day Setup',
-                  subtitle:
-                      canManageDaySetup
-                          ? 'Manage opening readings, stock, and fuel prices together'
-                          : 'Day setup access is limited for this role',
+                  subtitle: canManageDaySetup
+                      ? 'Manage opening readings, stock, and fuel prices together'
+                      : 'Day setup access is limited for this role',
                   icon: Icons.event_note_rounded,
                   iconColor: const Color(0xFF1298B8),
                   enabled: canManageDaySetup,
-                  onTap:
-                      canManageDaySetup
-                          ? () {
-                            Navigator.of(context).push<void>(
-                              MaterialPageRoute<void>(
-                                builder:
-                                    (_) => const DaySetupScreen(canEdit: true),
-                              ),
-                            );
-                          }
-                          : null,
+                  onTap: canManageDaySetup
+                      ? () {
+                          Navigator.of(context).push<void>(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  const DaySetupScreen(canEdit: true),
+                            ),
+                          );
+                        }
+                      : null,
                 ),
               ],
             ),

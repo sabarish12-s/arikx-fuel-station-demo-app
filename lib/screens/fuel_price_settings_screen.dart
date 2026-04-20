@@ -715,6 +715,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Fuel Prices'),
       ),
@@ -1056,6 +1057,7 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Fuel Rate History'),
       ),

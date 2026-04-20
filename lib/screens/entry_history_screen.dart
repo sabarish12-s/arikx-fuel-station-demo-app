@@ -189,15 +189,12 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed:
-                          () => setState(
-                            () => _tab = _SalesHistoryTab.entries,
-                          ),
+                      onPressed: () =>
+                          setState(() => _tab = _SalesHistoryTab.entries),
                       style: OutlinedButton.styleFrom(
-                        backgroundColor:
-                            _tab == _SalesHistoryTab.entries
-                                ? const Color(0xFFE8EDF9)
-                                : Colors.white,
+                        backgroundColor: _tab == _SalesHistoryTab.entries
+                            ? const Color(0xFFE8EDF9)
+                            : Colors.white,
                       ),
                       child: const Text('Entries'),
                     ),
@@ -205,15 +202,12 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton(
-                      onPressed:
-                          () => setState(
-                            () => _tab = _SalesHistoryTab.fuelRegister,
-                          ),
+                      onPressed: () =>
+                          setState(() => _tab = _SalesHistoryTab.fuelRegister),
                       style: OutlinedButton.styleFrom(
-                        backgroundColor:
-                            _tab == _SalesHistoryTab.fuelRegister
-                                ? const Color(0xFFE8EDF9)
-                                : Colors.white,
+                        backgroundColor: _tab == _SalesHistoryTab.fuelRegister
+                            ? const Color(0xFFE8EDF9)
+                            : Colors.white,
                       ),
                       child: const Text('Fuel Register'),
                     ),
@@ -223,10 +217,9 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             ),
             const SizedBox(height: 10),
             Expanded(
-              child:
-                  _tab == _SalesHistoryTab.entries
-                      ? _buildEntriesView()
-                      : const DailyFuelHistoryScreen(embedded: true),
+              child: _tab == _SalesHistoryTab.entries
+                  ? _buildEntriesView()
+                  : const DailyFuelHistoryScreen(embedded: true),
             ),
           ],
         ),

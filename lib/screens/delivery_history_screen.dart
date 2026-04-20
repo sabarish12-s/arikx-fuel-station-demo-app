@@ -550,6 +550,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text(
           'Purchase History',

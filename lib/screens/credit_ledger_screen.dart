@@ -361,6 +361,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text(
           'Credit Ledger',
@@ -1054,6 +1055,7 @@ class _CreditCustomerDetailScreenState
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         iconTheme: const IconThemeData(color: kClayPrimary),
         title: const Text(

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
 import '../services/inventory_service.dart';
+import '../services/management_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
@@ -23,6 +24,13 @@ class InventoryHubScreen extends StatefulWidget {
     this.onBack,
   });
 
+  static void resetToHome(GlobalKey key) {
+    final state = key.currentState;
+    if (state is _InventoryHubScreenState) {
+      state._resetInlinePage();
+    }
+  }
+
   final bool canManagePlanning;
   final bool showStockManagement;
   final bool stockManagementOnly;
@@ -34,10 +42,15 @@ class InventoryHubScreen extends StatefulWidget {
 }
 
 class _InventoryHubData {
-  const _InventoryHubData({required this.dashboard, required this.snapshots});
+  const _InventoryHubData({
+    required this.dashboard,
+    required this.snapshots,
+    required this.daySetups,
+  });
 
   final InventoryDashboardModel dashboard;
   final List<InventoryStockSnapshotModel> snapshots;
+  final List<StationDaySetupModel> daySetups;
 }
 
 String _visibleStockNote(String note) {
@@ -60,6 +73,12 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   bool _snapshotSeeded = false;
   bool _savingSnapshot = false;
+  List<StationDaySetupModel>? _openingHistorySetups;
+
+  void _resetInlinePage() {
+    if (_openingHistorySetups == null) return;
+    setState(() => _openingHistorySetups = null);
+  }
 
   @override
   void initState() {
@@ -90,10 +109,12 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     final results = await Future.wait<dynamic>([
       _inventoryService.fetchInventoryDashboard(forceRefresh: forceRefresh),
       _inventoryService.fetchStockSnapshots(forceRefresh: forceRefresh),
+      _inventoryService.fetchDaySetups(forceRefresh: forceRefresh),
     ]);
     return _InventoryHubData(
       dashboard: results[0] as InventoryDashboardModel,
       snapshots: results[1] as List<InventoryStockSnapshotModel>,
+      daySetups: results[2] as List<StationDaySetupModel>,
     );
   }
 
@@ -418,6 +439,36 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   String _displayDate(String raw) =>
       raw.trim().isEmpty ? 'Not available' : formatDateLabel(raw);
 
+  String _dateKey(DateTime date) => date.toIso8601String().split('T').first;
+
+  List<StationDaySetupModel> _activeDaySetups(
+    List<StationDaySetupModel> setups,
+  ) {
+    final todayKey = _dateKey(DateTime.now());
+    final items = setups
+        .where(
+          (setup) =>
+              !setup.isDeleted && setup.effectiveDate.compareTo(todayKey) <= 0,
+        )
+        .toList();
+    items.sort(
+      (left, right) => left.effectiveDate.compareTo(right.effectiveDate),
+    );
+    return items;
+  }
+
+  Future<void> _openStockHistoryPage(_InventoryHubData data) async {
+    final setups = _activeDaySetups(data.daySetups);
+    if (setups.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No day setup history available yet.')),
+      );
+      return;
+    }
+    setState(() => _openingHistorySetups = setups);
+  }
+
   String _displayTimestamp(String raw) {
     final value = DateTime.tryParse(raw);
     if (value == null) {
@@ -460,6 +511,15 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final openingHistorySetups = _openingHistorySetups;
+    if (openingHistorySetups != null) {
+      return _InventoryOpeningStockHistoryScreen(
+        setups: openingHistorySetups,
+        embedded: true,
+        onBack: () => setState(() => _openingHistorySetups = null),
+      );
+    }
+
     return ColoredBox(
       color: const Color(0xFFECEFF8),
       child: RefreshIndicator(
@@ -524,35 +584,61 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          dashboard.station.name,
-                          style: const TextStyle(
-                            color: Colors.white60,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.4,
-                          ),
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Inventory',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            GestureDetector(
+                              onTap: () => _openStockHistoryPage(data),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(
+                                      Icons.history_rounded,
+                                      color: Colors.white70,
+                                      size: 14,
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Stock History',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'Inventory Stock',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          activeSnapshot == null
-                              ? 'No stock available'
-                              : 'Stock as of ${_displayDate(activeSnapshot.effectiveDate)}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        const SizedBox(height: 16),
+                        Container(
+                          height: 1,
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -640,7 +726,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           children: [
                             const Expanded(
                               child: Text(
-                                'Active Stock',
+                                'Stock Details',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -1175,6 +1261,7 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFECEFF8),
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFECEFF8),
         title: const Text('Stock History'),
       ),
@@ -1743,6 +1830,250 @@ class _MRowDivider extends StatelessWidget {
   );
 }
 
+class _InventoryOpeningStockHistoryScreen extends StatefulWidget {
+  const _InventoryOpeningStockHistoryScreen({
+    required this.setups,
+    this.embedded = false,
+    this.onBack,
+  });
+
+  final List<StationDaySetupModel> setups;
+  final bool embedded;
+  final VoidCallback? onBack;
+
+  @override
+  State<_InventoryOpeningStockHistoryScreen> createState() =>
+      _InventoryOpeningStockHistoryScreenState();
+}
+
+class _InventoryOpeningStockHistoryData {
+  const _InventoryOpeningStockHistoryData({
+    required this.entries,
+    required this.deliveries,
+  });
+
+  final List<ShiftEntryModel> entries;
+  final List<DeliveryReceiptModel> deliveries;
+}
+
+class _InventoryOpeningStockHistoryScreenState
+    extends State<_InventoryOpeningStockHistoryScreen> {
+  final InventoryService _inventoryService = InventoryService();
+  final ManagementService _managementService = ManagementService();
+  late DateTime _selectedDate;
+  late Future<_InventoryOpeningStockHistoryData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = _parseDate(widget.setups.last.effectiveDate);
+    _future = _load();
+  }
+
+  DateTime _parseDate(String value) =>
+      DateTime.tryParse(value) ?? DateTime.now();
+
+  String _dateKey(DateTime date) => date.toIso8601String().split('T').first;
+
+  double _round2(double value) => double.parse(value.toStringAsFixed(2));
+
+  Future<_InventoryOpeningStockHistoryData> _load() async {
+    final firstSetupDate = widget.setups.first.effectiveDate;
+    final today = _dateKey(DateTime.now());
+    final results = await Future.wait<dynamic>([
+      _managementService.fetchEntries(
+        fromDate: firstSetupDate,
+        toDate: today,
+        approvedOnly: true,
+      ),
+      _inventoryService.fetchDeliveries(),
+    ]);
+    return _InventoryOpeningStockHistoryData(
+      entries: results[0] as List<ShiftEntryModel>,
+      deliveries: results[1] as List<DeliveryReceiptModel>,
+    );
+  }
+
+  List<ShiftEntryModel> _normalizeEntries(List<ShiftEntryModel> entries) {
+    final latestByDate = <String, ShiftEntryModel>{};
+    for (final entry in entries) {
+      if (!entry.isFinalized) continue;
+      final existing = latestByDate[entry.date];
+      if (existing == null ||
+          entry.latestActivityTimestamp.compareTo(
+                existing.latestActivityTimestamp,
+              ) >=
+              0) {
+        latestByDate[entry.date] = entry;
+      }
+    }
+    final normalized = latestByDate.values.toList()
+      ..sort((left, right) => left.date.compareTo(right.date));
+    return normalized;
+  }
+
+  StationDaySetupModel _setupForDate(DateTime date) {
+    final target = _dateKey(date);
+    StationDaySetupModel selected = widget.setups.first;
+    for (final setup in widget.setups) {
+      if (setup.effectiveDate.compareTo(target) <= 0) {
+        selected = setup;
+      } else {
+        break;
+      }
+    }
+    return selected;
+  }
+
+  Map<String, double> _openingStockForDate(
+    DateTime date,
+    _InventoryOpeningStockHistoryData data,
+  ) {
+    final target = _dateKey(date);
+    final baselineSetup = _setupForDate(date);
+    final stock = <String, double>{
+      'petrol': baselineSetup.startingStock['petrol'] ?? 0,
+      'diesel': baselineSetup.startingStock['diesel'] ?? 0,
+      'two_t_oil': baselineSetup.startingStock['two_t_oil'] ?? 0,
+    };
+
+    for (final delivery in data.deliveries.where(
+      (item) =>
+          item.date.compareTo(baselineSetup.effectiveDate) >= 0 &&
+          item.date.compareTo(target) < 0,
+    )) {
+      for (final fuelTypeId in ['petrol', 'diesel', 'two_t_oil']) {
+        stock[fuelTypeId] = _round2(
+          (stock[fuelTypeId] ?? 0) + (delivery.quantities[fuelTypeId] ?? 0),
+        );
+      }
+    }
+
+    for (final entry in _normalizeEntries(data.entries).where(
+      (item) =>
+          item.date.compareTo(baselineSetup.effectiveDate) >= 0 &&
+          item.date.compareTo(target) < 0,
+    )) {
+      stock['petrol'] = _round2(
+        (stock['petrol'] ?? 0) - entry.inventoryTotals.petrol,
+      );
+      stock['diesel'] = _round2(
+        (stock['diesel'] ?? 0) - entry.inventoryTotals.diesel,
+      );
+      stock['two_t_oil'] = _round2(
+        (stock['two_t_oil'] ?? 0) - entry.inventoryTotals.twoT,
+      );
+    }
+
+    return stock;
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: _parseDate(widget.setups.first.effectiveDate),
+      lastDate: DateTime.now(),
+    );
+    if (picked == null) return;
+    setState(() => _selectedDate = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedDateLabel = formatDateLabel(_dateKey(_selectedDate));
+
+    final body = FutureBuilder<_InventoryOpeningStockHistoryData>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+        }
+        final data = snapshot.data!;
+        final stock = _openingStockForDate(_selectedDate, data);
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+          children: [
+            if (widget.embedded)
+              ClaySubHeader(title: 'Stock History', onBack: widget.onBack),
+            _ClayCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Select Date',
+                    style: TextStyle(
+                      color: Color(0xFF1A2561),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Choose any date from the first day setup until today.',
+                    style: TextStyle(
+                      color: Color(0xFF8A93B8),
+                      fontSize: 12,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _InventoryDatePickerRow(
+                    label: 'Date',
+                    value: selectedDateLabel,
+                    onTap: _pickDate,
+                  ),
+                ],
+              ),
+            ),
+            _ClayCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Opening Stock',
+                    style: TextStyle(
+                      color: Color(0xFF1A2561),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _StockSummaryTable(
+                    petrol: stock['petrol'] ?? 0,
+                    diesel: stock['diesel'] ?? 0,
+                    twoT: stock['two_t_oil'] ?? 0,
+                    valueHeader: 'Opening stock',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (widget.embedded) {
+      return ColoredBox(color: const Color(0xFFECEFF8), child: body);
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFECEFF8),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: const Color(0xFFECEFF8),
+        surfaceTintColor: const Color(0xFFECEFF8),
+        elevation: 0,
+        title: const Text('Stock History'),
+      ),
+      body: body,
+    );
+  }
+}
+
 class _ClayCard extends StatelessWidget {
   const _ClayCard({required this.child});
 
@@ -1775,16 +2106,95 @@ class _ClayCard extends StatelessWidget {
   }
 }
 
+class _InventoryDatePickerRow extends StatelessWidget {
+  const _InventoryDatePickerRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
+              offset: const Offset(3, 3),
+              blurRadius: 8,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-2, -2),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: Color(0xFF1E5CBA),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF8A93B8),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  OneLineScaleText(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A2561),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Color(0xFF8A93B8),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StockSummaryTable extends StatelessWidget {
   const _StockSummaryTable({
     required this.petrol,
     required this.diesel,
     required this.twoT,
+    this.valueHeader = 'Current stock',
   });
 
   final double petrol;
   final double diesel;
   final double twoT;
+  final String valueHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -1797,25 +2207,13 @@ class _StockSummaryTable extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const _StockTableHeader(),
+          _StockTableHeader(valueHeader: valueHeader),
           const SizedBox(height: 8),
-          _StockTableRow(
-            label: 'Petrol',
-            color: Color(0xFF1298B8),
-            value: formatLiters(petrol),
-          ),
+          _StockTableRow(label: 'Petrol', value: formatLiters(petrol)),
           const Divider(height: 14, color: Color(0xFFDDE2F0)),
-          _StockTableRow(
-            label: 'Diesel',
-            color: Color(0xFF2AA878),
-            value: formatLiters(diesel),
-          ),
+          _StockTableRow(label: 'Diesel', value: formatLiters(diesel)),
           const Divider(height: 14, color: Color(0xFFDDE2F0)),
-          _StockTableRow(
-            label: '2T Oil',
-            color: Color(0xFF7048A8),
-            value: formatLiters(twoT),
-          ),
+          _StockTableRow(label: '2T Oil', value: formatLiters(twoT)),
         ],
       ),
     );
@@ -1823,7 +2221,9 @@ class _StockSummaryTable extends StatelessWidget {
 }
 
 class _StockTableHeader extends StatelessWidget {
-  const _StockTableHeader();
+  const _StockTableHeader({this.valueHeader = 'Current stock'});
+
+  final String valueHeader;
 
   @override
   Widget build(BuildContext context) {
@@ -1833,24 +2233,19 @@ class _StockTableHeader extends StatelessWidget {
       fontWeight: FontWeight.w800,
     );
     return Row(
-      children: const [
-        Expanded(child: Text('Fuel', style: style)),
-        SizedBox(width: 12),
-        SizedBox(width: 110, child: Text('Current stock', style: style)),
+      children: [
+        const Expanded(child: Text('Fuel', style: style)),
+        const SizedBox(width: 12),
+        SizedBox(width: 110, child: Text(valueHeader, style: style)),
       ],
     );
   }
 }
 
 class _StockTableRow extends StatelessWidget {
-  const _StockTableRow({
-    required this.label,
-    required this.color,
-    required this.value,
-  });
+  const _StockTableRow({required this.label, required this.value});
 
   final String label;
-  final Color color;
   final String value;
 
   @override
@@ -1858,38 +2253,13 @@ class _StockTableRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OneLineScaleText(
-                  label,
-                  style: const TextStyle(
-                    color: Color(0xFF1A2561),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-            ],
+          child: OneLineScaleText(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF1A2561),
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         const SizedBox(width: 12),

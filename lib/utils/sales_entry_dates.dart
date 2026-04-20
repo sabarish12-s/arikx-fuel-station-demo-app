@@ -9,7 +9,8 @@ bool _isApiDateShape(String value) {
   if (value.length != 10 || value[4] != '-' || value[7] != '-') {
     return false;
   }
-  final digits = '${value.substring(0, 4)}${value.substring(5, 7)}'
+  final digits =
+      '${value.substring(0, 4)}${value.substring(5, 7)}'
       '${value.substring(8, 10)}';
   return int.tryParse(digits) != null;
 }
@@ -44,9 +45,8 @@ String resolveDefaultSalesEntryDate(
     }
   }
 
-  final nextDate =
-      latestEntryDate == null
-          ? todayOnly
-          : latestEntryDate.add(const Duration(days: 1));
+  final nextDate = latestEntryDate == null
+      ? todayOnly
+      : latestEntryDate.add(const Duration(days: 1));
   return salesEntryApiDate(nextDate.isAfter(todayOnly) ? todayOnly : nextDate);
 }

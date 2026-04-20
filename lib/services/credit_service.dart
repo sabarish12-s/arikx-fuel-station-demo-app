@@ -25,8 +25,9 @@ class CreditService {
       if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
       if (toDate != null && toDate.isNotEmpty) 'to': toDate,
     };
-    final suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/credits/customers$suffix',
       useCache: true,
@@ -75,8 +76,9 @@ class CreditService {
       if (toDate != null && toDate.isNotEmpty) 'to': toDate,
       if (type.isNotEmpty && type != 'all') 'type': type,
     };
-    final suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/credits/customers/$customerId$suffix',
       useCache: true,
@@ -188,8 +190,9 @@ class CreditService {
 
     return (
       CreditLedgerSummaryModel(
-        openCustomerCount:
-            customers.where((item) => item.status == 'open').length,
+        openCustomerCount: customers
+            .where((item) => item.status == 'open')
+            .length,
         openBalanceTotal: customers
             .where((item) => item.status == 'open')
             .fold<double>(0, (sum, item) => sum + item.currentBalance),
@@ -242,16 +245,15 @@ class CreditService {
       fromDate: fromDate,
       toDate: toDate,
     );
-    final filteredTransactions =
-        transactions.where((item) {
-          if (!_matchesRange(item.date, fromDate, toDate)) {
-            return false;
-          }
-          if (type != 'all' && item.type != type) {
-            return false;
-          }
-          return true;
-        }).toList();
+    final filteredTransactions = transactions.where((item) {
+      if (!_matchesRange(item.date, fromDate, toDate)) {
+        return false;
+      }
+      if (type != 'all' && item.type != type) {
+        return false;
+      }
+      return true;
+    }).toList();
 
     return CreditCustomerDetailModel(
       customer: summary.customer,
@@ -416,13 +418,12 @@ class CreditService {
       totalCollected: totalCollected,
       issuedInRange: issuedInRange,
       collectedInRange: collectedInRange,
-      openedAt:
-          sorted
-              .firstWhere(
-                (item) => item.type == 'issue',
-                orElse: () => sorted.first,
-              )
-              .date,
+      openedAt: sorted
+          .firstWhere(
+            (item) => item.type == 'issue',
+            orElse: () => sorted.first,
+          )
+          .date,
       lastClosedAt: lastClosedAt,
       lastActivityDate: sorted.last.date,
     );

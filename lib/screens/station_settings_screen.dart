@@ -297,26 +297,25 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
-                if (widget.embedded)
-                  ClaySubHeader(
-                    title: 'Station Profile & Pumps',
+                if (widget.embedded) ...[
+                  _StationProfileHeroCard(
+                    station: station,
+                    canEdit: widget.canEdit,
+                    isEditing: _isEditing,
                     onBack: widget.onBack,
-                    trailing: widget.canEdit
-                        ? _EditTogglePill(
-                            isEditing: _isEditing,
-                            onTap: () {
-                              setState(() {
-                                if (_isEditing) {
-                                  _isEditing = false;
-                                  _resetProfileControllers(station);
-                                } else {
-                                  _isEditing = true;
-                                }
-                              });
-                            },
-                          )
-                        : null,
+                    onEdit: () {
+                      setState(() {
+                        if (_isEditing) {
+                          _isEditing = false;
+                          _resetProfileControllers(station);
+                        } else {
+                          _isEditing = true;
+                        }
+                      });
+                    },
                   ),
+                  const SizedBox(height: 14),
+                ],
 
                 // ── Station overview ───────────────────────────────
                 ClayCard(
@@ -325,7 +324,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Station Overview',
+                        'Station Details',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
@@ -621,6 +620,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Station Profile & Pumps'),
         actions: [
@@ -654,6 +654,188 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
 }
 
 // ─── Edit toggle pill ────────────────────────────────────────────────────────
+class _StationProfileHeroCard extends StatelessWidget {
+  const _StationProfileHeroCard({
+    required this.station,
+    required this.canEdit,
+    required this.isEditing,
+    required this.onEdit,
+    this.onBack,
+  });
+
+  final StationConfigModel station;
+  final bool canEdit;
+  final bool isEditing;
+  final VoidCallback onEdit;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [kClayHeroStart, kClayHeroEnd],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: kClayHeroEnd.withValues(alpha: 0.45),
+            offset: const Offset(0, 10),
+            blurRadius: 24,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Spacer(),
+              if (canEdit)
+                _HeroActionPill(
+                  icon: isEditing ? Icons.close_rounded : Icons.edit_rounded,
+                  label: isEditing ? 'Cancel' : 'Edit',
+                  onTap: onEdit,
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'SETTINGS',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Station Profile & Pumps',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Manage station details, fixed pump labels, and daily meter limits.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _HeroInfoPill(label: 'Station', value: station.name),
+              _HeroInfoPill(label: 'Code', value: station.code),
+              _HeroInfoPill(
+                label: 'Pumps',
+                value: '${station.pumps.length} fixed',
+              ),
+              _HeroInfoPill(label: 'City', value: station.city),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroActionPill extends StatelessWidget {
+  const _HeroActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 6),
+            OneLineScaleText(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroInfoPill extends StatelessWidget {
+  const _HeroInfoPill({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 112),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.64),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          OneLineScaleText(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _EditTogglePill extends StatelessWidget {
   const _EditTogglePill({required this.isEditing, required this.onTap});
   final bool isEditing;

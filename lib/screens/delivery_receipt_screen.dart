@@ -159,9 +159,9 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Purchase recorded.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Purchase recorded.')));
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) {
@@ -207,6 +207,7 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         iconTheme: const IconThemeData(color: kClayPrimary),
         title: const Text('Purchase'),
@@ -405,7 +406,9 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _purchasedByName.isEmpty ? 'Loading user...' : _purchasedByName,
+                        _purchasedByName.isEmpty
+                            ? 'Loading user...'
+                            : _purchasedByName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           color: kClayPrimary,
@@ -439,17 +442,16 @@ class _DeliveryReceiptScreenState extends State<DeliveryReceiptScreen> {
           const SizedBox(height: 20),
           FilledButton.icon(
             onPressed: _saving ? null : _save,
-            icon:
-                _saving
-                    ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                    : const Icon(Icons.save_outlined),
+            icon: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.save_outlined),
             label: Text(_saving ? 'Saving...' : 'Record Purchase'),
             style: FilledButton.styleFrom(
               backgroundColor: kClayHeroStart,

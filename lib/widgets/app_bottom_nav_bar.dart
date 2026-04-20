@@ -93,10 +93,9 @@ class _AppBottomNavTile extends StatelessWidget {
                 width: scale.isCompactPhone ? 44 : 48,
                 height: 28,
                 decoration: BoxDecoration(
-                  color:
-                      selected
-                          ? kClayHeroStart.withValues(alpha: 0.12)
-                          : Colors.transparent,
+                  color: selected
+                      ? kClayHeroStart.withValues(alpha: 0.12)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Icon(item.icon, color: color, size: 22),

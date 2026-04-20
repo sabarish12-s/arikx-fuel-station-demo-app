@@ -3153,7 +3153,10 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
         .toList();
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
-      appBar: AppBar(title: const Text('Payments & Credit')),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('Payments & Credit'),
+      ),
       body: SafeArea(
         child: ListView(
           padding: EdgeInsets.fromLTRB(

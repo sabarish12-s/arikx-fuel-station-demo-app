@@ -70,53 +70,6 @@ class ClaySubHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 18),
       child: Row(
         children: [
-          if (onBack != null) ...[
-            GestureDetector(
-              onTap: onBack,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-                      offset: const Offset(4, 4),
-                      blurRadius: 10,
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      offset: Offset(-3, -3),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.arrow_back_rounded,
-                      size: 18,
-                      color: kClayPrimary,
-                    ),
-                    SizedBox(width: 4),
-                    OneLineScaleText(
-                      'Back',
-                      style: TextStyle(
-                        color: kClayPrimary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-          ],
           Expanded(
             child: OneLineScaleText(
               title,

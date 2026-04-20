@@ -166,11 +166,13 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
           final today = bundle.today;
           final yesterday = bundle.yesterday;
           final cashByPump = _todayCashByPump(today);
-          final approvedEntries =
-              today.todaysEntries.where((entry) => entry.isFinalized).length;
+          final approvedEntries = today.todaysEntries
+              .where((entry) => entry.isFinalized)
+              .length;
           final pendingEntries = today.todaysEntries.length - approvedEntries;
-          final flaggedEntries =
-              today.todaysEntries.where((entry) => entry.flagged).length;
+          final flaggedEntries = today.todaysEntries
+              .where((entry) => entry.flagged)
+              .length;
 
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -277,10 +279,9 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
                 record: today.dailyFuelRecord,
                 pendingMessage:
                     'Density is separate from today\'s sales entry.',
-                primaryActionLabel:
-                    today.dailyFuelRecordComplete
-                        ? 'Edit Density'
-                        : 'Enter Density',
+                primaryActionLabel: today.dailyFuelRecordComplete
+                    ? 'Edit Density'
+                    : 'Enter Density',
                 onPrimaryAction: _openSalesEntryPage,
                 onHistory: _openDailyFuelHistory,
               ),

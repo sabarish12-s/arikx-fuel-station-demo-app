@@ -89,14 +89,13 @@ class _FuelPriceUpdateRequestsScreenState
       }
     }
     final targetDate = state.allowedEntryDate.trim();
-    final candidates =
-        state.setups
-            .where(
-              (setup) =>
-                  targetDate.isEmpty ||
-                  setup.effectiveDate.compareTo(targetDate) <= 0,
-            )
-            .toList();
+    final candidates = state.setups
+        .where(
+          (setup) =>
+              targetDate.isEmpty ||
+              setup.effectiveDate.compareTo(targetDate) <= 0,
+        )
+        .toList();
     return candidates.isEmpty ? state.setups.last : candidates.last;
   }
 
@@ -114,14 +113,12 @@ class _FuelPriceUpdateRequestsScreenState
 
     final result = await showDialog<_FuelPriceRequestDraft>(
       context: context,
-      builder:
-          (context) => _FuelPriceRequestDialog(
-            effectiveDate:
-                state.allowedEntryDate.trim().isEmpty
-                    ? setup.effectiveDate
-                    : state.allowedEntryDate,
-            currentPrices: setup.fuelPrices,
-          ),
+      builder: (context) => _FuelPriceRequestDialog(
+        effectiveDate: state.allowedEntryDate.trim().isEmpty
+            ? setup.effectiveDate
+            : state.allowedEntryDate,
+        currentPrices: setup.fuelPrices,
+      ),
     );
     if (result == null) {
       return;
@@ -249,66 +246,81 @@ class _FuelPriceUpdateRequestsScreenState
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
-          if (widget.embedded)
-            ClaySubHeader(title: 'Fuel Price Requests', onBack: widget.onBack),
-          if (widget.embedded) const SizedBox(height: 4),
-          ClayCard(
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                colors: [kClayHeroStart, kClayHeroEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: kClayHeroEnd.withValues(alpha: 0.45),
+                  offset: const Offset(0, 10),
+                  blurRadius: 24,
+                ),
+              ],
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Expanded(
+                    const Expanded(
                       child: Text(
-                        widget.canReview
-                            ? 'Review Fuel Price Updates'
-                            : 'Request Fuel Price Update',
-                        style: const TextStyle(
-                          color: kClayPrimary,
-                          fontSize: 20,
+                        'Fuel Price Requests',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
                           fontWeight: FontWeight.w900,
+                          letterSpacing: -0.4,
                         ),
                       ),
                     ),
                     if (_canSubmit)
-                      FilledButton.icon(
-                        onPressed:
-                            _busy || state?.setupExists != true
-                                ? null
-                                : _openSubmitDialog,
+                      _FuelPriceHeroActionPill(
+                        onPressed: _busy || state?.setupExists != true
+                            ? null
+                            : _openSubmitDialog,
                         icon: const Icon(Icons.sell_outlined),
-                        label: const Text('Request'),
+                        label: 'Request',
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   widget.canReview
                       ? 'Approve sales-submitted fuel price changes after Day Setup is created.'
                       : 'Sales can request selling price changes after Day Setup. Admin approval is required before prices update.',
-                  style: const TextStyle(
-                    color: kClaySub,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
                     fontWeight: FontWeight.w600,
                     height: 1.4,
                   ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  height: 1,
+                  color: Colors.white.withValues(alpha: 0.1),
                 ),
                 const SizedBox(height: 14),
                 Wrap(
                   spacing: 10,
                   runSpacing: 10,
                   children: [
-                    _InfoChip(
+                    _HeroInfoChip(
                       label: 'Day setup',
                       value: state?.setupExists == true ? 'Ready' : 'Required',
                     ),
-                    _InfoChip(
+                    _HeroInfoChip(
                       label: 'Effective date',
-                      value:
-                          state?.allowedEntryDate.trim().isNotEmpty == true
-                              ? formatDateLabel(state!.allowedEntryDate)
-                              : 'Not available',
+                      value: state?.allowedEntryDate.trim().isNotEmpty == true
+                          ? formatDateLabel(state!.allowedEntryDate)
+                          : 'Not available',
                     ),
-                    _InfoChip(label: 'Pending', value: '$pendingCount'),
+                    _HeroInfoChip(label: 'Pending', value: '$pendingCount'),
                   ],
                 ),
               ],
@@ -354,13 +366,13 @@ class _FuelPriceUpdateRequestsScreenState
 
     return Scaffold(
       backgroundColor: kClayBg,
-      appBar:
-          widget.embedded
-              ? null
-              : AppBar(
-                backgroundColor: kClayBg,
-                title: const Text('Fuel Price Requests'),
-              ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: kClayBg,
+              title: const Text('Fuel Price Requests'),
+            ),
       body: body,
     );
   }
@@ -487,14 +499,13 @@ class _FuelPriceRequestDialogState extends State<_FuelPriceRequestDialog> {
         const SizedBox(width: 12),
         Expanded(
           child: FilledButton(
-            onPressed:
-                () => Navigator.of(context).pop(
-                  _FuelPriceRequestDraft(
-                    effectiveDate: _dateController.text.trim(),
-                    fuelPrices: _requestedPrices(),
-                    note: _noteController.text.trim(),
-                  ),
-                ),
+            onPressed: () => Navigator.of(context).pop(
+              _FuelPriceRequestDraft(
+                effectiveDate: _dateController.text.trim(),
+                fuelPrices: _requestedPrices(),
+                note: _noteController.text.trim(),
+              ),
+            ),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF4D66A9),
               foregroundColor: Colors.white,
@@ -620,12 +631,11 @@ class _FuelPriceRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        request.isApproved
-            ? const Color(0xFF2AA878)
-            : request.isRejected
-            ? const Color(0xFFB42318)
-            : const Color(0xFFCE8A28);
+    final statusColor = request.isApproved
+        ? const Color(0xFF2AA878)
+        : request.isRejected
+        ? const Color(0xFFB42318)
+        : const Color(0xFFCE8A28);
 
     return ClayCard(
       child: Column(
@@ -788,8 +798,57 @@ class _PriceChangeRow extends StatelessWidget {
   }
 }
 
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, required this.value});
+class _FuelPriceHeroActionPill extends StatelessWidget {
+  const _FuelPriceHeroActionPill({
+    required this.icon,
+    required this.label,
+    this.onPressed,
+  });
+
+  final Widget icon;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onPressed != null;
+    return GestureDetector(
+      onTap: onPressed,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.55,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconTheme(
+                data: const IconThemeData(color: Colors.white, size: 16),
+                child: icon,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroInfoChip extends StatelessWidget {
+  const _HeroInfoChip({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -799,16 +858,17 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F4FB),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: kClaySub,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.72),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -817,7 +877,7 @@ class _InfoChip extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              color: kClayPrimary,
+              color: Colors.white,
               fontWeight: FontWeight.w900,
             ),
           ),

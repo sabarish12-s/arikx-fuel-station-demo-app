@@ -352,97 +352,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
-              if (widget.embedded)
-                ClaySubHeader(
-                  title: 'Users & Roles',
-                  onBack: widget.onBack,
-                  trailing: GestureDetector(
-                    onTap: () => _openAddStaffDialog(canManageSuperAdmins),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFFB8C0DC,
-                            ).withValues(alpha: 0.65),
-                            offset: const Offset(4, 4),
-                            blurRadius: 10,
-                          ),
-                          const BoxShadow(
-                            color: Colors.white,
-                            offset: Offset(-3, -3),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.person_add_alt_1_rounded,
-                            size: 15,
-                            color: kClayPrimary,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'Add User',
-                            style: TextStyle(
-                              color: kClayPrimary,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    'Manage staff, roles, and pending approvals.',
-                    style: const TextStyle(color: kClaySub),
-                  ),
-                ),
-              Row(
-                children: [
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'Total Users',
-                      value: '${summary.totalUsers}',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'Approved',
-                      value: '${summary.approvedUsers}',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'Pending',
-                      value: '${summary.pendingRequests}',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'Admins',
-                      value: '${summary.adminCount}',
-                    ),
-                  ),
-                ],
+              _UsersOverviewCard(
+                summary: summary,
+                onBack: widget.embedded ? widget.onBack : null,
+                onAddUser: () => _openAddStaffDialog(canManageSuperAdmins),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   const Expanded(
@@ -588,7 +503,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 }),
               const SizedBox(height: 12),
               const Text(
-                'Current Staff',
+                'Current Users',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -659,25 +574,147 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     return Scaffold(
       backgroundColor: kClayBg,
-      floatingActionButton: FutureBuilder<UserManagementOverview>(
-        future: _future,
-        builder: (context, snapshot) {
-          final canManageSuperAdmins =
-              snapshot.data?.permissions.canManageSuperAdmins ?? false;
-          return FloatingActionButton.extended(
-            onPressed: () => _openAddStaffDialog(canManageSuperAdmins),
-            icon: const Icon(Icons.person_add_alt_1_rounded),
-            label: const Text('Add User'),
-          );
-        },
-      ),
       body: RefreshIndicator(onRefresh: _reload, child: content),
     );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.title, required this.value});
+class _UsersOverviewCard extends StatelessWidget {
+  const _UsersOverviewCard({
+    required this.summary,
+    required this.onAddUser,
+    this.onBack,
+  });
+
+  final UserManagementSummary summary;
+  final VoidCallback onAddUser;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1A3A7A), Color(0xFF0D2460)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D2460).withValues(alpha: 0.32),
+            offset: const Offset(0, 10),
+            blurRadius: 22,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: OneLineScaleText(
+                  'Users & Roles',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _UsersHeroActionPill(
+                icon: Icons.person_add_alt_1_rounded,
+                label: 'Add User',
+                onTap: onAddUser,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _OverviewStatTile(
+                  title: 'Total',
+                  value: '${summary.totalUsers}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewStatTile(
+                  title: 'Approved',
+                  value: '${summary.approvedUsers}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewStatTile(
+                  title: 'Pending',
+                  value: '${summary.pendingRequests}',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _OverviewStatTile(
+                  title: 'Admins',
+                  value: '${summary.adminCount}',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsersHeroActionPill extends StatelessWidget {
+  const _UsersHeroActionPill({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: Colors.white),
+            const SizedBox(width: 5),
+            OneLineScaleText(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OverviewStatTile extends StatelessWidget {
+  const _OverviewStatTile({required this.title, required this.value});
 
   final String title;
   final String value;
@@ -686,21 +723,31 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: clayCardDecoration(),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           OneLineScaleText(
             title,
-            style: const TextStyle(color: kClaySub, fontSize: 12),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           OneLineScaleText(
             value,
             style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
               fontWeight: FontWeight.w900,
-              fontSize: 20,
-              color: kClayPrimary,
+              letterSpacing: -0.4,
             ),
           ),
         ],

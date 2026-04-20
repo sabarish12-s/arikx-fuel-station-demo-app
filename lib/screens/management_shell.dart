@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/auth_models.dart';
 import '../services/auth_service.dart';
+import '../services/inventory_service.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
@@ -22,25 +23,43 @@ class ManagementShell extends StatefulWidget {
 }
 
 class _ManagementShellState extends State<ManagementShell> {
+  final InventoryService _inventoryService = InventoryService();
   int _index = 0;
   int _entryRefreshToken = 0;
+  final GlobalKey _inventoryKey = GlobalKey();
   final _settingsKey = GlobalKey<SettingsHomeScreenState>();
   final Set<int> _loadedScreens = {0};
   late final List<Widget> _screens;
+  late String _stationTitle;
 
   @override
   void initState() {
     super.initState();
+    _stationTitle = widget.user.stationId;
     _screens = [
       ManagementDashboardScreen(user: widget.user),
       EntryManagementScreen(key: ValueKey(_entryRefreshToken)),
       const MonthlyReportScreen(),
-      const InventoryHubScreen(
+      InventoryHubScreen(
+        key: _inventoryKey,
         canManagePlanning: true,
         showStockManagement: false,
       ),
       SettingsHomeScreen(key: _settingsKey, user: widget.user),
     ];
+    _loadStationTitle();
+  }
+
+  Future<void> _loadStationTitle() async {
+    try {
+      final station = await _inventoryService.fetchStationConfig();
+      if (!mounted || station.name.trim().isEmpty) {
+        return;
+      }
+      setState(() => _stationTitle = station.name.trim());
+    } catch (_) {
+      // Keep the existing fallback title if station lookup fails.
+    }
   }
 
   void _selectIndex(int value) {
@@ -80,6 +99,7 @@ class _ManagementShellState extends State<ManagementShell> {
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         scrolledUnderElevation: 0,
         elevation: 0,
@@ -89,7 +109,7 @@ class _ManagementShellState extends State<ManagementShell> {
             const AppLogo(size: 28),
             const SizedBox(width: 8),
             Text(
-              _titleForIndex(_index),
+              _stationTitle,
               style: const TextStyle(
                 fontWeight: FontWeight.w900,
                 color: kClayPrimary,
@@ -109,10 +129,9 @@ class _ManagementShellState extends State<ManagementShell> {
         index: _index,
         children: List.generate(
           _screens.length,
-          (index) =>
-              _loadedScreens.contains(index)
-                  ? _screens[index]
-                  : const SizedBox.shrink(),
+          (index) => _loadedScreens.contains(index)
+              ? _screens[index]
+              : const SizedBox.shrink(),
         ),
       ),
       bottomNavigationBar: AppBottomNavBar(
@@ -120,6 +139,8 @@ class _ManagementShellState extends State<ManagementShell> {
         onSelected: (value) {
           if (value == 4 && _index == 4) {
             SettingsHomeScreen.resetToHome(_settingsKey);
+          } else if (value == 3 && _index == 3) {
+            InventoryHubScreen.resetToHome(_inventoryKey);
           } else {
             _selectIndex(value);
           }
@@ -139,20 +160,5 @@ class _ManagementShellState extends State<ManagementShell> {
         ],
       ),
     );
-  }
-
-  String _titleForIndex(int index) {
-    switch (index) {
-      case 1:
-        return 'Entries';
-      case 2:
-        return 'Reports';
-      case 3:
-        return 'Inventory';
-      case 4:
-        return 'Settings';
-      default:
-        return 'Dashboard';
-    }
   }
 }

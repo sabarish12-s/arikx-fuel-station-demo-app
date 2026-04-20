@@ -49,16 +49,16 @@ class SalesService {
       if (toDate != null && toDate.isNotEmpty) 'to': toDate,
       if (summary) 'view': 'summary',
     };
-    final String suffix =
-        params.isEmpty ? '' : '?${Uri(queryParameters: params).query}';
+    final String suffix = params.isEmpty
+        ? ''
+        : '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
       '/sales/entries$suffix',
       useCache: true,
       forceRefresh: forceRefresh,
-      cachePolicy:
-          forceRefresh
-              ? ApiCachePolicy.networkFirst
-              : ApiCachePolicy.cacheFirst,
+      cachePolicy: forceRefresh
+          ? ApiCachePolicy.networkFirst
+          : ApiCachePolicy.cacheFirst,
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
@@ -264,8 +264,9 @@ class SalesService {
       'pumpCollections': pumpCollections,
       'paymentBreakdown': paymentBreakdown.toJson(),
       'creditEntries': creditEntries.map((entry) => entry.toJson()).toList(),
-      'creditCollections':
-          creditCollections.map((entry) => entry.toJson()).toList(),
+      'creditCollections': creditCollections
+          .map((entry) => entry.toJson())
+          .toList(),
       'mismatchReason': mismatchReason,
     });
   }

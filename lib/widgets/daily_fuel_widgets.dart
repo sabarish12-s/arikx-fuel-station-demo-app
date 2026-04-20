@@ -63,19 +63,17 @@ class DailyFuelStatusCard extends StatelessWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color:
-                      _isComplete
-                          ? const Color(0xFFD4F5E9)
-                          : const Color(0xFFFDE8DF),
+                  color: _isComplete
+                      ? const Color(0xFFD4F5E9)
+                      : const Color(0xFFFDE8DF),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   _isComplete ? 'Saved' : 'Pending',
                   style: TextStyle(
-                    color:
-                        _isComplete
-                            ? const Color(0xFF0F8A73)
-                            : const Color(0xFFCE5828),
+                    color: _isComplete
+                        ? const Color(0xFF0F8A73)
+                        : const Color(0xFFCE5828),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -270,10 +268,9 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
                 error = null;
               });
               final saved = await _submit(
-                onValidationError:
-                    (message) => setDialogState(() {
-                      error = message;
-                    }),
+                onValidationError: (message) => setDialogState(() {
+                  error = message;
+                }),
               );
               if (!context.mounted) {
                 return;
@@ -337,20 +334,20 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
               ),
               actions: [
                 TextButton(
-                  onPressed:
-                      saving ? null : () => Navigator.of(dialogContext).pop(),
+                  onPressed: saving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancel'),
                 ),
                 FilledButton.icon(
                   onPressed: saving || widget.busy ? null : save,
-                  icon:
-                      saving || widget.busy
-                          ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                          : const Icon(Icons.save_rounded),
+                  icon: saving || widget.busy
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_rounded),
                   label: Text(
                     record?.isComplete == true
                         ? 'Update Density'
@@ -462,17 +459,16 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
           const SizedBox(height: 14),
           FilledButton.icon(
             onPressed: widget.busy ? null : _openDensityDialog,
-            icon:
-                widget.busy
-                    ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                    : const Icon(Icons.opacity_rounded),
+            icon: widget.busy
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.opacity_rounded),
             label: Text(
               record?.isComplete == true ? 'Update Density' : 'Enter Density',
             ),
@@ -718,10 +714,9 @@ class _AuditStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final updatedBy =
-        record.updatedByName.trim().isNotEmpty
-            ? record.updatedByName.trim()
-            : record.updatedBy.trim();
+    final updatedBy = record.updatedByName.trim().isNotEmpty
+        ? record.updatedByName.trim()
+        : record.updatedBy.trim();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),

@@ -582,6 +582,7 @@ class _OpeningStockSettingsScreenState
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Pump Opening Readings'),
       ),
@@ -905,6 +906,7 @@ class _OpeningReadingHistoryScreenState
     return Scaffold(
       backgroundColor: kClayBg,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
         title: const Text('Opening Reading History'),
       ),
