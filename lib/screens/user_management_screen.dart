@@ -722,8 +722,8 @@ class _OverviewStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 96,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
@@ -736,19 +736,21 @@ class _OverviewStatTile extends StatelessWidget {
           OneLineScaleText(
             title,
             textAlign: TextAlign.center,
+            alignment: Alignment.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           OneLineScaleText(
             value,
             textAlign: TextAlign.center,
+            alignment: Alignment.center,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 26,
+              fontSize: 22,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.4,
             ),

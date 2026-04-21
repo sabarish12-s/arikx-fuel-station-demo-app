@@ -12,6 +12,7 @@ import '../services/management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
+import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
 
 String _shortDateLabel(String raw) {
@@ -588,15 +589,15 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F2D6B), Color(0xFF1E5CBA)],
+          colors: [kClayHeroStart, kClayHeroEnd],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E5CBA).withValues(alpha: 0.35),
+            color: kClayHeroEnd.withValues(alpha: 0.45),
             blurRadius: 24,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 10),
           ),
         ],
       ),

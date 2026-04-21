@@ -34,7 +34,7 @@ class _SalesShellState extends State<SalesShell> {
     _screens = [
       SalesDashboardScreen(onOpenSalesEntry: () => _selectIndex(1)),
       ClosingStockEntryScreen(key: ValueKey(_salesRefreshToken)),
-      const InventoryHubScreen(),
+      const InventoryHubScreen(showStockManagement: false),
       const EntryHistoryScreen(),
       AccountScreen(user: widget.user),
     ];

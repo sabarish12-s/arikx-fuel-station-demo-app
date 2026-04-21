@@ -424,18 +424,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     );
   }
 
-  Future<void> _openStockHistory() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) =>
-            _StockHistoryScreen(canManagePlanning: widget.canManagePlanning),
-      ),
-    );
-    if (mounted) {
-      await _refresh();
-    }
-  }
-
   String _displayDate(String raw) =>
       raw.trim().isEmpty ? 'Not available' : formatDateLabel(raw);
 
@@ -469,33 +457,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
     setState(() => _openingHistorySetups = setups);
   }
 
-  String _displayTimestamp(String raw) {
-    final value = DateTime.tryParse(raw);
-    if (value == null) {
-      return raw.trim().isEmpty ? 'Unknown time' : raw;
-    }
-    final local = value.toLocal();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final hour24 = local.hour;
-    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
-    final minute = local.minute.toString().padLeft(2, '0');
-    final suffix = hour24 >= 12 ? 'PM' : 'AM';
-    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
-  }
-
   Color _fuelColor(String id) {
     switch (id) {
       case 'petrol':
@@ -512,15 +473,13 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
   @override
   Widget build(BuildContext context) {
     final openingHistorySetups = _openingHistorySetups;
-    if (openingHistorySetups != null) {
-      return _InventoryOpeningStockHistoryScreen(
-        setups: openingHistorySetups,
-        embedded: true,
-        onBack: () => setState(() => _openingHistorySetups = null),
-      );
-    }
-
-    return ColoredBox(
+    final child = openingHistorySetups != null
+        ? _InventoryOpeningStockHistoryScreen(
+            setups: openingHistorySetups,
+            embedded: true,
+            onBack: () => setState(() => _openingHistorySetups = null),
+          )
+        : ColoredBox(
       color: const Color(0xFFECEFF8),
       child: RefreshIndicator(
         onRefresh: _refresh,
@@ -542,12 +501,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             final dashboard = data.dashboard;
             final planning = dashboard.inventoryPlanning;
             final activeSnapshot = dashboard.activeStockSnapshot;
-            final activeHistory = data.snapshots.reversed.toList(
-              growable: false,
-            );
-            final recentHistory = activeHistory.isEmpty
-                ? null
-                : activeHistory.first;
             final showStockManagement =
                 widget.showStockManagement || widget.stockManagementOnly;
             if (showStockManagement) _seedSnapshotForm(data);
@@ -710,8 +663,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                           onTap: _openDeliveryHistory,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      _InvIconBtn(icon: Icons.refresh_rounded, onTap: _refresh),
                     ],
                   ),
                   const SizedBox(height: 18),
@@ -802,55 +753,6 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                             ),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  _ClayCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Latest Stock History',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1A2561),
-                                ),
-                              ),
-                            ),
-                            TextButton.icon(
-                              onPressed: _openStockHistory,
-                              icon: const Icon(Icons.history_rounded),
-                              label: const Text('View All'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Showing the newest stock update here. Open all history for filters, sorting, downloads, and deleted records.',
-                          style: TextStyle(
-                            color: Color(0xFF8A93B8),
-                            height: 1.35,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        if (recentHistory == null)
-                          const Text(
-                            'No stock records yet.',
-                            style: TextStyle(
-                              color: Color(0xFF8A93B8),
-                              fontSize: 13,
-                            ),
-                          )
-                        else
-                          _SnapshotHistoryRow(
-                            snapshot: recentHistory,
-                            displayDate: _displayDate,
-                            displayTimestamp: _displayTimestamp,
-                          ),
                       ],
                     ),
                   ),
@@ -951,6 +853,17 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
         ),
       ),
     );
+
+    return PopScope(
+      canPop: openingHistorySetups == null,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || openingHistorySetups == null) {
+          return;
+        }
+        setState(() => _openingHistorySetups = null);
+      },
+      child: child,
+    );
   }
 }
 
@@ -1000,16 +913,19 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
         toDate: _toDate,
         forceRefresh: forceRefresh,
       ),
-      _inventoryService.fetchStockSnapshots(
-        fromDate: _fromDate,
-        toDate: _toDate,
-        deletedOnly: true,
-        forceRefresh: forceRefresh,
-      ),
+      if (widget.canManagePlanning)
+        _inventoryService.fetchStockSnapshots(
+          fromDate: _fromDate,
+          toDate: _toDate,
+          deletedOnly: true,
+          forceRefresh: forceRefresh,
+        ),
     ]);
     return _StockHistoryData(
       active: results[0] as List<InventoryStockSnapshotModel>,
-      deleted: results[1] as List<InventoryStockSnapshotModel>,
+      deleted: widget.canManagePlanning
+          ? results[1] as List<InventoryStockSnapshotModel>
+          : const <InventoryStockSnapshotModel>[],
     );
   }
 
@@ -1275,7 +1191,16 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
             return Center(child: Text(userFacingErrorMessage(snapshot.error)));
           }
           final data = snapshot.data!;
-          final source = _showDeleted ? data.deleted : data.active;
+          final showDeletedTab = widget.canManagePlanning;
+          if (!showDeletedTab && _showDeleted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() => _showDeleted = false);
+              }
+            });
+          }
+          final source =
+              showDeletedTab && _showDeleted ? data.deleted : data.active;
           final history = _sorted(source);
           return RefreshIndicator(
             onRefresh: _reload,
@@ -1336,12 +1261,13 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
                             selected: !_showDeleted,
                             onTap: () => setState(() => _showDeleted = false),
                           ),
-                          _HistoryTabButton(
-                            label: 'Deleted',
-                            count: data.deleted.length,
-                            selected: _showDeleted,
-                            onTap: () => setState(() => _showDeleted = true),
-                          ),
+                          if (showDeletedTab)
+                            _HistoryTabButton(
+                              label: 'Deleted',
+                              count: data.deleted.length,
+                              selected: _showDeleted,
+                              onTap: () => setState(() => _showDeleted = true),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 12),

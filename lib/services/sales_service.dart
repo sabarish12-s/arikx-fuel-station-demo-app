@@ -9,6 +9,10 @@ class SalesService {
 
   final ApiClient _apiClient;
 
+  String _entryPath(String entryId, [String suffix = '']) {
+    return '/sales/entries/${Uri.encodeComponent(entryId)}$suffix';
+  }
+
   Future<SalesDashboardModel> fetchDashboard({
     bool forceRefresh = false,
   }) async {
@@ -69,6 +73,28 @@ class SalesService {
     return (json['entries'] as List<dynamic>? ?? const [])
         .map((item) => ShiftEntryModel.fromJson(item as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<ShiftEntryModel> fetchEntryDetail(
+    String entryId, {
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      _entryPath(entryId),
+      useCache: true,
+      forceRefresh: forceRefresh,
+      cachePolicy: ApiCachePolicy.networkFirst,
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to load entry details.',
+        ),
+      );
+    }
+    final json = _apiClient.decodeObject(response);
+    return ShiftEntryModel.fromJson(json['entry'] as Map<String, dynamic>);
   }
 
   Future<DailySummaryModel> fetchDailySummary({
@@ -178,7 +204,7 @@ class SalesService {
     String mismatchReason = '',
   }) async {
     final response = await _apiClient.patch(
-      '/sales/entries/$entryId',
+      _entryPath(entryId),
       body: _entryBody(
         date: date,
         closingReadings: closingReadings,

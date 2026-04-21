@@ -225,6 +225,10 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
                     backgroundColor: !_showDeleted
                         ? const Color(0xFFE8EDF9)
                         : Colors.white,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   child: Text('Active (${_activeHistory.length})'),
                 ),
@@ -237,6 +241,10 @@ class _DaySetupScreenState extends State<DaySetupScreen> {
                     backgroundColor: _showDeleted
                         ? const Color(0xFFE8EDF9)
                         : Colors.white,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   child: Text('Deleted (${_deletedHistory.length})'),
                 ),
@@ -324,45 +332,46 @@ class _DaySetupHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (canEdit)
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: _HeroActionPill(
-                    icon: Icons.event_note_rounded,
-                    label: 'Update',
-                    onTap: busy ? null : onUpdate,
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 2),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'OPERATIONS',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 11,
+                          letterSpacing: 1.1,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Day Setup',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              const Padding(
-                padding: EdgeInsets.only(top: 2, right: 130),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'OPERATIONS',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Day Setup',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 30,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ],
-                ),
               ),
+              if (canEdit) ...[
+                const SizedBox(width: 12),
+                _HeroActionPill(
+                  icon: Icons.event_note_rounded,
+                  label: 'Update',
+                  onTap: busy ? null : onUpdate,
+                ),
+              ],
             ],
           ),
           if (trimmedReason.isNotEmpty) ...[

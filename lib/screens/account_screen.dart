@@ -5,14 +5,24 @@ import '../services/auth_service.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
-import 'day_setup_screen.dart';
 import 'fuel_price_update_requests_screen.dart';
 import 'login_screen.dart';
 
-class AccountScreen extends StatelessWidget {
+enum _AccountPanel { home, fuelPriceRequests }
+
+class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.user});
 
   final AuthUser user;
+
+  @override
+  State<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  _AccountPanel _panel = _AccountPanel.home;
+
+  void _showHome() => setState(() => _panel = _AccountPanel.home);
 
   Future<bool> _confirmLogout(BuildContext context) async {
     final shouldLogout = await showClayConfirmDialog(
@@ -21,17 +31,41 @@ class AccountScreen extends StatelessWidget {
       message: 'Are you sure you want to logout?',
       confirmLabel: 'Logout',
       icon: Icons.logout_rounded,
+      destructive: true,
     );
     return shouldLogout;
   }
 
   @override
   Widget build(BuildContext context) {
-    final canAccessDaySetup = user.role == 'admin' || user.role == 'superadmin';
-    final canManageDaySetup = user.role == 'superadmin';
-    final displayName = user.name.trim().isEmpty
-        ? user.email
-        : user.name.trim();
+    return PopScope(
+      canPop: _panel == _AccountPanel.home,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop || _panel == _AccountPanel.home) {
+          return;
+        }
+        _showHome();
+      },
+      child: _buildCurrentPanel(),
+    );
+  }
+
+  Widget _buildCurrentPanel() {
+    switch (_panel) {
+      case _AccountPanel.fuelPriceRequests:
+        return FuelPriceUpdateRequestsScreen(
+          canReview: false,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _AccountPanel.home:
+        return _buildHome();
+    }
+  }
+
+  Widget _buildHome() {
+    final user = widget.user;
+    final displayName = user.name.trim().isEmpty ? user.email : user.name.trim();
     final roleLabel = '${user.role[0].toUpperCase()}${user.role.substring(1)}';
 
     return Scaffold(
@@ -144,41 +178,12 @@ class AccountScreen extends StatelessWidget {
               children: [
                 _AccountActionTile(
                   title: 'Fuel Price Update',
-                  subtitle: 'Request selling price changes for admin approval',
+                  subtitle: 'Request selling price changes and track status',
                   icon: Icons.sell_outlined,
                   iconColor: const Color(0xFF2AA878),
                   enabled: true,
-                  onTap: () {
-                    Navigator.of(context).push<void>(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const FuelPriceUpdateRequestsScreen(
-                          canReview: false,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(color: kClayBg, height: 24),
-                _AccountActionTile(
-                  title: 'Day Setup',
-                  subtitle: canManageDaySetup
-                      ? 'Manage opening readings, stock, and fuel prices together'
-                      : canAccessDaySetup
-                      ? 'View day setup history. Only superadmin can change it'
-                      : 'Day setup access is limited for this role',
-                  icon: Icons.event_note_rounded,
-                  iconColor: const Color(0xFF1298B8),
-                  enabled: canAccessDaySetup,
-                  onTap: canAccessDaySetup
-                      ? () {
-                          Navigator.of(context).push<void>(
-                            MaterialPageRoute<void>(
-                              builder: (_) =>
-                                  DaySetupScreen(canEdit: canManageDaySetup),
-                            ),
-                          );
-                        }
-                      : null,
+                  onTap: () =>
+                      setState(() => _panel = _AccountPanel.fuelPriceRequests),
                 ),
               ],
             ),
@@ -191,7 +196,9 @@ class AccountScreen extends StatelessWidget {
                 return;
               }
               await AuthService().signOut();
-              if (!context.mounted) return;
+              if (!mounted) {
+                return;
+              }
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute<void>(builder: (_) => const LoginScreen()),
                 (_) => false,

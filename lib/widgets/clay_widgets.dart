@@ -279,7 +279,7 @@ Future<bool> showClayConfirmDialog({
   final result = await showDialog<bool>(
     context: context,
     builder: (dialogContext) {
-      final confirmColor = destructive ? const Color(0xFFAD5162) : accentColor;
+      final confirmColor = destructive ? const Color(0xFFB91C1C) : accentColor;
       return ClayDialogShell(
         title: title,
         icon: icon,
@@ -307,7 +307,7 @@ Future<bool> showClayConfirmDialog({
               style: OutlinedButton.styleFrom(
                 foregroundColor: confirmColor,
                 backgroundColor: destructive
-                    ? const Color(0xFFFFFBFC)
+                    ? const Color(0xFFFFF1F2)
                     : const Color(0xFFF7F8FD),
                 side: BorderSide(
                   color: confirmColor.withValues(

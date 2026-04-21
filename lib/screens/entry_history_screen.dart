@@ -8,9 +8,10 @@ import '../services/sales_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
-import '../widgets/responsive_text.dart';
 import '../widgets/clay_widgets.dart';
-import 'daily_fuel_history_screen.dart';
+import '../widgets/responsive_text.dart';
+
+const String _notEntered = 'Not entered';
 
 class EntryHistoryScreen extends StatefulWidget {
   const EntryHistoryScreen({super.key});
@@ -19,8 +20,6 @@ class EntryHistoryScreen extends StatefulWidget {
   State<EntryHistoryScreen> createState() => _EntryHistoryScreenState();
 }
 
-enum _SalesHistoryTab { entries, fuelRegister }
-
 class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   final SalesService _salesService = SalesService();
   late Future<List<ShiftEntryModel>> _future;
@@ -28,7 +27,6 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   late DateTime _fromDate;
   late DateTime _toDate;
   _EntryHistorySort _sort = _EntryHistorySort.dateNewest;
-  _SalesHistoryTab _tab = _SalesHistoryTab.entries;
 
   @override
   void initState() {
@@ -91,6 +89,19 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
       _toDate = selected.end;
       _future = _loadEntries();
     });
+  }
+
+  Future<void> _showEntryDetails(ShiftEntryModel entry) async {
+    final detailFuture = _salesService.fetchEntryDetail(
+      entry.id,
+      forceRefresh: true,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _EntryDetailSheet(future: detailFuture),
+    );
   }
 
   double _entryLiters(ShiftEntryModel entry) {
@@ -180,50 +191,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kClayBg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () =>
-                          setState(() => _tab = _SalesHistoryTab.entries),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: _tab == _SalesHistoryTab.entries
-                            ? const Color(0xFFE8EDF9)
-                            : Colors.white,
-                      ),
-                      child: const Text('Entries'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () =>
-                          setState(() => _tab = _SalesHistoryTab.fuelRegister),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: _tab == _SalesHistoryTab.fuelRegister
-                            ? const Color(0xFFE8EDF9)
-                            : Colors.white,
-                      ),
-                      child: const Text('Fuel Register'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: _tab == _SalesHistoryTab.entries
-                  ? _buildEntriesView()
-                  : const DailyFuelHistoryScreen(embedded: true),
-            ),
-          ],
-        ),
-      ),
+      body: SafeArea(child: _buildEntriesView()),
     );
   }
 
@@ -240,22 +208,28 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             );
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kClayPrimary,
-                  fontWeight: FontWeight.w700,
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+              children: [
+                Center(
+                  child: Text(
+                    userFacingErrorMessage(snapshot.error),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             );
           }
 
           final entries = _sortedEntries(snapshot.data ?? []);
           return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               _buildHeroCard(),
               const SizedBox(height: 12),
@@ -284,7 +258,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   Widget _buildHeroCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
@@ -326,11 +300,11 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             'Use the filter and sorting controls below to narrow entries.',
             style: TextStyle(
               color: Colors.white70,
-              height: 1.4,
+              height: 1.35,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           const Text(
             'Filter',
             style: TextStyle(
@@ -339,13 +313,13 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SizedBox(
             width: double.infinity,
-            height: 58,
+            height: 48,
             child: OutlinedButton.icon(
               onPressed: _pickDateRange,
-              icon: const Icon(Icons.event_available_rounded),
+              icon: const Icon(Icons.event_available_rounded, size: 18),
               label: Text(
                 '${formatDateLabel(_toApiDate(_fromDate))} to '
                 '${formatDateLabel(_toApiDate(_toDate))}',
@@ -355,7 +329,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
               style: _historyFilterButtonStyle(),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           const Text(
             'Sorting',
             style: TextStyle(
@@ -364,10 +338,10 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Container(
-            height: 58,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
@@ -382,7 +356,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w700,
-                  fontSize: 16,
+                  fontSize: 15,
                 ),
                 iconEnabledColor: Colors.white,
                 items: _EntryHistorySort.values
@@ -394,7 +368,9 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                     )
                     .toList(),
                 onChanged: (value) {
-                  if (value == null) return;
+                  if (value == null) {
+                    return;
+                  }
                   setState(() => _sort = value);
                 },
               ),
@@ -412,6 +388,10 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
         entry.totals.sold.diesel +
         entry.totals.sold.twoT;
     final weekday = formatWeekdayLabel(entry.date);
+    final attendants = entry.pumpAttendants.entries
+        .where((item) => item.value.trim().isNotEmpty)
+        .map((item) => '${formatPumpLabel(item.key)}: ${item.value.trim()}')
+        .join(', ');
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -437,7 +417,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      entry.shift.toUpperCase(),
+                      formatShiftLabel(entry.shift).toUpperCase(),
                       style: const TextStyle(
                         color: kClaySub,
                         fontWeight: FontWeight.w700,
@@ -475,13 +455,10 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
               ),
             ],
           ),
-          if (entry.pumpAttendants.values.any((name) => name.isNotEmpty)) ...[
+          if (attendants.isNotEmpty) ...[
             const SizedBox(height: 12),
             Text(
-              entry.pumpAttendants.entries
-                  .where((item) => item.value.isNotEmpty)
-                  .map((item) => '${formatPumpLabel(item.key)}: ${item.value}')
-                  .join('  •  '),
+              attendants,
               style: const TextStyle(
                 color: kClaySub,
                 fontSize: 12,
@@ -508,6 +485,31 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: SizedBox(
+              height: 38,
+              child: OutlinedButton.icon(
+                onPressed: () => _showEntryDetails(entry),
+                icon: const Icon(Icons.visibility_outlined, size: 18),
+                label: const Text('View'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kClayPrimary,
+                  side: BorderSide(color: kClayPrimary.withValues(alpha: 0.15)),
+                  backgroundColor: const Color(0xFFF7F8FD),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -532,7 +534,9 @@ ButtonStyle _historyFilterButtonStyle() {
     foregroundColor: Colors.white,
     side: BorderSide(color: Colors.white.withValues(alpha: 0.28)),
     backgroundColor: Colors.white.withValues(alpha: 0.08),
+    padding: const EdgeInsets.symmetric(horizontal: 14),
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
   );
 }
 
@@ -607,4 +611,999 @@ class _EntryStatusBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+class _EntryDetailSheet extends StatelessWidget {
+  const _EntryDetailSheet({required this.future});
+
+  final Future<ShiftEntryModel> future;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      heightFactor: 0.92,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: kClayBg,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: kClaySub.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Entry Details',
+                        style: TextStyle(
+                          color: kClayPrimary,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                      color: kClayPrimary,
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: FutureBuilder<ShiftEntryModel>(
+                  future: future,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                      return Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              userFacingErrorMessage(snapshot.error),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: kClayPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              height: 42,
+                              child: OutlinedButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Close'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final entry = snapshot.data!;
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      children: [
+                        _DetailSection(
+                          title: 'Header',
+                          child: Column(
+                            children: [
+                              _EntryHeaderHero(entry: entry),
+                              const SizedBox(height: 12),
+                              _HeaderInfoGrid(
+                                items: [
+                                  _HeaderInfoItem(
+                                    label: 'Submitted by',
+                                    value: _displayOrPlaceholder(
+                                      entry.submittedByName,
+                                    ),
+                                  ),
+                                  _HeaderInfoItem(
+                                    label: 'Submitted at',
+                                    value: _formatDateTimeOrPlaceholder(
+                                      entry.submittedAt,
+                                    ),
+                                  ),
+                                  _HeaderInfoItem(
+                                    label: 'Updated at',
+                                    value: _formatDateTimeOrPlaceholder(
+                                      entry.updatedAt,
+                                    ),
+                                  ),
+                                  _HeaderInfoItem(
+                                    label: 'Approved at',
+                                    value: _formatDateTimeOrPlaceholder(
+                                      entry.approvedAt,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DetailSection(
+                          title: 'Readings',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _FuelBreakdownTile(
+                                title: 'Opening total',
+                                totals: entry.totals.opening,
+                              ),
+                              const SizedBox(height: 10),
+                              _FuelBreakdownTile(
+                                title: 'Closing total',
+                                totals: entry.totals.closing,
+                              ),
+                              const SizedBox(height: 10),
+                              _FuelBreakdownTile(
+                                title: 'Sold total',
+                                totals: entry.totals.sold,
+                              ),
+                              const SizedBox(height: 10),
+                              _FuelBreakdownTile(
+                                title: 'Inventory total',
+                                totals: entry.inventoryTotals,
+                              ),
+                              const SizedBox(height: 14),
+                              ..._buildPumpReadingCards(entry),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DetailSection(
+                          title: 'Pump Details',
+                          child: Column(
+                            children: _buildPumpDetailCards(entry),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DetailSection(
+                          title: 'Settlement',
+                          child: Column(
+                            children: [
+                              _MoneyBreakdownTile(
+                                title: 'Payments',
+                                values: {
+                                  'Cash': entry.paymentBreakdown.cash,
+                                  'HP Pay': entry.paymentBreakdown.check,
+                                  'UPI': entry.paymentBreakdown.upi,
+                                },
+                              ),
+                              const SizedBox(height: 10),
+                              _DetailRow(
+                                label: 'Payment total',
+                                value: formatCurrency(entry.paymentTotal),
+                              ),
+                              _DetailRow(
+                                label: 'Recorded sales',
+                                value: formatCurrency(entry.revenue),
+                              ),
+                              _DetailRow(
+                                label: 'Computed revenue',
+                                value: formatCurrency(entry.computedRevenue),
+                              ),
+                              _DetailRow(
+                                label: 'Sales settlement',
+                                value: formatCurrency(
+                                  entry.salesSettlementTotal,
+                                ),
+                              ),
+                              _DetailRow(
+                                label: 'Mismatch amount',
+                                value: formatCurrency(entry.mismatchAmount),
+                              ),
+                              _DetailRow(
+                                label: 'Mismatch reason',
+                                value: _displayOrPlaceholder(
+                                  entry.mismatchReason,
+                                ),
+                                isLast: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DetailSection(
+                          title: 'Credit',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const _SubSectionLabel('Issued'),
+                              const SizedBox(height: 8),
+                              ..._buildCreditEntryCards(entry.creditEntries),
+                              const SizedBox(height: 14),
+                              const _SubSectionLabel('Collected'),
+                              const SizedBox(height: 8),
+                              ..._buildCreditCollectionCards(
+                                entry.creditCollections,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DetailSection(
+                          title: 'Totals',
+                          child: Column(
+                            children: [
+                              _FuelBreakdownTile(
+                                title: 'Opening',
+                                totals: entry.totals.opening,
+                              ),
+                              const SizedBox(height: 10),
+                              _FuelBreakdownTile(
+                                title: 'Closing',
+                                totals: entry.totals.closing,
+                              ),
+                              const SizedBox(height: 10),
+                              _FuelBreakdownTile(
+                                title: 'Sold',
+                                totals: entry.totals.sold,
+                              ),
+                              const SizedBox(height: 10),
+                              _FuelBreakdownTile(
+                                title: 'Inventory',
+                                totals: entry.inventoryTotals,
+                              ),
+                              const SizedBox(height: 10),
+                              _DetailRow(
+                                label: 'Credit collection total',
+                                value: formatCurrency(
+                                  entry.creditCollectionTotal,
+                                ),
+                              ),
+                              _DetailRow(
+                                label: 'Profit',
+                                value: formatCurrency(entry.profit),
+                                isLast: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        _DetailSection(
+                          title: 'Notes',
+                          child: Column(
+                            children: [
+                              _DetailRow(
+                                label: 'Variance note',
+                                value: _displayOrPlaceholder(
+                                  entry.varianceNote,
+                                ),
+                              ),
+                              _DetailRow(
+                                label: 'Mismatch reason',
+                                value: _displayOrPlaceholder(
+                                  entry.mismatchReason,
+                                ),
+                                isLast: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildPumpReadingCards(ShiftEntryModel entry) {
+    final pumpIds = _pumpIds(entry);
+    if (pumpIds.isEmpty) {
+      return const [_EmptySubCard(message: _notEntered)];
+    }
+    return [
+      for (int index = 0; index < pumpIds.length; index++) ...[
+        _SubCard(
+          title: formatPumpLabel(pumpIds[index]),
+          child: Column(
+            children: [
+              _FuelBreakdownTile(
+                title: 'Opening',
+                totals: entry.openingReadings[pumpIds[index]],
+              ),
+              const SizedBox(height: 10),
+              _FuelBreakdownTile(
+                title: 'Closing',
+                totals: entry.closingReadings[pumpIds[index]],
+              ),
+              const SizedBox(height: 10),
+              _FuelBreakdownTile(
+                title: 'Sold',
+                totals: entry.soldByPump[pumpIds[index]],
+              ),
+            ],
+          ),
+        ),
+        if (index != pumpIds.length - 1) const SizedBox(height: 10),
+      ],
+    ];
+  }
+
+  List<Widget> _buildPumpDetailCards(ShiftEntryModel entry) {
+    final pumpIds = _pumpIds(entry);
+    if (pumpIds.isEmpty) {
+      return const [_EmptySubCard(message: _notEntered)];
+    }
+    return [
+      for (int index = 0; index < pumpIds.length; index++) ...[
+        _SubCard(
+          title: formatPumpLabel(pumpIds[index]),
+          child: Column(
+            children: [
+              _DetailRow(
+                label: 'Attendant',
+                value: _displayOrPlaceholder(
+                  entry.pumpAttendants[pumpIds[index]] ?? '',
+                ),
+              ),
+              _DetailRow(
+                label: 'Testing',
+                value: _formatTesting(entry.pumpTesting[pumpIds[index]]),
+              ),
+              if (entry.pumpPayments.containsKey(pumpIds[index])) ...[
+                _MoneyBreakdownTile(
+                  title: 'Pump payments',
+                  values: {
+                    'Cash': entry.pumpPayments[pumpIds[index]]!.cash,
+                    'HP Pay': entry.pumpPayments[pumpIds[index]]!.check,
+                    'UPI': entry.pumpPayments[pumpIds[index]]!.upi,
+                    'Credit': entry.pumpPayments[pumpIds[index]]!.credit,
+                    'Total': entry.pumpPayments[pumpIds[index]]!.total,
+                  },
+                ),
+                const SizedBox(height: 10),
+              ] else ...[
+                const _DetailRow(
+                  label: 'Pump payments',
+                  value: _notEntered,
+                ),
+              ],
+              _DetailRow(
+                label: 'Pump collection',
+                value: entry.pumpCollections.containsKey(pumpIds[index])
+                    ? formatCurrency(entry.pumpCollections[pumpIds[index]] ?? 0)
+                    : _notEntered,
+                isLast: true,
+              ),
+            ],
+          ),
+        ),
+        if (index != pumpIds.length - 1) const SizedBox(height: 10),
+      ],
+    ];
+  }
+
+  List<Widget> _buildCreditEntryCards(List<CreditEntryModel> entries) {
+    if (entries.isEmpty) {
+      return const [_EmptySubCard(message: _notEntered)];
+    }
+    return [
+      for (int index = 0; index < entries.length; index++) ...[
+        _SubCard(
+          title: entries[index].name.trim().isEmpty
+              ? 'Credit entry ${index + 1}'
+              : entries[index].name.trim(),
+          child: Column(
+            children: [
+              _DetailRow(
+                label: 'Pump',
+                value: entries[index].pumpId.trim().isEmpty
+                    ? _notEntered
+                    : formatPumpLabel(entries[index].pumpId),
+              ),
+              _DetailRow(
+                label: 'Amount',
+                value: formatCurrency(entries[index].amount),
+                isLast: true,
+              ),
+            ],
+          ),
+        ),
+        if (index != entries.length - 1) const SizedBox(height: 10),
+      ],
+    ];
+  }
+
+  List<Widget> _buildCreditCollectionCards(
+    List<CreditCollectionModel> collections,
+  ) {
+    if (collections.isEmpty) {
+      return const [_EmptySubCard(message: _notEntered)];
+    }
+    return [
+      for (int index = 0; index < collections.length; index++) ...[
+        _SubCard(
+          title: collections[index].name.trim().isEmpty
+              ? 'Collection ${index + 1}'
+              : collections[index].name.trim(),
+          child: Column(
+            children: [
+              _DetailRow(
+                label: 'Amount',
+                value: formatCurrency(collections[index].amount),
+              ),
+              _DetailRow(
+                label: 'Date',
+                value: _displayOrPlaceholder(
+                  collections[index].date.isEmpty
+                      ? ''
+                      : formatDateLabel(collections[index].date),
+                ),
+              ),
+              _DetailRow(
+                label: 'Payment mode',
+                value: _displayOrPlaceholder(collections[index].paymentMode),
+              ),
+              _DetailRow(
+                label: 'Note',
+                value: _displayOrPlaceholder(collections[index].note),
+                isLast: true,
+              ),
+            ],
+          ),
+        ),
+        if (index != collections.length - 1) const SizedBox(height: 10),
+      ],
+    ];
+  }
+}
+
+class _DetailSection extends StatelessWidget {
+  const _DetailSection({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClayCard(
+      radius: 22,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _EntryHeaderHero extends StatelessWidget {
+  const _EntryHeaderHero({required this.entry});
+
+  final ShiftEntryModel entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FD),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E9F7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            formatDateLabel(entry.date),
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HeaderBadge(
+                label: formatShiftLabel(entry.shift),
+                filled: false,
+              ),
+              _HeaderBadge(
+                label: _statusLabel(entry),
+                accent: _statusAccent(entry),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderInfoItem {
+  const _HeaderInfoItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+}
+
+class _HeaderInfoGrid extends StatelessWidget {
+  const _HeaderInfoGrid({required this.items});
+
+  final List<_HeaderInfoItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final item in items)
+              SizedBox(
+                width: itemWidth,
+                child: _HeaderInfoCard(
+                  label: item.label,
+                  value: item.value,
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _HeaderInfoCard extends StatelessWidget {
+  const _HeaderInfoCard({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E9F7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderBadge extends StatelessWidget {
+  const _HeaderBadge({
+    required this.label,
+    this.accent = kClayPrimary,
+    this.filled = true,
+  });
+
+  final String label;
+  final Color accent;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: filled ? accent.withValues(alpha: 0.12) : Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: accent,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _SubSectionLabel extends StatelessWidget {
+  const _SubSectionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      style: const TextStyle(
+        color: kClaySub,
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    this.isLast = false,
+  });
+
+  final String label;
+  final String value;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 4,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: kClaySub,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 6,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: kClayPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FuelBreakdownTile extends StatelessWidget {
+  const _FuelBreakdownTile({required this.title, required this.totals});
+
+  final String title;
+  final Object? totals;
+
+  @override
+  Widget build(BuildContext context) {
+    if (totals == null) {
+      return _DataBlock(
+        title: title,
+        child: const Text(
+          _notEntered,
+          style: TextStyle(
+            color: kClaySub,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
+
+    return _DataBlock(
+      title: title,
+      child: Column(
+        children: [
+          _MiniValueRow(label: 'Petrol', value: formatLiters(_fuelPetrol(totals))),
+          const SizedBox(height: 8),
+          _MiniValueRow(label: 'Diesel', value: formatLiters(_fuelDiesel(totals))),
+          const SizedBox(height: 8),
+          _MiniValueRow(label: '2T Oil', value: formatLiters(_fuelTwoT(totals))),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoneyBreakdownTile extends StatelessWidget {
+  const _MoneyBreakdownTile({required this.title, required this.values});
+
+  final String title;
+  final Map<String, double> values;
+
+  @override
+  Widget build(BuildContext context) {
+    return _DataBlock(
+      title: title,
+      child: Column(
+        children: [
+          for (int index = 0; index < values.entries.length; index++) ...[
+            _MiniValueRow(
+              label: values.entries.elementAt(index).key,
+              value: formatCurrency(values.entries.elementAt(index).value),
+            ),
+            if (index != values.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DataBlock extends StatelessWidget {
+  const _DataBlock({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FD),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E9F7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniValueRow extends StatelessWidget {
+  const _MiniValueRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              height: 1.3,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SubCard extends StatelessWidget {
+  const _SubCard({required this.title, required this.child});
+
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F8FD),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5E9F7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptySubCard extends StatelessWidget {
+  const _EmptySubCard({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SubCard(
+      title: 'Details',
+      child: Text(
+        message,
+        style: const TextStyle(
+          color: kClaySub,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+String _statusLabel(ShiftEntryModel entry) {
+  if (entry.flagged) {
+    return 'Flagged';
+  }
+  if (entry.status.trim().isEmpty) {
+    return _notEntered;
+  }
+  return formatShiftCase(entry.status);
+}
+
+Color _statusAccent(ShiftEntryModel entry) {
+  if (entry.flagged) {
+    return const Color(0xFFB91C1C);
+  }
+  if (entry.status.trim().toLowerCase() == 'approved') {
+    return const Color(0xFF2AA878);
+  }
+  return kClayPrimary;
+}
+
+String _displayOrPlaceholder(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? _notEntered : trimmed;
+}
+
+String _formatDateTimeOrPlaceholder(String value) {
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? _notEntered : formatDateTimeLabel(trimmed);
+}
+
+String _formatTesting(PumpTestingModel? testing) {
+  if (testing == null || !testing.enabled) {
+    return _notEntered;
+  }
+  final addToInventory = testing.addToInventory ? 'Yes' : 'No';
+  return 'Petrol ${formatLiters(testing.petrol)}, Diesel ${formatLiters(testing.diesel)}, Add to inventory $addToInventory';
+}
+
+double _fuelPetrol(Object? totals) {
+  if (totals is FuelTotals) {
+    return totals.petrol;
+  }
+  if (totals is PumpReadings) {
+    return totals.petrol;
+  }
+  return 0;
+}
+
+double _fuelDiesel(Object? totals) {
+  if (totals is FuelTotals) {
+    return totals.diesel;
+  }
+  if (totals is PumpReadings) {
+    return totals.diesel;
+  }
+  return 0;
+}
+
+double _fuelTwoT(Object? totals) {
+  if (totals is FuelTotals) {
+    return totals.twoT;
+  }
+  if (totals is PumpReadings) {
+    return totals.twoT;
+  }
+  return 0;
+}
+
+List<String> _pumpIds(ShiftEntryModel entry) {
+  final ids = <String>{
+    ...entry.openingReadings.keys,
+    ...entry.closingReadings.keys,
+    ...entry.soldByPump.keys,
+    ...entry.pumpAttendants.keys,
+    ...entry.pumpTesting.keys,
+    ...entry.pumpPayments.keys,
+    ...entry.pumpCollections.keys,
+  }.toList()
+    ..sort();
+  return ids;
+}
+
+String formatShiftCase(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return _notEntered;
+  }
+  return trimmed[0].toUpperCase() + trimmed.substring(1).toLowerCase();
 }

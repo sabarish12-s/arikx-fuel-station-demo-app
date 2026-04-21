@@ -66,6 +66,7 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
                 message: 'Are you sure you want to logout?',
                 confirmLabel: 'Logout',
                 icon: Icons.logout_rounded,
+                destructive: true,
               );
               if (!shouldLogout) {
                 return;
