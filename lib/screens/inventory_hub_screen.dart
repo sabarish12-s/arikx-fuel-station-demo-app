@@ -482,380 +482,394 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
             onBack: () => setState(() => _openingHistorySetups = null),
           )
         : ColoredBox(
-      color: const Color(0xFFECEFF8),
-      child: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<_InventoryHubData>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done &&
-                !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError && !snapshot.hasData) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                children: [Text(userFacingErrorMessage(snapshot.error))],
-              );
-            }
+            color: const Color(0xFFECEFF8),
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: FutureBuilder<_InventoryHubData>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done &&
+                      !snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError && !snapshot.hasData) {
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [Text(userFacingErrorMessage(snapshot.error))],
+                    );
+                  }
 
-            final data = snapshot.data!;
-            final dashboard = data.dashboard;
-            final planning = dashboard.inventoryPlanning;
-            final activeSnapshot = dashboard.activeStockSnapshot;
-            final showStockManagement =
-                widget.showStockManagement || widget.stockManagementOnly;
-            if (showStockManagement) _seedSnapshotForm(data);
+                  final data = snapshot.data!;
+                  final dashboard = data.dashboard;
+                  final planning = dashboard.inventoryPlanning;
+                  final activeSnapshot = dashboard.activeStockSnapshot;
+                  final showStockManagement =
+                      widget.showStockManagement || widget.stockManagementOnly;
+                  if (showStockManagement) _seedSnapshotForm(data);
 
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-              children: [
-                if (widget.embedded)
-                  ClaySubHeader(
-                    title: 'Stock Management',
-                    onBack: widget.onBack,
-                  ),
-                if (!widget.stockManagementOnly) ...[
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(24),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF1A3A7A), Color(0xFF0D2460)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(
-                            0xFF0D2460,
-                          ).withValues(alpha: 0.45),
-                          offset: const Offset(0, 10),
-                          blurRadius: 24,
+                  return ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    children: [
+                      if (widget.embedded)
+                        ClaySubHeader(
+                          title: 'Stock Management',
+                          onBack: widget.onBack,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Inventory',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5,
-                                ),
-                              ),
+                      if (!widget.stockManagementOnly) ...[
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(24),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF1A3A7A), Color(0xFF0D2460)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                            const SizedBox(width: 12),
-                            GestureDetector(
-                              onTap: () => _openStockHistoryPage(data),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 8,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.14),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: const [
-                                    Icon(
-                                      Icons.history_rounded,
-                                      color: Colors.white70,
-                                      size: 14,
-                                    ),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Stock History',
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF0D2460,
+                                ).withValues(alpha: 0.45),
+                                offset: const Offset(0, 10),
+                                blurRadius: 24,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Inventory',
                                       style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.5,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Container(
-                          height: 1,
-                          color: Colors.white.withValues(alpha: 0.1),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: dashboard.forecast.map((item) {
-                            final isLast = item == dashboard.forecast.last;
-                            return Expanded(
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          item.label,
-                                          style: const TextStyle(
-                                            color: Colors.white54,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          formatLiters(item.currentStock),
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ],
                                     ),
                                   ),
-                                  if (!isLast)
-                                    Container(
-                                      width: 1,
-                                      height: 32,
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 10,
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () => _openStockHistoryPage(data),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 8,
                                       ),
-                                      color: Colors.white.withValues(
-                                        alpha: 0.15,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.14,
+                                        ),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        border: Border.all(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.2,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(
+                                            Icons.history_rounded,
+                                            color: Colors.white70,
+                                            size: 14,
+                                          ),
+                                          SizedBox(width: 6),
+                                          Text(
+                                            'Stock History',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
+                                  ),
                                 ],
                               ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _InvActionBtn(
-                          icon: Icons.local_shipping_outlined,
-                          label: 'Record Purchase',
-                          onTap: () => _openDeliveryReceipt(dashboard.forecast),
-                          filled: true,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _InvActionBtn(
-                          icon: Icons.history_rounded,
-                          label: 'Purchase History',
-                          onTap: _openDeliveryHistory,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                ],
-                if (showStockManagement) ...[
-                  _ClayCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Stock Details',
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1A2561),
-                                ),
+                              const SizedBox(height: 16),
+                              Container(
+                                height: 1,
+                                color: Colors.white.withValues(alpha: 0.1),
                               ),
-                            ),
-                            if (widget.canManagePlanning)
-                              FilledButton(
-                                onPressed: _savingSnapshot
-                                    ? null
-                                    : () => _openStockUpdateDialog(data),
-                                child: const Text('Update Current Stock'),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: dashboard.forecast.map((item) {
+                                  final isLast =
+                                      item == dashboard.forecast.last;
+                                  return Expanded(
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item.label,
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 3),
+                                              Text(
+                                                formatLiters(item.currentStock),
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (!isLast)
+                                          Container(
+                                            width: 1,
+                                            height: 32,
+                                            margin: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                            ),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          activeSnapshot == null
-                              ? 'No manual stock found.'
-                              : 'Current stock used for inventory calculations and reports.',
-                          style: const TextStyle(
-                            color: Color(0xFF8A93B8),
-                            height: 1.35,
+                            ],
                           ),
                         ),
                         const SizedBox(height: 14),
-                        _StockSummaryTable(
-                          petrol:
-                              activeSnapshot?.stock['petrol'] ??
-                              planning.currentStock['petrol'] ??
-                              0,
-                          diesel:
-                              activeSnapshot?.stock['diesel'] ??
-                              planning.currentStock['diesel'] ??
-                              0,
-                          twoT:
-                              activeSnapshot?.stock['two_t_oil'] ??
-                              planning.currentStock['two_t_oil'] ??
-                              0,
-                        ),
-                        const SizedBox(height: 12),
-                        _StockMetaRow(
-                          effectiveDate: activeSnapshot == null
-                              ? 'Not set'
-                              : _displayDate(activeSnapshot.effectiveDate),
-                          setBy:
-                              activeSnapshot?.createdByName.trim().isNotEmpty ==
-                                  true
-                              ? activeSnapshot!.createdByName
-                              : 'System',
-                          leadAlert:
-                              '${planning.deliveryLeadDays}d / ${planning.alertBeforeDays}d',
-                        ),
-                        if (activeSnapshot != null &&
-                            _visibleStockNote(
-                              activeSnapshot.note,
-                            ).isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFECEFF8),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Text(
-                              _visibleStockNote(activeSnapshot.note),
-                              style: const TextStyle(
-                                color: Color(0xFF4A5598),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-                if (!widget.stockManagementOnly) ...[
-                  ...dashboard.forecast.map(
-                    (item) => _FuelForecastCard(
-                      item: item,
-                      accentColor: _fuelColor(item.fuelTypeId),
-                      displayDate: _displayDate,
-                    ),
-                  ),
-                  _ClayCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
                         Row(
                           children: [
-                            const Expanded(
-                              child: Text(
-                                'Recent Purchase',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFF1A2561),
-                                ),
+                            Expanded(
+                              child: _InvActionBtn(
+                                icon: Icons.local_shipping_outlined,
+                                label: 'Record Purchase',
+                                onTap: () =>
+                                    _openDeliveryReceipt(dashboard.forecast),
+                                filled: true,
                               ),
                             ),
-                            GestureDetector(
-                              onTap: _openDeliveryHistory,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFECEFF8),
-                                  borderRadius: BorderRadius.circular(999),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(
-                                        0xFFB8C0DC,
-                                      ).withValues(alpha: 0.5),
-                                      offset: const Offset(2, 2),
-                                      blurRadius: 5,
-                                    ),
-                                    const BoxShadow(
-                                      color: Colors.white,
-                                      offset: Offset(-2, -2),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.history_rounded,
-                                      size: 13,
-                                      color: Color(0xFF4A5598),
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'History',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: Color(0xFF4A5598),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _InvActionBtn(
+                                icon: Icons.history_rounded,
+                                label: 'Purchase History',
+                                onTap: _openDeliveryHistory,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        if (dashboard.deliveries.isEmpty)
-                          const Text(
-                            'No purchases recorded yet.',
-                            style: TextStyle(
-                              color: Color(0xFF8A93B8),
-                              fontSize: 13,
-                            ),
-                          )
-                        else
-                          DeliveryReceiptSummaryCard(
-                            delivery: dashboard.deliveries.first,
-                            margin: EdgeInsets.zero,
-                          ),
+                        const SizedBox(height: 18),
                       ],
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
+                      if (showStockManagement) ...[
+                        _ClayCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Stock Details',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF1A2561),
+                                      ),
+                                    ),
+                                  ),
+                                  if (widget.canManagePlanning)
+                                    FilledButton(
+                                      onPressed: _savingSnapshot
+                                          ? null
+                                          : () => _openStockUpdateDialog(data),
+                                      child: const Text('Update Current Stock'),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                activeSnapshot == null
+                                    ? 'No manual stock found.'
+                                    : 'Current stock used for inventory calculations and reports.',
+                                style: const TextStyle(
+                                  color: Color(0xFF8A93B8),
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              _StockSummaryTable(
+                                petrol:
+                                    activeSnapshot?.stock['petrol'] ??
+                                    planning.currentStock['petrol'] ??
+                                    0,
+                                diesel:
+                                    activeSnapshot?.stock['diesel'] ??
+                                    planning.currentStock['diesel'] ??
+                                    0,
+                                twoT:
+                                    activeSnapshot?.stock['two_t_oil'] ??
+                                    planning.currentStock['two_t_oil'] ??
+                                    0,
+                              ),
+                              const SizedBox(height: 12),
+                              _StockMetaRow(
+                                effectiveDate: activeSnapshot == null
+                                    ? 'Not set'
+                                    : _displayDate(
+                                        activeSnapshot.effectiveDate,
+                                      ),
+                                setBy:
+                                    activeSnapshot?.createdByName
+                                            .trim()
+                                            .isNotEmpty ==
+                                        true
+                                    ? activeSnapshot!.createdByName
+                                    : 'System',
+                                leadAlert:
+                                    '${planning.deliveryLeadDays}d / ${planning.alertBeforeDays}d',
+                              ),
+                              if (activeSnapshot != null &&
+                                  _visibleStockNote(
+                                    activeSnapshot.note,
+                                  ).isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFECEFF8),
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Text(
+                                    _visibleStockNote(activeSnapshot.note),
+                                    style: const TextStyle(
+                                      color: Color(0xFF4A5598),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (!widget.stockManagementOnly) ...[
+                        ...dashboard.forecast.map(
+                          (item) => _FuelForecastCard(
+                            item: item,
+                            accentColor: _fuelColor(item.fuelTypeId),
+                            displayDate: _displayDate,
+                          ),
+                        ),
+                        _ClayCard(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Expanded(
+                                    child: Text(
+                                      'Recent Purchase',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF1A2561),
+                                      ),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: _openDeliveryHistory,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFECEFF8),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFFB8C0DC,
+                                            ).withValues(alpha: 0.5),
+                                            offset: const Offset(2, 2),
+                                            blurRadius: 5,
+                                          ),
+                                          const BoxShadow(
+                                            color: Colors.white,
+                                            offset: Offset(-2, -2),
+                                            blurRadius: 4,
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.history_rounded,
+                                            size: 13,
+                                            color: Color(0xFF4A5598),
+                                          ),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'History',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: Color(0xFF4A5598),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (dashboard.deliveries.isEmpty)
+                                const Text(
+                                  'No purchases recorded yet.',
+                                  style: TextStyle(
+                                    color: Color(0xFF8A93B8),
+                                    fontSize: 13,
+                                  ),
+                                )
+                              else
+                                DeliveryReceiptSummaryCard(
+                                  delivery: dashboard.deliveries.first,
+                                  margin: EdgeInsets.zero,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          );
 
     return PopScope(
       canPop: openingHistorySetups == null,
@@ -1004,30 +1018,8 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
       raw.trim().isEmpty ? 'Not available' : formatDateLabel(raw);
 
   String _displayTimestamp(String raw) {
-    final value = DateTime.tryParse(raw);
-    if (value == null) {
-      return raw.trim().isEmpty ? 'Unknown time' : raw;
-    }
-    final local = value.toLocal();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final hour24 = local.hour;
-    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
-    final minute = local.minute.toString().padLeft(2, '0');
-    final suffix = hour24 >= 12 ? 'PM' : 'AM';
-    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? 'Unknown time' : formatDateTimeLabel(trimmed);
   }
 
   Future<void> _download(
@@ -1210,8 +1202,9 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
               }
             });
           }
-          final source =
-              showDeletedTab && _showDeleted ? data.deleted : data.active;
+          final source = showDeletedTab && _showDeleted
+              ? data.deleted
+              : data.active;
           final history = _sorted(source);
           return RefreshIndicator(
             onRefresh: _reload,

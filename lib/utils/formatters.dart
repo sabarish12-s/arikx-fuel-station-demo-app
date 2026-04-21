@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 const String _nbsp = '\u00A0';
+const Duration _indianTimeOffset = Duration(hours: 5, minutes: 30);
 
 String _indianCommas(String digits) {
   if (digits.length <= 3) return digits;
@@ -82,7 +83,7 @@ String formatShiftLabel(String shift) {
 }
 
 String formatDateLabel(String raw) {
-  final date = DateTime.tryParse(raw);
+  final date = _parseDisplayDateTime(raw);
   if (date == null) {
     return raw;
   }
@@ -104,7 +105,7 @@ String formatDateLabel(String raw) {
 }
 
 String formatDateTimeLabel(String raw) {
-  final date = DateTime.tryParse(raw);
+  final date = _parseDisplayDateTime(raw);
   if (date == null) {
     return raw;
   }
@@ -134,7 +135,7 @@ String formatDateTimeLabel(String raw) {
 }
 
 String formatWeekdayLabel(String raw) {
-  final date = DateTime.tryParse(raw);
+  final date = _parseDisplayDateTime(raw);
   if (date == null) {
     return '';
   }
@@ -148,6 +149,25 @@ String formatWeekdayLabel(String raw) {
     'Sunday',
   ];
   return weekdays[date.weekday - 1];
+}
+
+DateTime? _parseDisplayDateTime(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  final parsed = DateTime.tryParse(trimmed);
+  if (parsed == null) {
+    return null;
+  }
+  final hasExplicitZone = RegExp(
+    r'(z|[+-]\d{2}:?\d{2})$',
+    caseSensitive: false,
+  ).hasMatch(trimmed);
+  if (!hasExplicitZone) {
+    return parsed;
+  }
+  return parsed.toUtc().add(_indianTimeOffset);
 }
 
 String currentMonthKey() {

@@ -23,6 +23,7 @@ class SalesShell extends StatefulWidget {
 class _SalesShellState extends State<SalesShell> {
   int _index = 0;
   int _salesRefreshToken = 0;
+  int _accountRefreshToken = 0;
   final Set<int> _loadedScreens = {};
   late final List<Widget> _screens;
 
@@ -36,12 +37,21 @@ class _SalesShellState extends State<SalesShell> {
       ClosingStockEntryScreen(key: ValueKey(_salesRefreshToken)),
       const InventoryHubScreen(showStockManagement: false),
       const EntryHistoryScreen(),
-      AccountScreen(user: widget.user),
+      AccountScreen(key: ValueKey(_accountRefreshToken), user: widget.user),
     ];
   }
 
   Future<void> _selectIndex(int value) async {
     if (_index == value) {
+      if (value == 4) {
+        setState(() {
+          _accountRefreshToken += 1;
+          _screens[4] = AccountScreen(
+            key: ValueKey(_accountRefreshToken),
+            user: widget.user,
+          );
+        });
+      }
       return;
     }
     setState(() {
@@ -49,6 +59,12 @@ class _SalesShellState extends State<SalesShell> {
         _salesRefreshToken += 1;
         _screens[1] = ClosingStockEntryScreen(
           key: ValueKey(_salesRefreshToken),
+        );
+      } else if (value == 4) {
+        _accountRefreshToken += 1;
+        _screens[4] = AccountScreen(
+          key: ValueKey(_accountRefreshToken),
+          user: widget.user,
         );
       }
       _index = value;

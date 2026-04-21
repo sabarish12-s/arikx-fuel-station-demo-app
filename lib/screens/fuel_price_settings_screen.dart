@@ -485,30 +485,8 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
   }
 
   String _displayTimestamp(String raw) {
-    final value = DateTime.tryParse(raw);
-    if (value == null) {
-      return raw.trim().isEmpty ? 'Unknown time' : raw;
-    }
-    final local = value.toLocal();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final hour24 = local.hour;
-    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
-    final minute = local.minute.toString().padLeft(2, '0');
-    final suffix = hour24 >= 12 ? 'PM' : 'AM';
-    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? 'Unknown time' : formatDateTimeLabel(trimmed);
   }
 
   String _prettyFuelLabel(String fuelTypeId) {
@@ -979,30 +957,8 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
   }
 
   String _displayTimestamp(String raw) {
-    final value = DateTime.tryParse(raw);
-    if (value == null) {
-      return raw.trim().isEmpty ? 'Unknown time' : raw;
-    }
-    final local = value.toLocal();
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    final hour24 = local.hour;
-    final hour12 = hour24 == 0 ? 12 : (hour24 > 12 ? hour24 - 12 : hour24);
-    final minute = local.minute.toString().padLeft(2, '0');
-    final suffix = hour24 >= 12 ? 'PM' : 'AM';
-    return '${months[local.month - 1]} ${local.day}, ${local.year} $hour12:$minute $suffix';
+    final trimmed = raw.trim();
+    return trimmed.isEmpty ? 'Unknown time' : formatDateTimeLabel(trimmed);
   }
 
   Widget _filterButton({

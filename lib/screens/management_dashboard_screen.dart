@@ -78,11 +78,13 @@ LineChartData _salesTrendChartData({
   }
 
   final labelSet = labelIndices();
+  final chartMaxY = maxY <= 0 ? 10.0 : maxY * 1.2;
+  final leftInterval = compact ? chartMaxY / 3 : chartMaxY / 4;
   return LineChartData(
     minX: 0,
     maxX: (trend.length - 1).toDouble(),
     minY: 0,
-    maxY: maxY <= 0 ? 10 : maxY * 1.2,
+    maxY: chartMaxY,
     gridData: FlGridData(
       show: true,
       drawVerticalLine: false,
@@ -90,43 +92,60 @@ LineChartData _salesTrendChartData({
           const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
     ),
     borderData: FlBorderData(show: false),
-    lineTouchData: compact
-        ? const LineTouchData(enabled: false)
-        : LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipItems: (spots) => spots.map((s) {
-                final idx = s.x.toInt().clamp(0, trend.length - 1).toInt();
-                final point = trend[idx];
-                return LineTooltipItem(
-                  '${_shortDateLabel(point.date)}\nSales ${formatCurrency(s.y)}',
-                  const TextStyle(
-                    color: Color(0xFF1A3A7A),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                );
-              }).toList(),
+    lineTouchData: LineTouchData(
+      touchTooltipData: LineTouchTooltipData(
+        fitInsideHorizontally: true,
+        fitInsideVertically: true,
+        getTooltipItems: (spots) => spots.map((s) {
+          final idx = s.x.toInt().clamp(0, trend.length - 1).toInt();
+          final point = trend[idx];
+          return LineTooltipItem(
+            '${_shortDateLabel(point.date)}\nSales ${formatCurrency(s.y)}',
+            const TextStyle(
+              color: Color(0xFF1A3A7A),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          );
+        }).toList(),
+      ),
+      getTouchedSpotIndicator: (barData, spotIndexes) => [
+        for (final _ in spotIndexes)
+          TouchedSpotIndicatorData(
+            const FlLine(color: Color(0xFF9DB4E5), strokeWidth: 1.2),
+            FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                radius: compact ? 4 : 5,
+                color: const Color(0xFF1A3A7A),
+                strokeWidth: 2,
+                strokeColor: Colors.white,
+              ),
             ),
           ),
+      ],
+    ),
     titlesData: FlTitlesData(
       topTitles: const AxisTitles(),
       rightTitles: const AxisTitles(),
-      leftTitles: compact
-          ? const AxisTitles()
-          : AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 58,
-                interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
-                getTitlesWidget: (value, _) => Text(
-                  _compactCurrencyLabel(value),
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: compact ? 44 : 58,
+          interval: leftInterval <= 0 ? 10 : leftInterval,
+          getTitlesWidget: (value, meta) => SideTitleWidget(
+            axisSide: meta.axisSide,
+            space: compact ? 4 : 6,
+            child: Text(
+              _compactCurrencyLabel(value),
+              style: TextStyle(
+                fontSize: compact ? 9 : 10,
+                color: const Color(0xFF6B7280),
               ),
             ),
+          ),
+        ),
+      ),
       bottomTitles: AxisTitles(
         sideTitles: SideTitles(
           showTitles: true,
@@ -142,7 +161,10 @@ LineChartData _salesTrendChartData({
               padding: const EdgeInsets.only(top: 6),
               child: Text(
                 _shortDateLabel(trend[index].date),
-                style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+                style: TextStyle(
+                  fontSize: compact ? 9 : 10,
+                  color: const Color(0xFF6B7280),
+                ),
               ),
             );
           },
@@ -156,8 +178,11 @@ LineChartData _salesTrendChartData({
             FlSpot(i.toDouble(), trend[i].computedSalesValue),
         ],
         isCurved: true,
+        curveSmoothness: compact ? 0.22 : 0.28,
+        preventCurveOverShooting: true,
         color: const Color(0xFF1A3A7A),
         barWidth: compact ? 2.5 : 3,
+        isStrokeCapRound: true,
         dotData: FlDotData(
           show: !compact,
           getDotPainter: (p, i, b, j) => FlDotCirclePainter(
@@ -963,11 +988,13 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
     LineChartData buildChartData({required bool compact}) {
       final labelSet = labelIndices(compact);
+      final chartMaxY = maxY <= 0 ? 10.0 : maxY * 1.2;
+      final leftInterval = compact ? chartMaxY / 3 : chartMaxY / 4;
       return LineChartData(
         minX: 0,
         maxX: (trend.length - 1).toDouble(),
         minY: 0,
-        maxY: maxY <= 0 ? 10 : maxY * 1.2,
+        maxY: chartMaxY,
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
@@ -975,43 +1002,61 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
-        lineTouchData: compact
-            ? const LineTouchData(enabled: false)
-            : LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (spots) => spots.map((s) {
-                    final idx = s.x.toInt().clamp(0, trend.length - 1).toInt();
-                    final point = trend[idx];
-                    return LineTooltipItem(
-                      '${_shortDateLabel(point.date)}\nSales ${formatCurrency(s.y)}',
-                      const TextStyle(
-                        color: Color(0xFF1A3A7A),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            fitInsideHorizontally: true,
+            fitInsideVertically: true,
+            getTooltipItems: (spots) => spots.map((s) {
+              final idx = s.x.toInt().clamp(0, trend.length - 1).toInt();
+              final point = trend[idx];
+              return LineTooltipItem(
+                '${_shortDateLabel(point.date)}\nSales ${formatCurrency(s.y)}',
+                const TextStyle(
+                  color: Color(0xFF1A3A7A),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              );
+            }).toList(),
+          ),
+          getTouchedSpotIndicator: (barData, spotIndexes) => [
+            for (final _ in spotIndexes)
+              TouchedSpotIndicatorData(
+                const FlLine(color: Color(0xFF9DB4E5), strokeWidth: 1.2),
+                FlDotData(
+                  show: true,
+                  getDotPainter: (spot, percent, bar, index) =>
+                      FlDotCirclePainter(
+                        radius: compact ? 4 : 5,
+                        color: const Color(0xFF1A3A7A),
+                        strokeWidth: 2,
+                        strokeColor: Colors.white,
                       ),
-                    );
-                  }).toList(),
                 ),
               ),
+          ],
+        ),
         titlesData: FlTitlesData(
           topTitles: const AxisTitles(),
           rightTitles: const AxisTitles(),
-          leftTitles: compact
-              ? const AxisTitles()
-              : AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 58,
-                    interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
-                    getTitlesWidget: (value, _) => Text(
-                      _compactCurrencyLabel(value),
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: compact ? 44 : 58,
+              interval: leftInterval <= 0 ? 10 : leftInterval,
+              getTitlesWidget: (value, meta) => SideTitleWidget(
+                axisSide: meta.axisSide,
+                space: compact ? 4 : 6,
+                child: Text(
+                  _compactCurrencyLabel(value),
+                  style: TextStyle(
+                    fontSize: compact ? 9 : 10,
+                    color: const Color(0xFF6B7280),
                   ),
                 ),
+              ),
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
@@ -1030,8 +1075,8 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     _shortDateLabel(trend[index].date),
-                    style: const TextStyle(
-                      fontSize: 10,
+                    style: TextStyle(
+                      fontSize: compact ? 9 : 10,
                       color: Color(0xFF6B7280),
                     ),
                   ),
@@ -1047,8 +1092,11 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 FlSpot(i.toDouble(), trend[i].computedSalesValue),
             ],
             isCurved: true,
+            curveSmoothness: compact ? 0.22 : 0.28,
+            preventCurveOverShooting: true,
             color: const Color(0xFF1A3A7A),
             barWidth: 2.5,
+            isStrokeCapRound: true,
             dotData: FlDotData(
               show: !compact,
               getDotPainter: (p, i, b, j) => FlDotCirclePainter(
