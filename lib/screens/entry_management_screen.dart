@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
 import '../services/inventory_service.dart';
@@ -18,7 +19,12 @@ import 'daily_fuel_history_screen.dart';
 import 'entry_workflow_screen.dart';
 
 class EntryManagementScreen extends StatefulWidget {
-  const EntryManagementScreen({super.key});
+  const EntryManagementScreen({
+    super.key,
+    required this.currentUser,
+  });
+
+  final AuthUser currentUser;
 
   @override
   State<EntryManagementScreen> createState() => _EntryManagementScreenState();
@@ -27,6 +33,22 @@ class EntryManagementScreen extends StatefulWidget {
 enum _EntryAction { approve, delete }
 
 const String _entryDetailNotEntered = 'Not entered';
+
+class _EntryActionAccess {
+  const _EntryActionAccess({
+    required this.canUpdate,
+    required this.canEdit,
+    required this.canDelete,
+    required this.canOverrideDelete,
+    required this.canApprove,
+  });
+
+  final bool canUpdate;
+  final bool canEdit;
+  final bool canDelete;
+  final bool canOverrideDelete;
+  final bool canApprove;
+}
 
 class _EntryManagementScreenState extends State<EntryManagementScreen> {
   final ManagementService _managementService = ManagementService();
@@ -824,6 +846,44 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     );
   }
 
+  bool get _isSuperAdmin => widget.currentUser.role == 'superadmin';
+
+  String _latestApprovedDate(String allowedEntryDate) {
+    final parsed = DateTime.tryParse(allowedEntryDate);
+    if (parsed == null) {
+      return '';
+    }
+    final previousDay = DateTime(
+      parsed.year,
+      parsed.month,
+      parsed.day,
+    ).subtract(const Duration(days: 1));
+    final month = previousDay.month.toString().padLeft(2, '0');
+    final day = previousDay.day.toString().padLeft(2, '0');
+    return '${previousDay.year}-$month-$day';
+  }
+
+  _EntryActionAccess _actionAccessForEntry(
+    ShiftEntryModel entry,
+    String allowedEntryDate,
+  ) {
+    final latestApprovedDate = _latestApprovedDate(allowedEntryDate);
+    final isCurrentOpenUnapproved =
+        !entry.isFinalized && entry.date == allowedEntryDate;
+    final isLatestApproved =
+        entry.isFinalized &&
+        latestApprovedDate.isNotEmpty &&
+        entry.date == latestApprovedDate;
+
+    return _EntryActionAccess(
+      canUpdate: isCurrentOpenUnapproved,
+      canEdit: isLatestApproved,
+      canDelete: isCurrentOpenUnapproved,
+      canOverrideDelete: _isSuperAdmin && isLatestApproved,
+      canApprove: isCurrentOpenUnapproved,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1076,6 +1136,10 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                         entry.submittedByName.trim().isNotEmpty
                         ? entry.submittedByName.trim()
                         : entry.submittedBy.trim();
+                    final actionAccess = _actionAccessForEntry(
+                      entry,
+                      data.dashboard.allowedEntryDate,
+                    );
                     return _EntryCard(
                       entry: entry,
                       station: data.dashboard.station,
@@ -1084,6 +1148,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                       activeAction: _activeEntryId == entry.id
                           ? _activeAction
                           : null,
+                      actionAccess: actionAccess,
                       onEdit: () => _editEntry(
                         entry,
                         data.dashboard.station,
@@ -1250,6 +1315,7 @@ class _EntryCard extends StatelessWidget {
     required this.submittedLabel,
     required this.submitting,
     required this.activeAction,
+    required this.actionAccess,
     required this.onEdit,
     required this.onView,
     required this.onDelete,
@@ -1261,6 +1327,7 @@ class _EntryCard extends StatelessWidget {
   final String submittedLabel;
   final bool submitting;
   final _EntryAction? activeAction;
+  final _EntryActionAccess actionAccess;
   final VoidCallback onEdit;
   final VoidCallback onView;
   final VoidCallback onDelete;
@@ -1268,7 +1335,6 @@ class _EntryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isApproved = entry.isFinalized;
     final isFlagged = entry.flagged;
     final isDeleting = activeAction == _EntryAction.delete;
     final isApproving = activeAction == _EntryAction.approve;
@@ -1412,42 +1478,59 @@ class _EntryCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           // ── Action buttons ─────────────────────────────────────────
-          Row(
-            children: [
-              _ActionBtn(
-                icon: Icons.visibility_outlined,
-                label: 'View',
-                onTap: onView,
-              ),
-              const SizedBox(width: 8),
-              _ActionBtn(
-                icon: Icons.edit_rounded,
-                label: 'Edit',
-                onTap: submitting ? null : onEdit,
-              ),
-              const SizedBox(width: 8),
-              _ActionBtn(
-                icon: Icons.delete_outline_rounded,
-                label: isDeleting
-                    ? 'Deleting...'
-                    : isApproved
-                    ? 'Override'
-                    : 'Delete',
-                onTap: submitting ? null : onDelete,
-                danger: true,
-                loading: isDeleting,
-              ),
-              if (!isApproved) ...[
-                const SizedBox(width: 8),
-                _ActionBtn(
-                  icon: Icons.verified_rounded,
-                  label: isApproving ? 'Approving...' : 'Approve',
-                  onTap: submitting ? null : onApprove,
-                  filled: true,
-                  loading: isApproving,
-                ),
-              ],
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final buttonWidth = (constraints.maxWidth - 8) / 2;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  SizedBox(
+                    width: buttonWidth,
+                    child: _ActionBtn(
+                      icon: Icons.visibility_outlined,
+                      label: 'View',
+                      onTap: onView,
+                    ),
+                  ),
+                  if (actionAccess.canUpdate || actionAccess.canEdit)
+                    SizedBox(
+                      width: buttonWidth,
+                      child: _ActionBtn(
+                        icon: Icons.edit_rounded,
+                        label: actionAccess.canUpdate ? 'Update' : 'Edit',
+                        onTap: submitting ? null : onEdit,
+                      ),
+                    ),
+                  if (actionAccess.canDelete || actionAccess.canOverrideDelete)
+                    SizedBox(
+                      width: buttonWidth,
+                      child: _ActionBtn(
+                        icon: Icons.delete_outline_rounded,
+                        label: isDeleting
+                            ? 'Deleting...'
+                            : actionAccess.canOverrideDelete
+                            ? 'Override Delete'
+                            : 'Delete',
+                        onTap: submitting ? null : onDelete,
+                        danger: true,
+                        loading: isDeleting,
+                      ),
+                    ),
+                  if (actionAccess.canApprove)
+                    SizedBox(
+                      width: buttonWidth,
+                      child: _ActionBtn(
+                        icon: Icons.verified_rounded,
+                        label: isApproving ? 'Approving...' : 'Approve',
+                        onTap: submitting ? null : onApprove,
+                        filled: true,
+                        loading: isApproving,
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1707,82 +1790,80 @@ class _ActionBtnState extends State<_ActionBtn> {
       fg = const Color(0xFF1A2561);
     }
 
-    return Expanded(
-      child: GestureDetector(
-        onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
-        onTapUp: disabled
-            ? null
-            : (_) {
-                setState(() => _pressed = false);
-                widget.onTap!();
-              },
-        onTapCancel: () => setState(() => _pressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 80),
-          height: 40,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: widget.filled && !_pressed && !disabled
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF0D2460).withValues(alpha: 0.35),
-                      offset: const Offset(0, 4),
-                      blurRadius: 10,
-                    ),
-                  ]
-                : !widget.filled && !widget.danger && !_pressed && !disabled
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
-                      offset: const Offset(3, 3),
-                      blurRadius: 8,
-                    ),
-                    const BoxShadow(
-                      color: Colors.white,
-                      offset: Offset(-2, -2),
-                      blurRadius: 6,
-                    ),
-                  ]
-                : [],
-          ),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    widget.loading
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                fg.withValues(alpha: 0.85),
-                              ),
+    return GestureDetector(
+      onTapDown: disabled ? null : (_) => setState(() => _pressed = true),
+      onTapUp: disabled
+          ? null
+          : (_) {
+              setState(() => _pressed = false);
+              widget.onTap!();
+            },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 80),
+        height: 40,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: widget.filled && !_pressed && !disabled
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFF0D2460).withValues(alpha: 0.35),
+                    offset: const Offset(0, 4),
+                    blurRadius: 10,
+                  ),
+                ]
+              : !widget.filled && !widget.danger && !_pressed && !disabled
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFB8C0DC).withValues(alpha: 0.65),
+                    offset: const Offset(3, 3),
+                    blurRadius: 8,
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    offset: Offset(-2, -2),
+                    blurRadius: 6,
+                  ),
+                ]
+              : [],
+        ),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  widget.loading
+                      ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              fg.withValues(alpha: 0.85),
                             ),
-                          )
-                        : Icon(
-                            widget.icon,
-                            size: 14,
-                            color: disabled ? fg.withValues(alpha: 0.4) : fg,
                           ),
-                    const SizedBox(width: 5),
-                    Text(
-                      widget.label,
-                      maxLines: 1,
-                      softWrap: false,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: disabled ? fg.withValues(alpha: 0.4) : fg,
-                      ),
+                        )
+                      : Icon(
+                          widget.icon,
+                          size: 14,
+                          color: disabled ? fg.withValues(alpha: 0.4) : fg,
+                        ),
+                  const SizedBox(width: 5),
+                  Text(
+                    widget.label,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: disabled ? fg.withValues(alpha: 0.4) : fg,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

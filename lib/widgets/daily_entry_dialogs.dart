@@ -371,7 +371,7 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
                             value: testingInventoryValues[pump.id] == true,
                             contentPadding: EdgeInsets.zero,
                             controlAffinity: ListTileControlAffinity.leading,
-                            title: const Text('Add testing to inventory'),
+                            title: const Text('Reduce testing from inventory'),
                             subtitle: const Text(
                               'If selected, inventory will reduce by the testing quantity too.',
                             ),
@@ -2963,7 +2963,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                               value: _testingAddsToInventory,
                               contentPadding: EdgeInsets.zero,
                               controlAffinity: ListTileControlAffinity.leading,
-                              title: const Text('Add testing to inventory'),
+                              title: const Text('Reduce testing from inventory'),
                               subtitle: const Text(
                                 'If selected, inventory will reduce by the testing quantity too.',
                               ),

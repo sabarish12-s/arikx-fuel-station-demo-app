@@ -41,7 +41,10 @@ class _ManagementShellState extends State<ManagementShell> {
     _stationTitle = widget.user.stationId;
     _screens = [
       ManagementDashboardScreen(user: widget.user),
-      EntryManagementScreen(key: ValueKey(_entryRefreshToken)),
+      EntryManagementScreen(
+        key: ValueKey(_entryRefreshToken),
+        currentUser: widget.user,
+      ),
       const MonthlyReportScreen(),
       InventoryHubScreen(
         key: _inventoryKey,
@@ -69,7 +72,10 @@ class _ManagementShellState extends State<ManagementShell> {
     setState(() {
       if (value == 1 && _index != value) {
         _entryRefreshToken += 1;
-        _screens[1] = EntryManagementScreen(key: ValueKey(_entryRefreshToken));
+        _screens[1] = EntryManagementScreen(
+          key: ValueKey(_entryRefreshToken),
+          currentUser: widget.user,
+        );
       }
       _index = value;
       _loadedScreens.add(value);
