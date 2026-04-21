@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/auth_models.dart';
 import '../models/domain_models.dart';
@@ -11,10 +12,7 @@ import '../services/management_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
-import '../widgets/daily_fuel_widgets.dart';
 import '../widgets/responsive_text.dart';
-import 'daily_fuel_history_screen.dart';
-import 'entry_management_screen.dart';
 
 String _shortDateLabel(String raw) {
   final date = DateTime.tryParse(raw);
@@ -34,6 +32,147 @@ String _shortDateLabel(String raw) {
     'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}';
+}
+
+String _compactCurrencyLabel(double value) {
+  if (value >= 100000) {
+    return 'Rs ${(value / 100000).toStringAsFixed(value >= 1000000 ? 0 : 1)}L';
+  }
+  if (value >= 1000) {
+    return 'Rs ${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}K';
+  }
+  return 'Rs ${value.toStringAsFixed(0)}';
+}
+
+LineChartData _salesTrendChartData({
+  required List<DashboardTrendPointModel> trend,
+  required bool compact,
+}) {
+  final maxY = trend.fold<double>(
+    0,
+    (m, p) => p.computedSalesValue > m ? p.computedSalesValue : m,
+  );
+
+  final uniqueDateIndices = <int>[];
+  final seenDates = <String>{};
+  for (int i = 0; i < trend.length; i++) {
+    final dateKey = trend[i].date.length >= 10
+        ? trend[i].date.substring(0, 10)
+        : trend[i].date;
+    if (seenDates.add(dateKey)) {
+      uniqueDateIndices.add(i);
+    }
+  }
+
+  Set<int> labelIndices() {
+    if (!compact) return uniqueDateIndices.toSet();
+    if (uniqueDateIndices.length <= 5) return uniqueDateIndices.toSet();
+    final result = <int>{};
+    final step = (uniqueDateIndices.length / 4).ceil();
+    for (int i = 0; i < uniqueDateIndices.length; i += step) {
+      result.add(uniqueDateIndices[i]);
+    }
+    result.add(uniqueDateIndices.last);
+    return result;
+  }
+
+  final labelSet = labelIndices();
+  return LineChartData(
+    minX: 0,
+    maxX: (trend.length - 1).toDouble(),
+    minY: 0,
+    maxY: maxY <= 0 ? 10 : maxY * 1.2,
+    gridData: FlGridData(
+      show: true,
+      drawVerticalLine: false,
+      getDrawingHorizontalLine: (_) =>
+          const FlLine(color: Color(0xFFEEF2FF), strokeWidth: 1),
+    ),
+    borderData: FlBorderData(show: false),
+    lineTouchData: compact
+        ? const LineTouchData(enabled: false)
+        : LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (spots) => spots.map((s) {
+                final idx = s.x.toInt().clamp(0, trend.length - 1).toInt();
+                final point = trend[idx];
+                return LineTooltipItem(
+                  '${_shortDateLabel(point.date)}\nSales ${formatCurrency(s.y)}',
+                  const TextStyle(
+                    color: Color(0xFF1A3A7A),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+    titlesData: FlTitlesData(
+      topTitles: const AxisTitles(),
+      rightTitles: const AxisTitles(),
+      leftTitles: compact
+          ? const AxisTitles()
+          : AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 58,
+                interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
+                getTitlesWidget: (value, _) => Text(
+                  _compactCurrencyLabel(value),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF6B7280),
+                  ),
+                ),
+              ),
+            ),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: 28,
+          interval: 1,
+          getTitlesWidget: (value, _) {
+            final index = value.round();
+            if (index < 0 || index >= trend.length) {
+              return const SizedBox.shrink();
+            }
+            if (!labelSet.contains(index)) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _shortDateLabel(trend[index].date),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+    lineBarsData: [
+      LineChartBarData(
+        spots: [
+          for (int i = 0; i < trend.length; i++)
+            FlSpot(i.toDouble(), trend[i].computedSalesValue),
+        ],
+        isCurved: true,
+        color: const Color(0xFF1A3A7A),
+        barWidth: compact ? 2.5 : 3,
+        dotData: FlDotData(
+          show: !compact,
+          getDotPainter: (p, i, b, j) => FlDotCirclePainter(
+            radius: 3,
+            color: const Color(0xFF1A3A7A),
+            strokeWidth: 0,
+            strokeColor: Colors.transparent,
+          ),
+        ),
+        belowBarData: BarAreaData(
+          show: true,
+          color: const Color(0xFF1A3A7A).withValues(alpha: 0.08),
+        ),
+      ),
+    ],
+  );
 }
 
 class ManagementDashboardScreen extends StatefulWidget {
@@ -364,36 +503,6 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
       _staffTouchedIndex = -1;
       _future = _load();
     });
-  }
-
-  Future<void> _openEntriesShortcut() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          backgroundColor: const Color(0xFFECEFF8),
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            backgroundColor: const Color(0xFFECEFF8),
-            title: const Text('Entries'),
-          ),
-          body: const EntryManagementScreen(),
-        ),
-      ),
-    );
-    if (!mounted) {
-      return;
-    }
-    await _refresh();
-  }
-
-  Future<void> _openDailyFuelHistory() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const DailyFuelHistoryScreen()),
-    );
-    if (!mounted) {
-      return;
-    }
-    await _refresh();
   }
 
   Color _pumpColor(String pumpId) {
@@ -815,7 +924,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
     final maxY = trend.fold<double>(
       0,
-      (m, p) => [m, p.petrolSold, p.dieselSold].reduce((a, b) => a > b ? a : b),
+      (m, p) => p.computedSalesValue > m ? p.computedSalesValue : m,
     );
 
     // Build the list of indices where a date appears for the first time.
@@ -866,17 +975,12 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
             : LineTouchData(
                 touchTooltipData: LineTouchTooltipData(
                   getTooltipItems: (spots) => spots.map((s) {
-                    final idx = s.x.toInt();
-                    final point = trend[idx.clamp(0, trend.length - 1)];
-                    final isFirst = s.barIndex == 0;
+                    final idx = s.x.toInt().clamp(0, trend.length - 1).toInt();
+                    final point = trend[idx];
                     return LineTooltipItem(
-                      isFirst
-                          ? '${_shortDateLabel(point.date)}\nPetrol ${formatLiters(s.y)}'
-                          : 'Diesel ${formatLiters(s.y)}',
-                      TextStyle(
-                        color: isFirst
-                            ? const Color(0xFF1E5CBA)
-                            : const Color(0xFF0F9D58),
+                      '${_shortDateLabel(point.date)}\nSales ${formatCurrency(s.y)}',
+                      const TextStyle(
+                        color: Color(0xFF1A3A7A),
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -892,10 +996,10 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
               : AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 48,
+                    reservedSize: 58,
                     interval: maxY <= 0 ? 10 : (maxY * 1.2) / 4,
                     getTitlesWidget: (value, _) => Text(
-                      '${value.toInt()} L',
+                      _compactCurrencyLabel(value),
                       style: const TextStyle(
                         fontSize: 10,
                         color: Color(0xFF6B7280),
@@ -935,45 +1039,23 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
           LineChartBarData(
             spots: [
               for (int i = 0; i < trend.length; i++)
-                FlSpot(i.toDouble(), trend[i].petrolSold),
+                FlSpot(i.toDouble(), trend[i].computedSalesValue),
             ],
             isCurved: true,
-            color: const Color(0xFF1E5CBA),
+            color: const Color(0xFF1A3A7A),
             barWidth: 2.5,
             dotData: FlDotData(
               show: !compact,
               getDotPainter: (p, i, b, j) => FlDotCirclePainter(
                 radius: 3,
-                color: const Color(0xFF1E5CBA),
+                color: const Color(0xFF1A3A7A),
                 strokeWidth: 0,
                 strokeColor: Colors.transparent,
               ),
             ),
             belowBarData: BarAreaData(
               show: true,
-              color: const Color(0xFF1E5CBA).withValues(alpha: 0.07),
-            ),
-          ),
-          LineChartBarData(
-            spots: [
-              for (int i = 0; i < trend.length; i++)
-                FlSpot(i.toDouble(), trend[i].dieselSold),
-            ],
-            isCurved: true,
-            color: const Color(0xFF0F9D58),
-            barWidth: 2.5,
-            dotData: FlDotData(
-              show: !compact,
-              getDotPainter: (p, i, b, j) => FlDotCirclePainter(
-                radius: 3,
-                color: const Color(0xFF0F9D58),
-                strokeWidth: 0,
-                strokeColor: Colors.transparent,
-              ),
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              color: const Color(0xFF0F9D58).withValues(alpha: 0.07),
+              color: const Color(0xFF1A3A7A).withValues(alpha: 0.08),
             ),
           ),
         ],
@@ -982,9 +1064,7 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
 
     final legend = Row(
       children: [
-        _LegendDot(color: const Color(0xFF1E5CBA), label: 'Petrol'),
-        const SizedBox(width: 16),
-        _LegendDot(color: const Color(0xFF0F9D58), label: 'Diesel'),
+        _LegendDot(color: const Color(0xFF1A3A7A), label: 'Overall Sales'),
       ],
     );
 
@@ -1004,10 +1084,11 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                   MaterialPageRoute<void>(
                     fullscreenDialog: true,
                     builder: (_) => _TrendChartPage(
-                      trend: trend,
-                      rangeLabel: data.range.label,
-                      buildChartData: buildChartData,
-                      legend: legend,
+                      initialData: data,
+                      initialFilterMonth: _filterMonth,
+                      initialFromDate: _fromDate,
+                      initialToDate: _toDate,
+                      initialFilterByDateRange: _filterByDateRange,
                     ),
                   ),
                 ),
@@ -1063,35 +1144,16 @@ class _ManagementDashboardScreenState extends State<ManagementDashboardScreen> {
                 child: _buildHeroCard(data),
               ),
               const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: DailyFuelStatusCard(
-                  title: 'Daily Fuel Status',
-                  targetDate: data.allowedEntryDate.isNotEmpty
-                      ? data.allowedEntryDate
-                      : data.today,
-                  record: data.dailyFuelRecord,
-                  pendingMessage: data.entryLockedReason.isNotEmpty
-                      ? data.entryLockedReason
-                      : 'Density is tracked separately from sales entries.',
-                  primaryActionLabel: data.dailyFuelRecordComplete
-                      ? 'Open Entries'
-                      : 'Enter Density',
-                  onPrimaryAction: _openEntriesShortcut,
-                  onHistory: _openDailyFuelHistory,
-                ),
-              ),
-              const SizedBox(height: 12),
 
-              // Contribution + trend
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildContributionSection(data),
-              ),
-              const SizedBox(height: 12),
+              // Trend + contribution
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _buildTrendSection(data),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _buildContributionSection(data),
               ),
             ],
           );
@@ -1777,6 +1839,8 @@ class _LeaderLinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     double startDeg = -90.0;
+    final leftLabelYs = <double>[];
+    final rightLabelYs = <double>[];
 
     for (int i = 0; i < slices.length; i++) {
       final pct = slices[i].amount / total;
@@ -1800,10 +1864,15 @@ class _LeaderLinePainter extends CustomPainter {
           center.dx + (pieRadius + 14) * cosA,
           center.dy + (pieRadius + 14) * sinA,
         );
-        final stubPt = Offset(
-          elbowPt.dx + (isRight ? 10.0 : -10.0),
-          elbowPt.dy,
-        );
+        var stubY = elbowPt.dy;
+        final usedYs = isRight ? rightLabelYs : leftLabelYs;
+        for (final usedY in usedYs) {
+          if ((stubY - usedY).abs() < 16) {
+            stubY = usedY + (stubY >= usedY ? 16 : -16);
+          }
+        }
+        usedYs.add(stubY);
+        final stubPt = Offset(elbowPt.dx + (isRight ? 10.0 : -10.0), stubY);
 
         final linePaint = Paint()
           ..color = active
@@ -2062,23 +2131,329 @@ class _LegendDot extends StatelessWidget {
 }
 
 // ─── Trend fullscreen page ─────────────────────────────────────────────────────
-class _TrendChartPage extends StatelessWidget {
+class _TrendChartPage extends StatefulWidget {
   const _TrendChartPage({
-    required this.trend,
-    required this.rangeLabel,
-    required this.buildChartData,
-    required this.legend,
+    required this.initialData,
+    required this.initialFilterMonth,
+    required this.initialFromDate,
+    required this.initialToDate,
+    required this.initialFilterByDateRange,
   });
-  final List<DashboardTrendPointModel> trend;
-  final String rangeLabel;
-  final LineChartData Function({required bool compact}) buildChartData;
-  final Widget legend;
+  final ManagementDashboardModel initialData;
+  final String initialFilterMonth;
+  final String? initialFromDate;
+  final String? initialToDate;
+  final bool initialFilterByDateRange;
+
+  @override
+  State<_TrendChartPage> createState() => _TrendChartPageState();
+}
+
+class _TrendChartPageState extends State<_TrendChartPage> {
+  final ManagementService _managementService = ManagementService();
+  late Future<ManagementDashboardModel> _future;
+  late String _filterMonth;
+  String? _fromDate;
+  String? _toDate;
+  late bool _filterByDateRange;
+
+  @override
+  void initState() {
+    super.initState();
+    _filterMonth = widget.initialFilterMonth;
+    _fromDate = widget.initialFromDate;
+    _toDate = widget.initialToDate;
+    _filterByDateRange = widget.initialFilterByDateRange;
+    _future = _load();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
+    super.dispose();
+  }
+
+  String _formatIsoDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  String _monthStart(String monthKey) => '$monthKey-01';
+
+  String _monthEnd(String monthKey) {
+    final parts = monthKey.split('-');
+    final year = int.tryParse(parts.firstOrNull ?? '') ?? DateTime.now().year;
+    final month =
+        int.tryParse(parts.length > 1 ? parts[1] : '') ?? DateTime.now().month;
+    return _formatIsoDate(DateTime(year, month + 1, 0));
+  }
+
+  Future<ManagementDashboardModel> _load({bool forceRefresh = false}) {
+    return _managementService.fetchDashboard(
+      fromDate: _filterByDateRange ? _fromDate : _monthStart(_filterMonth),
+      toDate: _filterByDateRange ? _toDate : _monthEnd(_filterMonth),
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  String get _activeFilterLabel {
+    if (_filterByDateRange) {
+      if (_fromDate == null || _toDate == null) {
+        return 'Custom Range';
+      }
+      return '${_shortDateLabel(_fromDate!)} - ${_shortDateLabel(_toDate!)}';
+    }
+    final parts = _filterMonth.split('-');
+    if (parts.length != 2) return _filterMonth;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    if (year == null || month == null || month < 1 || month > 12) {
+      return _filterMonth;
+    }
+    const short = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${short[month - 1]} $year';
+  }
+
+  Future<void> _openFilterDialog() async {
+    final today = DateTime.now();
+    bool byRange = _filterByDateRange;
+    final parts = _filterMonth.split('-');
+    int selYear = int.tryParse(parts.firstOrNull ?? '') ?? today.year;
+    int selMonth =
+        int.tryParse(parts.length > 1 ? parts[1] : '') ?? today.month;
+    DateTime? fromDt = _fromDate != null ? DateTime.tryParse(_fromDate!) : null;
+    DateTime? toDt = _toDate != null ? DateTime.tryParse(_toDate!) : null;
+    final now = DateTime(today.year, today.month, today.day);
+
+    String formatDialogDate(DateTime? dt) {
+      if (dt == null) return 'Tap to choose';
+      return formatDateLabel(_formatIsoDate(dt));
+    }
+
+    String formatDialogRange() {
+      if (fromDt == null || toDt == null) return 'Tap to choose';
+      return '${formatDialogDate(fromDt)} to ${formatDialogDate(toDt)}';
+    }
+
+    bool matchesQuickRange(int dayCount) {
+      if (fromDt == null || toDt == null) return false;
+      final expectedFrom = now.subtract(Duration(days: dayCount - 1));
+      return fromDt!.isAtSameMomentAs(expectedFrom) &&
+          toDt!.isAtSameMomentAs(now);
+    }
+
+    void applyQuickRange(StateSetter set, int dayCount) {
+      set(() {
+        byRange = true;
+        fromDt = now.subtract(Duration(days: dayCount - 1));
+        toDt = now;
+      });
+    }
+
+    Future<void> pickRange(
+      BuildContext pickerContext,
+      StateSetter setDialogState,
+    ) async {
+      final range = await showAppDateRangePicker(
+        context: pickerContext,
+        fromDate: fromDt,
+        toDate: toDt,
+        firstDate: DateTime(2024),
+        lastDate: today,
+        helpText: 'Select sales trend range',
+      );
+      if (range == null) return;
+      setDialogState(() {
+        byRange = true;
+        fromDt = range.start;
+        toDt = range.end;
+      });
+    }
+
+    final applied = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final years = List<int>.generate(
+              today.year - 2024 + 1,
+              (i) => today.year - i,
+            );
+
+            return AlertDialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: 18,
+              ),
+              title: const Text('Filter Sales Trend'),
+              content: SingleChildScrollView(
+                child: SizedBox(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECEFF8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Row(
+                          children: [
+                            _DashboardToggleTab(
+                              label: 'By Month',
+                              selected: !byRange,
+                              onTap: () =>
+                                  setDialogState(() => byRange = false),
+                            ),
+                            _DashboardToggleTab(
+                              label: 'Date Range',
+                              selected: byRange,
+                              onTap: () => setDialogState(() => byRange = true),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      if (!byRange) ...[
+                        _DashboardDropdownField<int>(
+                          label: 'Year',
+                          icon: Icons.event_note_rounded,
+                          value: selYear,
+                          items: years
+                              .map(
+                                (y) => DropdownMenuItem<int>(
+                                  value: y,
+                                  child: Text('$y'),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setDialogState(() => selYear = v);
+                          },
+                        ),
+                        const SizedBox(height: 12),
+                        _DashboardDropdownField<int>(
+                          label: 'Month',
+                          icon: Icons.calendar_month_rounded,
+                          value: selMonth,
+                          items: List.generate(
+                            _ManagementDashboardScreenState._monthNames.length,
+                            (i) => DropdownMenuItem<int>(
+                              value: i + 1,
+                              child: Text(
+                                _ManagementDashboardScreenState._monthNames[i],
+                              ),
+                            ),
+                          ),
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setDialogState(() => selMonth = v);
+                          },
+                        ),
+                      ] else ...[
+                        _DashboardDatePickerRow(
+                          label: 'Date Range',
+                          value: formatDialogRange(),
+                          selected: false,
+                          onTap: () => pickRange(dialogContext, setDialogState),
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _DashboardQuickRangeButton(
+                                label: 'Last 7 Days',
+                                selected: matchesQuickRange(7),
+                                onTap: () => applyQuickRange(setDialogState, 7),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _DashboardQuickRangeButton(
+                                label: 'Last 30 Days',
+                                selected: matchesQuickRange(30),
+                                onTap: () =>
+                                    applyQuickRange(setDialogState, 30),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () {
+                    if (byRange && (fromDt == null || toDt == null)) {
+                      return;
+                    }
+                    Navigator.of(dialogContext).pop(true);
+                  },
+                  icon: const Icon(Icons.filter_alt_rounded),
+                  label: const Text('Apply'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (applied != true) return;
+
+    setState(() {
+      _filterByDateRange = byRange;
+      if (byRange) {
+        _fromDate = fromDt != null ? _formatIsoDate(fromDt!) : null;
+        _toDate = toDt != null ? _formatIsoDate(toDt!) : null;
+      } else {
+        _filterMonth = '$selYear-${selMonth.toString().padLeft(2, '0')}';
+        _fromDate = null;
+        _toDate = null;
+      }
+      _future = _load(forceRefresh: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFEFF2FA),
       appBar: AppBar(
         automaticallyImplyLeading: false,
+        backgroundColor: const Color(0xFFEFF2FA),
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2087,25 +2462,108 @@ class _TrendChartPage extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
             Text(
-              rangeLabel,
+              _activeFilterLabel,
               style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
             ),
           ],
         ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            legend,
-            const SizedBox(height: 16),
-            SizedBox(
-              height: 320,
-              child: LineChart(buildChartData(compact: false)),
+        actions: [
+          TextButton.icon(
+            onPressed: _openFilterDialog,
+            icon: const Icon(Icons.filter_alt_rounded),
+            label: const Text('Filter'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1A3A7A),
+              textStyle: const TextStyle(fontWeight: FontWeight.w800),
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: FutureBuilder<ManagementDashboardModel>(
+        future: _future,
+        initialData: widget.initialData,
+        builder: (context, snapshot) {
+          final data = snapshot.data ?? widget.initialData;
+          final trend = data.trend;
+          final loading = snapshot.connectionState != ConnectionState.done;
+          if (snapshot.hasError && trend.isEmpty) {
+            return Center(
+              child: Text(
+                userFacingErrorMessage(snapshot.error),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF1A3A7A),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (loading) ...[
+                  const LinearProgressIndicator(minHeight: 2),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  children: [
+                    const _LegendDot(
+                      color: Color(0xFF1A3A7A),
+                      label: 'Overall Sales',
+                    ),
+                    const Spacer(),
+                    Text(
+                      data.range.label.isNotEmpty
+                          ? data.range.label
+                          : _activeFilterLabel,
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(12, 18, 18, 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFFB8C0DC,
+                          ).withValues(alpha: 0.55),
+                          offset: const Offset(6, 6),
+                          blurRadius: 16,
+                        ),
+                      ],
+                    ),
+                    child: trend.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No approved sales trend available for this range.',
+                              style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        : LineChart(
+                            _salesTrendChartData(trend: trend, compact: false),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

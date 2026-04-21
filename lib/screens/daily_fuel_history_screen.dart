@@ -2,14 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
+import '../services/auth_service.dart';
 import '../services/inventory_service.dart';
 import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
+import 'management_shell.dart';
+import 'sales_shell.dart';
 
 class DailyFuelHistoryScreen extends StatefulWidget {
   const DailyFuelHistoryScreen({super.key, this.embedded = false});
@@ -32,6 +39,7 @@ enum _DailyFuelHistorySort {
 }
 
 class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
+  final AuthService _authService = AuthService();
   final InventoryService _inventoryService = InventoryService();
   final ReportExportService _reportExportService = ReportExportService();
   late Future<List<DailyFuelRecordModel>> _future;
@@ -39,6 +47,8 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
   late DateTime _fromDate;
   late DateTime _toDate;
   _DailyFuelHistorySort _sort = _DailyFuelHistorySort.dateNewest;
+  AuthUser? _currentUser;
+  String _stationTitle = 'Daily Fuel History';
   bool _exporting = false;
 
   @override
@@ -48,6 +58,7 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
     _toDate = DateTime(today.year, today.month, today.day);
     _fromDate = _toDate.subtract(const Duration(days: 29));
     _future = _loadHistory();
+    _loadChromeData();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted ||
           !update.background ||
@@ -62,6 +73,78 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
   void dispose() {
     _cacheSubscription.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadChromeData() async {
+    final user = await _authService.readCurrentUser();
+    String title = user?.stationId ?? 'Daily Fuel History';
+    try {
+      final station = await _inventoryService.fetchStationConfig();
+      if (station.name.trim().isNotEmpty) {
+        title = station.name.trim();
+      }
+    } catch (_) {
+      // Keep the user station id fallback when station config is unavailable.
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentUser = user;
+      _stationTitle = title;
+    });
+  }
+
+  bool get _usesManagementNav {
+    final role = _currentUser?.role.trim().toLowerCase();
+    return role == 'admin' || role == 'superadmin';
+  }
+
+  int get _selectedNavIndex => _usesManagementNav ? 1 : 3;
+
+  List<AppBottomNavItem> get _navItems {
+    if (_usesManagementNav) {
+      return const [
+        AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entries'),
+        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
+        AppBottomNavItem(
+          icon: Icons.local_gas_station_outlined,
+          label: 'Inventory',
+        ),
+        AppBottomNavItem(
+          icon: Icons.manage_accounts_outlined,
+          label: 'Settings',
+        ),
+      ];
+    }
+    return const [
+      AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+      AppBottomNavItem(icon: Icons.inventory_2_outlined, label: 'Sales'),
+      AppBottomNavItem(
+        icon: Icons.local_gas_station_outlined,
+        label: 'Inventory',
+      ),
+      AppBottomNavItem(icon: Icons.local_shipping_outlined, label: 'History'),
+      AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'Account'),
+    ];
+  }
+
+  void _openShellAt(int index) {
+    final user = _currentUser;
+    if (user == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => _usesManagementNav
+            ? ManagementShell(user: user, initialIndex: index)
+            : SalesShell(user: user, initialIndex: index),
+      ),
+      (_) => false,
+    );
   }
 
   String _toApiDate(DateTime date) {
@@ -277,19 +360,20 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
               fontSize: 22,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 16),
           const Text(
-            'Review, edit, and download opening stock, density, and selling price for petrol and diesel.',
+            'Date filter',
             style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w800,
               color: Colors.white70,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 6),
           SizedBox(
             width: double.infinity,
-            height: 58,
+            height: 48,
             child: OutlinedButton.icon(
               onPressed: _pickDateRange,
               icon: const Icon(Icons.event_available_rounded),
@@ -302,9 +386,19 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          const Text(
+            'Sort by',
+            style: TextStyle(
+              fontSize: 11,
+              letterSpacing: 1.1,
+              fontWeight: FontWeight.w800,
+              color: Colors.white70,
+            ),
+          ),
+          const SizedBox(height: 6),
           Container(
-            height: 58,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
@@ -440,7 +534,30 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
-        title: const Text('Daily Fuel History'),
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        title: Row(
+          children: [
+            const AppLogo(size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OneLineScaleText(
+                _stationTitle,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: kClayPrimary,
+                  fontSize: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+        iconTheme: const IconThemeData(color: kClayPrimary),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onSelected: _openShellAt,
+        items: _navItems,
       ),
       body: _buildBody(),
     );
@@ -455,9 +572,6 @@ class _DailyFuelHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final createdBy = record.createdByName.isNotEmpty
-        ? record.createdByName
-        : record.createdBy;
     final updatedBy = record.updatedByName.isNotEmpty
         ? record.updatedByName
         : record.updatedBy;
@@ -483,16 +597,6 @@ class _DailyFuelHistoryCard extends StatelessWidget {
                 const Icon(Icons.edit_rounded, color: kClaySub),
               ],
             ),
-            if (record.sourceClosingDate.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Opening stock source: ${formatDateLabel(record.sourceClosingDate)} closing',
-                style: const TextStyle(
-                  color: kClaySub,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -518,14 +622,6 @@ class _DailyFuelHistoryCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'Created${createdBy.isNotEmpty ? ' by $createdBy' : ''}${record.createdAt.isNotEmpty ? ' on ${formatDateTimeLabel(record.createdAt)}' : ''}',
-              style: const TextStyle(
-                color: kClaySub,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
             Text(
               'Last updated${updatedBy.isNotEmpty ? ' by $updatedBy' : ''}${record.updatedAt.isNotEmpty ? ' on ${formatDateTimeLabel(record.updatedAt)}' : ''}',
               style: const TextStyle(
@@ -572,7 +668,7 @@ class _FuelSummaryTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Opening ${formatLiters(openingStock)}',
+            'Opening stock ${formatLiters(openingStock)}',
             style: const TextStyle(
               color: kClayPrimary,
               fontWeight: FontWeight.w700,
@@ -580,7 +676,7 @@ class _FuelSummaryTile extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            formatDensity(density),
+            'Density ${density.toStringAsFixed(2)} kg/m3',
             style: const TextStyle(
               color: kClayPrimary,
               fontWeight: FontWeight.w800,
@@ -752,6 +848,7 @@ ButtonStyle _historyFilterButtonStyle() {
     side: BorderSide(color: Colors.white.withValues(alpha: 0.28)),
     backgroundColor: Colors.white.withValues(alpha: 0.08),
     textStyle: const TextStyle(fontWeight: FontWeight.w700),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    padding: const EdgeInsets.symmetric(horizontal: 14),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
   );
 }

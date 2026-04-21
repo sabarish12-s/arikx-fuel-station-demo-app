@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
+import '../services/auth_service.dart';
 import '../services/credit_service.dart';
 import '../services/inventory_service.dart';
 import '../services/management_service.dart';
@@ -12,8 +14,12 @@ import '../services/report_export_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/responsive_text.dart';
 import 'credit_ledger_screen.dart';
+import 'management_shell.dart';
+import 'sales_shell.dart';
 
 class MonthlyReportScreen extends StatefulWidget {
   const MonthlyReportScreen({super.key});
@@ -1130,9 +1136,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final upi = data.paymentBreakdown['upi'] ?? 0;
     final credit = data.paymentBreakdown['credit'] ?? 0;
     final totalPayments = cash + hpPay + upi + credit;
-    final maxRevenue = report.trend.fold<double>(
+    final maxFuelTrend = report.trend.fold<double>(
       0,
-      (max, item) => item.revenue > max ? item.revenue : max,
+      (max, item) => [
+        max,
+        item.petrolSold,
+        item.dieselSold,
+      ].reduce((a, b) => a > b ? a : b),
     );
     final dailyPreview = _latestDailyPreview(report.trend);
 
@@ -1338,13 +1348,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                   : LineChart(
                       LineChartData(
                         minY: 0,
-                        maxY: maxRevenue <= 0 ? 10 : maxRevenue * 1.2,
+                        maxY: maxFuelTrend <= 0 ? 10 : maxFuelTrend * 1.2,
                         gridData: FlGridData(
                           show: true,
                           drawVerticalLine: false,
-                          horizontalInterval: maxRevenue <= 0
+                          horizontalInterval: maxFuelTrend <= 0
                               ? 5
-                              : (maxRevenue * 1.2) / 4,
+                              : (maxFuelTrend * 1.2) / 4,
                           getDrawingHorizontalLine: (_) => FlLine(
                             color: const Color(0xFFD8DCF0),
                             strokeWidth: 1,
@@ -1362,13 +1372,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                             sideTitles: SideTitles(
                               showTitles: true,
                               reservedSize: 52,
-                              interval: maxRevenue <= 0
+                              interval: maxFuelTrend <= 0
                                   ? 5
-                                  : (maxRevenue * 1.2) / 4,
+                                  : (maxFuelTrend * 1.2) / 4,
                               getTitlesWidget: (value, meta) => Padding(
                                 padding: const EdgeInsets.only(right: 6),
                                 child: Text(
-                                  _compactK(value),
+                                  '${_compactK(value)} L',
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Color(0xFF8A93B8),
@@ -1413,7 +1423,31 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                           ),
                         ),
                         borderData: FlBorderData(show: false),
-                        lineTouchData: LineTouchData(enabled: true),
+                        lineTouchData: LineTouchData(
+                          enabled: true,
+                          touchTooltipData: LineTouchTooltipData(
+                            getTooltipItems: (spots) => spots.map((spot) {
+                              final index = spot.x
+                                  .toInt()
+                                  .clamp(0, report.trend.length - 1)
+                                  .toInt();
+                              final point = report.trend[index];
+                              final isPetrol = spot.barIndex == 0;
+                              return LineTooltipItem(
+                                isPetrol
+                                    ? '${formatDateLabel(point.date)}\nPetrol ${formatLiters(spot.y)}'
+                                    : 'Diesel ${formatLiters(spot.y)}',
+                                TextStyle(
+                                  color: isPetrol
+                                      ? const Color(0xFF1A3A7A)
+                                      : const Color(0xFF2AA878),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                         lineBarsData: [
                           LineChartBarData(
                             isCurved: true,
@@ -1437,12 +1471,51 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                             ),
                             spots: [
                               for (var i = 0; i < report.trend.length; i++)
-                                FlSpot(i.toDouble(), report.trend[i].revenue),
+                                FlSpot(
+                                  i.toDouble(),
+                                  report.trend[i].petrolSold,
+                                ),
+                            ],
+                          ),
+                          LineChartBarData(
+                            isCurved: true,
+                            color: const Color(0xFF2AA878),
+                            barWidth: 2.5,
+                            dotData: FlDotData(
+                              show: report.trend.length <= 8,
+                              getDotPainter: (spot, percent, bar, index) =>
+                                  FlDotCirclePainter(
+                                    radius: 4,
+                                    color: const Color(0xFF2AA878),
+                                    strokeWidth: 2,
+                                    strokeColor: Colors.white,
+                                  ),
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              color: const Color(
+                                0xFF2AA878,
+                              ).withValues(alpha: 0.08),
+                            ),
+                            spots: [
+                              for (var i = 0; i < report.trend.length; i++)
+                                FlSpot(
+                                  i.toDouble(),
+                                  report.trend[i].dieselSold,
+                                ),
                             ],
                           ),
                         ],
                       ),
                     ),
+            ),
+            const SizedBox(height: 10),
+            const Row(
+              children: [
+                _TrendLegendDot(color: Color(0xFF1A3A7A), label: 'Petrol'),
+                SizedBox(width: 16),
+                _TrendLegendDot(color: Color(0xFF2AA878), label: 'Diesel'),
+              ],
             ),
           ],
         ),
@@ -2220,6 +2293,37 @@ class _FuelLegend extends StatelessWidget {
   }
 }
 
+// ─── Trend legend dot ──────────────────────────────────────────────────────────
+class _TrendLegendDot extends StatelessWidget {
+  const _TrendLegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Color(0xFF374151),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // ─── Daily row ─────────────────────────────────────────────────────────────────
 enum _DailyBreakdownSort {
   dateNewest,
@@ -2272,15 +2376,92 @@ class _DailyBreakdownScreen extends StatefulWidget {
 }
 
 class _DailyBreakdownScreenState extends State<_DailyBreakdownScreen> {
+  final AuthService _authService = AuthService();
+  final InventoryService _inventoryService = InventoryService();
   DateTime? _fromDate;
   DateTime? _toDate;
   _DailyBreakdownSort _sort = _DailyBreakdownSort.dateNewest;
+  AuthUser? _currentUser;
+  String _stationTitle = 'Daily Breakdown';
 
   @override
   void initState() {
     super.initState();
     _fromDate = widget.initialFromDate;
     _toDate = widget.initialToDate;
+    _loadChromeData();
+  }
+
+  Future<void> _loadChromeData() async {
+    final user = await _authService.readCurrentUser();
+    String title = user?.stationId ?? 'Daily Breakdown';
+    try {
+      final station = await _inventoryService.fetchStationConfig();
+      if (station.name.trim().isNotEmpty) {
+        title = station.name.trim();
+      }
+    } catch (_) {
+      // Keep the user station id fallback when station config is unavailable.
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentUser = user;
+      _stationTitle = title;
+    });
+  }
+
+  bool get _usesManagementNav {
+    final role = _currentUser?.role.trim().toLowerCase();
+    return role == null || role == 'admin' || role == 'superadmin';
+  }
+
+  int get _selectedNavIndex => _usesManagementNav ? 2 : 3;
+
+  List<AppBottomNavItem> get _navItems {
+    if (_usesManagementNav) {
+      return const [
+        AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entries'),
+        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
+        AppBottomNavItem(
+          icon: Icons.local_gas_station_outlined,
+          label: 'Inventory',
+        ),
+        AppBottomNavItem(
+          icon: Icons.manage_accounts_outlined,
+          label: 'Settings',
+        ),
+      ];
+    }
+    return const [
+      AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+      AppBottomNavItem(icon: Icons.inventory_2_outlined, label: 'Sales'),
+      AppBottomNavItem(
+        icon: Icons.local_gas_station_outlined,
+        label: 'Inventory',
+      ),
+      AppBottomNavItem(icon: Icons.local_shipping_outlined, label: 'History'),
+      AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'Account'),
+    ];
+  }
+
+  void _openShellAt(int index) {
+    final user = _currentUser;
+    if (user == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => _usesManagementNav
+            ? ManagementShell(user: user, initialIndex: index)
+            : SalesShell(user: user, initialIndex: index),
+      ),
+      (_) => false,
+    );
   }
 
   String _toApiDate(DateTime date) {
@@ -2381,7 +2562,30 @@ class _DailyBreakdownScreenState extends State<_DailyBreakdownScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFFECEFF8),
-        title: const Text('Daily Breakdown'),
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Color(0xFF1A2561)),
+        title: Row(
+          children: [
+            const AppLogo(size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OneLineScaleText(
+                _stationTitle,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1A2561),
+                  fontSize: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onSelected: _openShellAt,
+        items: _navItems,
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -2402,10 +2606,9 @@ class _DailyBreakdownScreenState extends State<_DailyBreakdownScreen> {
                         ),
                       ),
                     ),
-                    IconButton.filledTonal(
+                    TextButton(
                       onPressed: _clearFilters,
-                      tooltip: 'Clear filters',
-                      icon: const Icon(Icons.filter_alt_off_rounded),
+                      child: const Text('Clear filter'),
                     ),
                   ],
                 ),

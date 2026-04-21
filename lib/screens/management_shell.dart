@@ -14,9 +14,10 @@ import 'monthly_report_screen.dart';
 import 'settings_home_screen.dart';
 
 class ManagementShell extends StatefulWidget {
-  const ManagementShell({super.key, required this.user});
+  const ManagementShell({super.key, required this.user, this.initialIndex = 0});
 
   final AuthUser user;
+  final int initialIndex;
 
   @override
   State<ManagementShell> createState() => _ManagementShellState();
@@ -28,13 +29,15 @@ class _ManagementShellState extends State<ManagementShell> {
   int _entryRefreshToken = 0;
   final GlobalKey _inventoryKey = GlobalKey();
   final _settingsKey = GlobalKey<SettingsHomeScreenState>();
-  final Set<int> _loadedScreens = {0};
+  final Set<int> _loadedScreens = {};
   late final List<Widget> _screens;
   late String _stationTitle;
 
   @override
   void initState() {
     super.initState();
+    _index = widget.initialIndex.clamp(0, 4);
+    _loadedScreens.add(_index);
     _stationTitle = widget.user.stationId;
     _screens = [
       ManagementDashboardScreen(user: widget.user),

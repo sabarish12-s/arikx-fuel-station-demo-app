@@ -2,12 +2,19 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
+import '../services/auth_service.dart';
 import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
+import 'management_shell.dart';
+import 'sales_shell.dart';
 
 class DeliveryHistoryScreen extends StatefulWidget {
   const DeliveryHistoryScreen({super.key});
@@ -17,18 +24,22 @@ class DeliveryHistoryScreen extends StatefulWidget {
 }
 
 class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
+  final AuthService _authService = AuthService();
   final InventoryService _inventoryService = InventoryService();
   late Future<List<DeliveryReceiptModel>> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
   String _fromDate = '';
   String _toDate = '';
-  _DeliveryFuelFilter _fuelFilter = _DeliveryFuelFilter.all;
+  DeliveryFuelFilter _fuelFilter = DeliveryFuelFilter.all;
   _DeliveryHistorySort _sort = _DeliveryHistorySort.purchaseNewest;
+  AuthUser? _currentUser;
+  String _stationTitle = 'Purchase History';
 
   @override
   void initState() {
     super.initState();
     _future = _load();
+    _loadChromeData();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted ||
           !update.background ||
@@ -43,6 +54,78 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   void dispose() {
     _cacheSubscription.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadChromeData() async {
+    final user = await _authService.readCurrentUser();
+    String title = user?.stationId ?? 'Purchase History';
+    try {
+      final station = await _inventoryService.fetchStationConfig();
+      if (station.name.trim().isNotEmpty) {
+        title = station.name.trim();
+      }
+    } catch (_) {
+      // Keep the user station id fallback when station config is unavailable.
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentUser = user;
+      _stationTitle = title;
+    });
+  }
+
+  bool get _usesManagementNav {
+    final role = _currentUser?.role.trim().toLowerCase();
+    return role == 'admin' || role == 'superadmin';
+  }
+
+  int get _selectedNavIndex => _usesManagementNav ? 3 : 2;
+
+  List<AppBottomNavItem> get _navItems {
+    if (_usesManagementNav) {
+      return const [
+        AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entries'),
+        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
+        AppBottomNavItem(
+          icon: Icons.local_gas_station_outlined,
+          label: 'Inventory',
+        ),
+        AppBottomNavItem(
+          icon: Icons.manage_accounts_outlined,
+          label: 'Settings',
+        ),
+      ];
+    }
+    return const [
+      AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+      AppBottomNavItem(icon: Icons.inventory_2_outlined, label: 'Sales'),
+      AppBottomNavItem(
+        icon: Icons.local_gas_station_outlined,
+        label: 'Inventory',
+      ),
+      AppBottomNavItem(icon: Icons.local_shipping_outlined, label: 'History'),
+      AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'Account'),
+    ];
+  }
+
+  void _openShellAt(int index) {
+    final user = _currentUser;
+    if (user == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => _usesManagementNav
+            ? ManagementShell(user: user, initialIndex: index)
+            : SalesShell(user: user, initialIndex: index),
+      ),
+      (_) => false,
+    );
   }
 
   Future<List<DeliveryReceiptModel>> _load({bool forceRefresh = false}) {
@@ -74,7 +157,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   }
 
   bool _matchesFuelFilter(DeliveryReceiptModel delivery) {
-    if (_fuelFilter == _DeliveryFuelFilter.all) {
+    if (_fuelFilter == DeliveryFuelFilter.all) {
       return true;
     }
 
@@ -88,15 +171,15 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     ].where((quantity) => quantity > 0).length;
 
     switch (_fuelFilter) {
-      case _DeliveryFuelFilter.all:
+      case DeliveryFuelFilter.all:
         return true;
-      case _DeliveryFuelFilter.petrol:
+      case DeliveryFuelFilter.petrol:
         return petrol > 0;
-      case _DeliveryFuelFilter.diesel:
+      case DeliveryFuelFilter.diesel:
         return diesel > 0;
-      case _DeliveryFuelFilter.twoT:
+      case DeliveryFuelFilter.twoT:
         return twoT > 0;
-      case _DeliveryFuelFilter.mixed:
+      case DeliveryFuelFilter.mixed:
         return activeFuelCount > 1;
     }
   }
@@ -120,10 +203,6 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
           return _compareDateValues(right.date, left.date);
         case _DeliveryHistorySort.purchaseOldest:
           return _compareDateValues(left.date, right.date);
-        case _DeliveryHistorySort.savedNewest:
-          return _compareDateValues(right.createdAt, left.createdAt);
-        case _DeliveryHistorySort.savedOldest:
-          return _compareDateValues(left.createdAt, right.createdAt);
         case _DeliveryHistorySort.quantityHigh:
           return right.quantity.compareTo(left.quantity);
         case _DeliveryHistorySort.quantityLow:
@@ -133,17 +212,17 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     return filtered;
   }
 
-  String _fuelFilterLabel(_DeliveryFuelFilter filter) {
+  String _fuelFilterLabel(DeliveryFuelFilter filter) {
     switch (filter) {
-      case _DeliveryFuelFilter.all:
+      case DeliveryFuelFilter.all:
         return 'All purchases';
-      case _DeliveryFuelFilter.petrol:
+      case DeliveryFuelFilter.petrol:
         return 'Petrol';
-      case _DeliveryFuelFilter.diesel:
+      case DeliveryFuelFilter.diesel:
         return 'Diesel';
-      case _DeliveryFuelFilter.twoT:
+      case DeliveryFuelFilter.twoT:
         return '2T Oil';
-      case _DeliveryFuelFilter.mixed:
+      case DeliveryFuelFilter.mixed:
         return 'Mixed';
     }
   }
@@ -154,10 +233,6 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         return 'Purchase date - newest';
       case _DeliveryHistorySort.purchaseOldest:
         return 'Purchase date - oldest';
-      case _DeliveryHistorySort.savedNewest:
-        return 'Saved date - newest';
-      case _DeliveryHistorySort.savedOldest:
-        return 'Saved date - oldest';
       case _DeliveryHistorySort.quantityHigh:
         return 'Quantity - high to low';
       case _DeliveryHistorySort.quantityLow:
@@ -190,7 +265,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     setState(() {
       _fromDate = '';
       _toDate = '';
-      _fuelFilter = _DeliveryFuelFilter.all;
+      _fuelFilter = DeliveryFuelFilter.all;
       _sort = _DeliveryHistorySort.purchaseNewest;
     });
   }
@@ -198,7 +273,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   bool get _hasFilters =>
       _fromDate.isNotEmpty ||
       _toDate.isNotEmpty ||
-      _fuelFilter != _DeliveryFuelFilter.all ||
+      _fuelFilter != DeliveryFuelFilter.all ||
       _sort != _DeliveryHistorySort.purchaseNewest;
 
   Widget _filterButton({
@@ -264,10 +339,10 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     required ValueChanged<T> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 8, 10, 6),
+      padding: const EdgeInsets.fromLTRB(12, 6, 10, 4),
       decoration: BoxDecoration(
         color: const Color(0xFFECEFF8),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFFDDE3F0)),
       ),
       child: Column(
@@ -281,18 +356,21 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
               fontWeight: FontWeight.w900,
             ),
           ),
+          const SizedBox(height: 2),
           DropdownButtonHideUnderline(
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
+              isDense: true,
               icon: const Icon(
                 Icons.keyboard_arrow_down_rounded,
                 color: Color(0xFF5D6685),
+                size: 22,
               ),
               style: const TextStyle(
                 color: kClayPrimary,
                 fontWeight: FontWeight.w900,
-                fontSize: 14,
+                fontSize: 13,
               ),
               dropdownColor: Colors.white,
               borderRadius: BorderRadius.circular(14),
@@ -334,7 +412,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             ),
             child: Icon(
               hasPurchases
-                  ? Icons.filter_alt_off_rounded
+                  ? Icons.filter_alt_rounded
                   : Icons.local_shipping_outlined,
               color: kClayPrimary,
               size: 24,
@@ -362,10 +440,9 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
           ),
           if (_hasFilters) ...[
             const SizedBox(height: 12),
-            TextButton.icon(
+            TextButton(
               onPressed: _clearFilters,
-              icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
-              label: const Text('Clear filters'),
+              child: const Text('Clear filter'),
             ),
           ],
         ],
@@ -475,11 +552,9 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                 ),
               ),
               if (_hasFilters)
-                IconButton(
-                  tooltip: 'Clear filters',
+                TextButton(
                   onPressed: _clearFilters,
-                  icon: const Icon(Icons.filter_alt_off_rounded),
-                  color: kClayPrimary,
+                  child: const Text('Clear filter'),
                 ),
             ],
           ),
@@ -525,10 +600,10 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          _filterDropdown<_DeliveryFuelFilter>(
+          _filterDropdown<DeliveryFuelFilter>(
             label: 'Fuel filter',
             value: _fuelFilter,
-            values: _DeliveryFuelFilter.values,
+            values: DeliveryFuelFilter.values,
             labelFor: _fuelFilterLabel,
             onChanged: (value) => setState(() => _fuelFilter = value),
           ),
@@ -552,11 +627,30 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
-        title: const Text(
-          'Purchase History',
-          style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        title: Row(
+          children: [
+            const AppLogo(size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OneLineScaleText(
+                _stationTitle,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: kClayPrimary,
+                  fontSize: 20,
+                ),
+              ),
+            ),
+          ],
         ),
         iconTheme: const IconThemeData(color: kClayPrimary),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onSelected: _openShellAt,
+        items: _navItems,
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -591,6 +685,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                   ...visibleDeliveries.map(
                     (delivery) => DeliveryReceiptSummaryCard(
                       delivery: delivery,
+                      fuelFilter: _fuelFilter,
                       margin: const EdgeInsets.only(bottom: 14),
                     ),
                   ),
@@ -603,13 +698,11 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   }
 }
 
-enum _DeliveryFuelFilter { all, petrol, diesel, twoT, mixed }
+enum DeliveryFuelFilter { all, petrol, diesel, twoT, mixed }
 
 enum _DeliveryHistorySort {
   purchaseNewest,
   purchaseOldest,
-  savedNewest,
-  savedOldest,
   quantityHigh,
   quantityLow,
 }
@@ -618,13 +711,26 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
   const DeliveryReceiptSummaryCard({
     super.key,
     required this.delivery,
+    this.fuelFilter = DeliveryFuelFilter.all,
     this.margin = const EdgeInsets.only(bottom: 12),
   });
 
   final DeliveryReceiptModel delivery;
+  final DeliveryFuelFilter fuelFilter;
   final EdgeInsetsGeometry margin;
 
   String _deliveryTitle() {
+    switch (fuelFilter) {
+      case DeliveryFuelFilter.petrol:
+        return 'Petrol Purchase';
+      case DeliveryFuelFilter.diesel:
+        return 'Diesel Purchase';
+      case DeliveryFuelFilter.twoT:
+        return '2T Oil Purchase';
+      case DeliveryFuelFilter.all:
+      case DeliveryFuelFilter.mixed:
+        break;
+    }
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
@@ -640,7 +746,10 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
-    if (petrol > 0) {
+    if (petrol > 0 &&
+        (fuelFilter == DeliveryFuelFilter.all ||
+            fuelFilter == DeliveryFuelFilter.mixed ||
+            fuelFilter == DeliveryFuelFilter.petrol)) {
       items.add(
         _DeliveryQtyItem(
           label: 'Petrol',
@@ -649,7 +758,10 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
         ),
       );
     }
-    if (diesel > 0) {
+    if (diesel > 0 &&
+        (fuelFilter == DeliveryFuelFilter.all ||
+            fuelFilter == DeliveryFuelFilter.mixed ||
+            fuelFilter == DeliveryFuelFilter.diesel)) {
       items.add(
         _DeliveryQtyItem(
           label: 'Diesel',
@@ -658,7 +770,10 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
         ),
       );
     }
-    if (twoT > 0) {
+    if (twoT > 0 &&
+        (fuelFilter == DeliveryFuelFilter.all ||
+            fuelFilter == DeliveryFuelFilter.mixed ||
+            fuelFilter == DeliveryFuelFilter.twoT)) {
       items.add(
         _DeliveryQtyItem(
           label: '2T Oil',
@@ -668,6 +783,34 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
       );
     }
     return items;
+  }
+
+  double _displayQuantity() {
+    switch (fuelFilter) {
+      case DeliveryFuelFilter.petrol:
+        return delivery.quantities['petrol'] ?? 0;
+      case DeliveryFuelFilter.diesel:
+        return delivery.quantities['diesel'] ?? 0;
+      case DeliveryFuelFilter.twoT:
+        return delivery.quantities['two_t_oil'] ?? 0;
+      case DeliveryFuelFilter.all:
+      case DeliveryFuelFilter.mixed:
+        return delivery.quantity;
+    }
+  }
+
+  String _badgeLabel() {
+    switch (fuelFilter) {
+      case DeliveryFuelFilter.petrol:
+        return 'P';
+      case DeliveryFuelFilter.diesel:
+        return 'D';
+      case DeliveryFuelFilter.twoT:
+        return '2T';
+      case DeliveryFuelFilter.all:
+      case DeliveryFuelFilter.mixed:
+        return _isTwoTOnly() ? '2T' : 'PD';
+    }
   }
 
   bool _isTwoTOnly() {
@@ -694,7 +837,7 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                _isTwoTOnly() ? '2T' : 'PD',
+                _badgeLabel(),
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 13,
@@ -718,7 +861,7 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${formatDateLabel(delivery.date)}  ·  Total ${formatLiters(delivery.quantity)}',
+                  '${formatDateLabel(delivery.date)}  ·  Total ${formatLiters(_displayQuantity())}',
                   style: const TextStyle(color: kClaySub, fontSize: 12),
                 ),
                 if (delivery.purchasedByName.trim().isNotEmpty) ...[

@@ -1007,12 +1007,6 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                   label: _submitting ? 'Opening...' : 'New Entry',
                   onTap: _submitting ? null : _openAdminEntryDialog,
                 ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: _openDailyFuelHistory,
-                  icon: const Icon(Icons.history_rounded),
-                  label: const Text('Fuel Register History'),
-                ),
 
                 const SizedBox(height: 18),
 

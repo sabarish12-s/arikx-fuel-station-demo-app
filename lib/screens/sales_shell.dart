@@ -11,9 +11,10 @@ import 'inventory_hub_screen.dart';
 import 'sales_dashboard_screen.dart';
 
 class SalesShell extends StatefulWidget {
-  const SalesShell({super.key, required this.user});
+  const SalesShell({super.key, required this.user, this.initialIndex = 0});
 
   final AuthUser user;
+  final int initialIndex;
 
   @override
   State<SalesShell> createState() => _SalesShellState();
@@ -22,12 +23,14 @@ class SalesShell extends StatefulWidget {
 class _SalesShellState extends State<SalesShell> {
   int _index = 0;
   int _salesRefreshToken = 0;
-  final Set<int> _loadedScreens = {0};
+  final Set<int> _loadedScreens = {};
   late final List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
+    _index = widget.initialIndex.clamp(0, 4);
+    _loadedScreens.add(_index);
     _screens = [
       SalesDashboardScreen(onOpenSalesEntry: () => _selectIndex(1)),
       ClosingStockEntryScreen(key: ValueKey(_salesRefreshToken)),

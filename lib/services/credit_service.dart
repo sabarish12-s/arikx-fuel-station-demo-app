@@ -163,7 +163,13 @@ class CreditService {
 
     final customers =
         grouped.entries
-            .map((entry) => _legacySummaryFromTransactions(entry.value))
+            .map(
+              (entry) => _legacySummaryFromTransactions(
+                entry.value,
+                fromDate: fromDate,
+                toDate: toDate,
+              ),
+            )
             .where((item) {
               if (query.trim().isNotEmpty &&
                   !item.customer.name.toLowerCase().contains(

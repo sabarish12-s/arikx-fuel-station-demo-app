@@ -5,6 +5,7 @@ import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/clay_widgets.dart';
+import '../widgets/responsive_text.dart';
 
 class FuelPriceUpdateRequestsScreen extends StatefulWidget {
   const FuelPriceUpdateRequestsScreen({
@@ -289,38 +290,38 @@ class _FuelPriceUpdateRequestsScreenState
                       ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.canReview
-                      ? 'Approve sales-submitted fuel price changes after Day Setup is created.'
-                      : 'Sales can request selling price changes after Day Setup. Admin approval is required before prices update.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                  ),
-                ),
                 const SizedBox(height: 16),
                 Container(
                   height: 1,
                   color: Colors.white.withValues(alpha: 0.1),
                 ),
                 const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                Row(
                   children: [
-                    _HeroInfoChip(
-                      label: 'Day setup',
-                      value: state?.setupExists == true ? 'Ready' : 'Required',
+                    Expanded(
+                      child: _HeroInfoChip(
+                        label: 'Day setup',
+                        value: state?.setupExists == true
+                            ? 'Ready'
+                            : 'Required',
+                      ),
                     ),
-                    _HeroInfoChip(
-                      label: 'Effective date',
-                      value: state?.allowedEntryDate.trim().isNotEmpty == true
-                          ? formatDateLabel(state!.allowedEntryDate)
-                          : 'Not available',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _HeroInfoChip(
+                        label: 'Effective date',
+                        value: state?.allowedEntryDate.trim().isNotEmpty == true
+                            ? formatDateLabel(state!.allowedEntryDate)
+                            : 'Not available',
+                      ),
                     ),
-                    _HeroInfoChip(label: 'Pending', value: '$pendingCount'),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _HeroInfoChip(
+                        label: 'Pending',
+                        value: '$pendingCount',
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -478,7 +479,7 @@ class _FuelPriceRequestDialogState extends State<_FuelPriceRequestDialog> {
   Widget build(BuildContext context) {
     return ClayDialogShell(
       title: 'Fuel Price Request',
-      subtitle: 'Enter the new selling prices for admin approval.',
+      subtitle: 'Enter the new selling prices for superadmin approval.',
       icon: Icons.sell_outlined,
       actions: [
         Expanded(
@@ -598,15 +599,27 @@ class _CurrentPricesCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Row(
             children: [
-              _PriceChip(label: 'Petrol', prices: setup.fuelPrices['petrol']),
-              _PriceChip(label: 'Diesel', prices: setup.fuelPrices['diesel']),
-              _PriceChip(
-                label: '2T Oil',
-                prices: setup.fuelPrices['two_t_oil'],
+              Expanded(
+                child: _PriceChip(
+                  label: 'Petrol',
+                  prices: setup.fuelPrices['petrol'],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PriceChip(
+                  label: 'Diesel',
+                  prices: setup.fuelPrices['diesel'],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _PriceChip(
+                  label: '2T Oil',
+                  prices: setup.fuelPrices['two_t_oil'],
+                ),
               ),
             ],
           ),
@@ -856,17 +869,20 @@ class _HeroInfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      height: 62,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             label,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
               fontSize: 11,
@@ -874,8 +890,10 @@ class _HeroInfoChip extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          OneLineScaleText(
             value,
+            textAlign: TextAlign.center,
+            alignment: Alignment.center,
             style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w900,
@@ -897,16 +915,19 @@ class _PriceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final selling = prices?['sellingPrice'] ?? 0;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      height: 62,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8FD),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             label,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: kClaySub,
               fontSize: 11,
@@ -914,8 +935,10 @@ class _PriceChip extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          OneLineScaleText(
             '${formatCurrency(selling)}/L',
+            textAlign: TextAlign.center,
+            alignment: Alignment.center,
             style: const TextStyle(
               color: kClayPrimary,
               fontWeight: FontWeight.w900,

@@ -61,88 +61,120 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
     final descriptionController = TextEditingController(
       text: existing?.description ?? '',
     );
+    bool isActive = existing?.active ?? true;
 
     final bool? save = await showDialog<bool>(
       context: context,
-      builder: (context) => ClayDialogShell(
-        title: existing == null ? 'Add Fuel Type' : 'Edit Fuel Type',
-        subtitle: 'Set the fuel id, name, short name, and display description.',
-        icon: Icons.local_gas_station_rounded,
-        accentColor: kClayPrimary,
-        actions: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: kClayPrimary,
-                side: BorderSide(color: kClayPrimary.withValues(alpha: 0.16)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => ClayDialogShell(
+          title: existing == null ? 'Add Fuel Type' : 'Edit Fuel Type',
+          subtitle:
+              'Set the fuel id, name, short name, and display description.',
+          icon: Icons.local_gas_station_rounded,
+          accentColor: kClayPrimary,
+          actions: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kClayPrimary,
+                  side: BorderSide(color: kClayPrimary.withValues(alpha: 0.16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: const Text('Cancel'),
               ),
-              child: const Text('Cancel'),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4D66A9),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF4D66A9),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: const Text('Save'),
               ),
-              child: const Text('Save'),
             ),
-          ),
-        ],
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ClayDialogSection(
-              title: 'Fuel details',
-              subtitle:
-                  'These values are used across stock, entries, and reports.',
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final split = constraints.maxWidth >= 420;
-                  if (split) {
+          ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClayDialogSection(
+                title: 'Fuel details',
+                subtitle:
+                    'These values are used across stock, entries, and reports.',
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final split = constraints.maxWidth >= 420;
+                    if (split) {
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: idController,
+                                  decoration: clayDialogInputDecoration(
+                                    label: 'Id',
+                                    hintText: 'two_t_oil',
+                                    prefixIcon: const Icon(
+                                      Icons.tag_rounded,
+                                      color: kClaySub,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  controller: shortController,
+                                  decoration: clayDialogInputDecoration(
+                                    label: 'Short name',
+                                    hintText: '2T',
+                                    prefixIcon: const Icon(
+                                      Icons.short_text_rounded,
+                                      color: kClaySub,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: nameController,
+                            decoration: clayDialogInputDecoration(
+                              label: 'Name',
+                              hintText: '2T Oil',
+                              prefixIcon: const Icon(
+                                Icons.local_offer_outlined,
+                                color: kClaySub,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
                     return Column(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: idController,
-                                decoration: clayDialogInputDecoration(
-                                  label: 'Id',
-                                  hintText: 'two_t_oil',
-                                  prefixIcon: const Icon(
-                                    Icons.tag_rounded,
-                                    color: kClaySub,
-                                  ),
-                                ),
-                              ),
+                        TextField(
+                          controller: idController,
+                          decoration: clayDialogInputDecoration(
+                            label: 'Id',
+                            hintText: 'two_t_oil',
+                            prefixIcon: const Icon(
+                              Icons.tag_rounded,
+                              color: kClaySub,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: shortController,
-                                decoration: clayDialogInputDecoration(
-                                  label: 'Short name',
-                                  hintText: '2T',
-                                  prefixIcon: const Icon(
-                                    Icons.short_text_rounded,
-                                    color: kClaySub,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 12),
                         TextField(
@@ -156,71 +188,77 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: shortController,
+                          decoration: clayDialogInputDecoration(
+                            label: 'Short name',
+                            hintText: '2T',
+                            prefixIcon: const Icon(
+                              Icons.short_text_rounded,
+                              color: kClaySub,
+                            ),
+                          ),
+                        ),
                       ],
                     );
-                  }
-
-                  return Column(
-                    children: [
-                      TextField(
-                        controller: idController,
-                        decoration: clayDialogInputDecoration(
-                          label: 'Id',
-                          hintText: 'two_t_oil',
-                          prefixIcon: const Icon(
-                            Icons.tag_rounded,
-                            color: kClaySub,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: nameController,
-                        decoration: clayDialogInputDecoration(
-                          label: 'Name',
-                          hintText: '2T Oil',
-                          prefixIcon: const Icon(
-                            Icons.local_offer_outlined,
-                            color: kClaySub,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: shortController,
-                        decoration: clayDialogInputDecoration(
-                          label: 'Short name',
-                          hintText: '2T',
-                          prefixIcon: const Icon(
-                            Icons.short_text_rounded,
-                            color: kClaySub,
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            ClayDialogSection(
-              title: 'Description',
-              subtitle: 'Shown in settings and selection screens.',
-              child: TextField(
-                controller: descriptionController,
-                maxLines: 3,
-                minLines: 3,
-                decoration: clayDialogInputDecoration(
-                  label: 'Description',
-                  hintText: 'Describe where and how this fuel is used.',
-                  prefixIcon: const Padding(
-                    padding: EdgeInsets.only(bottom: 38),
-                    child: Icon(Icons.notes_rounded, color: kClaySub),
+              const SizedBox(height: 14),
+              ClayDialogSection(
+                title: 'Status',
+                subtitle: 'Choose whether this fuel type is active or inactive.',
+                child: SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment<bool>(
+                      value: true,
+                      label: Text('Active'),
+                      icon: Icon(Icons.check_circle_outline_rounded),
+                    ),
+                    ButtonSegment<bool>(
+                      value: false,
+                      label: Text('Inactive'),
+                      icon: Icon(Icons.pause_circle_outline_rounded),
+                    ),
+                  ],
+                  selected: {isActive},
+                  onSelectionChanged: (selection) {
+                    setDialogState(() {
+                      isActive = selection.first;
+                    });
+                  },
+                  style: ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStatePropertyAll(
+                      Theme.of(context).textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: kClayPrimary,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 14),
+              ClayDialogSection(
+                title: 'Description',
+                subtitle: 'Shown in settings and selection screens.',
+                child: TextField(
+                  controller: descriptionController,
+                  maxLines: 3,
+                  minLines: 3,
+                  decoration: clayDialogInputDecoration(
+                    label: 'Description',
+                    hintText: 'Describe where and how this fuel is used.',
+                    prefixIcon: const Padding(
+                      padding: EdgeInsets.only(bottom: 38),
+                      child: Icon(Icons.notes_rounded, color: kClaySub),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -234,7 +272,7 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
       description: descriptionController.text.trim(),
       color: existing?.color ?? '#1E5CBA',
       icon: existing?.icon ?? 'local_gas_station',
-      active: existing?.active ?? true,
+      active: isActive,
       createdAt: existing?.createdAt ?? '',
     );
 
@@ -260,9 +298,6 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
         final fuelTypes = snapshot.data ?? [];
         final activeCount = fuelTypes.where((item) => item.active).length;
         final inactiveCount = fuelTypes.length - activeCount;
-        final describedCount = fuelTypes
-            .where((item) => item.description.trim().isNotEmpty)
-            .length;
         return ColoredBox(
           color: kClayBg,
           child: ListView(
@@ -274,7 +309,6 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
                   totalCount: fuelTypes.length,
                   activeCount: activeCount,
                   inactiveCount: inactiveCount,
-                  describedCount: describedCount,
                   canEdit: widget.canEdit,
                   onBack: widget.onBack,
                   onAdd: () => _openEditor(),
@@ -414,7 +448,6 @@ class _FuelTypeOverviewCard extends StatelessWidget {
     required this.totalCount,
     required this.activeCount,
     required this.inactiveCount,
-    required this.describedCount,
     required this.canEdit,
     this.onBack,
     required this.onAdd,
@@ -423,7 +456,6 @@ class _FuelTypeOverviewCard extends StatelessWidget {
   final int totalCount;
   final int activeCount;
   final int inactiveCount;
-  final int describedCount;
   final bool canEdit;
   final VoidCallback? onBack;
   final VoidCallback onAdd;
@@ -471,33 +503,27 @@ class _FuelTypeOverviewCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage the fuel list used across entries, stock, and reports.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
           const SizedBox(height: 16),
           Container(height: 1, color: Colors.white.withValues(alpha: 0.1)),
           const SizedBox(height: 16),
-          GridView.count(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.65,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+          Row(
             children: [
-              _FuelTypeStatTile(title: 'Total Types', value: '$totalCount'),
-              _FuelTypeStatTile(title: 'Active', value: '$activeCount'),
-              _FuelTypeStatTile(title: 'Inactive', value: '$inactiveCount'),
-              _FuelTypeStatTile(
-                title: 'Descriptions',
-                value: '$describedCount',
+              Expanded(
+                child: _FuelTypeStatTile(
+                  title: 'Total Types',
+                  value: '$totalCount',
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _FuelTypeStatTile(title: 'Active', value: '$activeCount'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _FuelTypeStatTile(
+                  title: 'Inactive',
+                  value: '$inactiveCount',
+                ),
               ),
             ],
           ),
@@ -558,6 +584,7 @@ class _FuelTypeStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: 112,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
@@ -565,11 +592,12 @@ class _FuelTypeStatTile extends StatelessWidget {
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
             title,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
               fontSize: 12,
@@ -579,6 +607,7 @@ class _FuelTypeStatTile extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             value,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 26,

@@ -1184,10 +1184,9 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                       ),
                       if (_fromDate.isNotEmpty || _toDate.isNotEmpty) ...[
                         const SizedBox(height: 10),
-                        TextButton.icon(
+                        TextButton(
                           onPressed: _clearFilters,
-                          icon: const Icon(Icons.filter_alt_off_rounded),
-                          label: const Text('Clear filters'),
+                          child: const Text('Clear filter'),
                         ),
                       ],
                     ],

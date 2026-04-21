@@ -58,13 +58,13 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
         );
       case _SettingsPanel.daySetup:
         return DaySetupScreen(
-          canEdit: _canEditStationSettings,
+          canEdit: _isSuperAdmin,
           embedded: true,
           onBack: _showHome,
         );
       case _SettingsPanel.fuelPriceRequests:
         return FuelPriceUpdateRequestsScreen(
-          canReview: _canEditStationSettings,
+          canReview: _isSuperAdmin,
           embedded: true,
           onBack: _showHome,
         );

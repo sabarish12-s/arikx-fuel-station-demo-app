@@ -2,14 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../models/auth_models.dart';
 import '../models/domain_models.dart';
 import '../services/api_response_cache.dart';
+import '../services/auth_service.dart';
 import '../services/credit_service.dart';
+import '../services/inventory_service.dart';
 import '../utils/formatters.dart';
 import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../widgets/app_logo.dart';
 import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
+import 'management_shell.dart';
+import 'sales_shell.dart';
 
 double _collectableCreditBalance(double balance) => balance <= 0 ? 0 : balance;
 
@@ -22,11 +29,15 @@ class CreditLedgerScreen extends StatefulWidget {
 
 class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   final CreditService _creditService = CreditService();
+  final AuthService _authService = AuthService();
+  final InventoryService _inventoryService = InventoryService();
   final TextEditingController _searchController = TextEditingController();
   String _status = 'all';
   DateTime? _fromDate;
   DateTime? _toDate;
   bool _loadingStandaloneCollectionCustomers = false;
+  AuthUser? _currentUser;
+  String _stationTitle = 'Credit Ledger';
   List<CreditCustomerSummaryModel> _latestCustomers = const [];
   late Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>
   _future;
@@ -40,6 +51,7 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   void initState() {
     super.initState();
     _future = _load();
+    _loadChromeData();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted ||
           !update.background ||
@@ -47,6 +59,26 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
         return;
       }
       setState(() => _future = _load());
+    });
+  }
+
+  Future<void> _loadChromeData() async {
+    final user = await _authService.readCurrentUser();
+    String title = user?.stationId ?? 'Credit Ledger';
+    try {
+      final station = await _inventoryService.fetchStationConfig();
+      if (station.name.trim().isNotEmpty) {
+        title = station.name.trim();
+      }
+    } catch (_) {
+      // Keep the user station id fallback when station config is unavailable.
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentUser = user;
+      _stationTitle = title;
     });
   }
 
@@ -65,13 +97,35 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
 
   Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)> _load({
     bool forceRefresh = false,
-  }) {
-    return _creditService.fetchCustomers(
+  }) async {
+    final (summary, customers) = await _creditService.fetchCustomers(
       query: _searchController.text.trim(),
-      status: _status,
+      status: _status == 'received' ? 'all' : _status,
       fromDate: _fromDate == null ? null : _toApiDate(_fromDate!),
       toDate: _toDate == null ? null : _toApiDate(_toDate!),
       forceRefresh: forceRefresh,
+    );
+    if (_status != 'received') {
+      return (summary, customers);
+    }
+
+    final receivedCustomers = customers
+        .where((item) => item.collectedInRange > 0)
+        .toList();
+    return (
+      CreditLedgerSummaryModel(
+        openCustomerCount: receivedCustomers
+            .where((item) => item.status == 'open')
+            .length,
+        openBalanceTotal: receivedCustomers
+            .where((item) => item.status == 'open')
+            .fold<double>(0, (sum, item) => sum + item.currentBalance),
+        collectedInRangeTotal: receivedCustomers.fold<double>(
+          0,
+          (sum, item) => sum + item.collectedInRange,
+        ),
+      ),
+      receivedCustomers,
     );
   }
 
@@ -84,6 +138,58 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   Future<void> _refresh() async {
     setState(() => _future = _load(forceRefresh: true));
     await _future;
+  }
+
+  bool get _usesManagementNav {
+    final role = _currentUser?.role.trim().toLowerCase();
+    return role == 'admin' || role == 'superadmin';
+  }
+
+  int get _selectedNavIndex => _usesManagementNav ? 2 : 0;
+
+  List<AppBottomNavItem> get _navItems {
+    if (_usesManagementNav) {
+      return const [
+        AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entries'),
+        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
+        AppBottomNavItem(
+          icon: Icons.local_gas_station_outlined,
+          label: 'Inventory',
+        ),
+        AppBottomNavItem(
+          icon: Icons.manage_accounts_outlined,
+          label: 'Settings',
+        ),
+      ];
+    }
+    return const [
+      AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+      AppBottomNavItem(icon: Icons.inventory_2_outlined, label: 'Sales'),
+      AppBottomNavItem(
+        icon: Icons.local_gas_station_outlined,
+        label: 'Inventory',
+      ),
+      AppBottomNavItem(icon: Icons.local_shipping_outlined, label: 'History'),
+      AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'Account'),
+    ];
+  }
+
+  void _openShellAt(int index) {
+    final user = _currentUser;
+    if (user == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => _usesManagementNav
+            ? ManagementShell(user: user, initialIndex: index)
+            : SalesShell(user: user, initialIndex: index),
+      ),
+      (_) => false,
+    );
   }
 
   Future<void> _openStandaloneCollectionDialogFromLedger() async {
@@ -363,11 +469,30 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
-        title: const Text(
-          'Credit Ledger',
-          style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        title: Row(
+          children: [
+            const AppLogo(size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OneLineScaleText(
+                _stationTitle,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: kClayPrimary,
+                  fontSize: 20,
+                ),
+              ),
+            ),
+          ],
         ),
         iconTheme: const IconThemeData(color: kClayPrimary),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onSelected: _openShellAt,
+        items: _navItems,
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loadingStandaloneCollectionCustomers
@@ -438,26 +563,50 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _HeroMetric(
-                            label: 'Open',
-                            value: '${summary.openCustomerCount}',
-                            sub: 'customers',
-                          ),
-                          _HeroDivider(),
-                          _HeroMetric(
-                            label: 'Balance',
-                            value: formatCurrency(summary.openBalanceTotal),
-                            sub: 'outstanding',
-                          ),
-                          _HeroDivider(),
-                          _HeroMetric(
-                            label: 'Collected',
-                            value: formatCurrency(
-                              summary.collectedInRangeTotal,
+                          const Text(
+                            'CREDIT LEDGER',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
                             ),
-                            sub: 'in range',
+                          ),
+                          const SizedBox(height: 8),
+                          const OneLineScaleText(
+                            'Credit Ledger',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              _HeroMetric(
+                                label: 'Open',
+                                value: '${summary.openCustomerCount}',
+                                sub: 'customers',
+                              ),
+                              _HeroDivider(),
+                              _HeroMetric(
+                                label: 'Balance',
+                                value: formatCurrency(summary.openBalanceTotal),
+                                sub: 'outstanding',
+                              ),
+                              _HeroDivider(),
+                              _HeroMetric(
+                                label: 'Collected',
+                                value: formatCurrency(
+                                  summary.collectedInRangeTotal,
+                                ),
+                                sub: 'in range',
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -505,10 +654,13 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                                 'all',
                                 'open',
                                 'closed',
+                                'received',
                               ]) ...[
                                 Expanded(
                                   child: _StatusPill(
-                                    label: option.toUpperCase(),
+                                    label: option == 'received'
+                                        ? 'RECEIVED'
+                                        : option.toUpperCase(),
                                     selected: _status == option,
                                     onTap: () {
                                       setState(() {
@@ -518,8 +670,8 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                                     },
                                   ),
                                 ),
-                                if (option != 'closed')
-                                  const SizedBox(width: 8),
+                                if (option != 'received')
+                                  const SizedBox(width: 6),
                               ],
                             ],
                           ),
@@ -667,7 +819,9 @@ class _StatusPill extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+        height: 46,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         decoration: BoxDecoration(
           color: selected ? kClayPrimary : Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -686,13 +840,14 @@ class _StatusPill extends StatelessWidget {
                   ),
                 ],
         ),
-        child: Text(
+        child: OneLineScaleText(
           label,
           textAlign: TextAlign.center,
+          alignment: Alignment.center,
           style: TextStyle(
             color: selected ? Colors.white : kClaySub,
             fontWeight: FontWeight.w700,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
       ),
@@ -840,6 +995,15 @@ class _CustomerCard extends StatelessWidget {
                     'Balance ${formatCurrency(item.currentBalance)}  ·  Issued ${formatCurrency(item.totalIssued)}',
                     style: const TextStyle(color: kClaySub, fontSize: 12),
                   ),
+                  if (item.collectedInRange > 0)
+                    Text(
+                      'Received ${formatCurrency(item.collectedInRange)}',
+                      style: const TextStyle(
+                        color: Color(0xFF2AA878),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   if (item.lastActivityDate.isNotEmpty)
                     Text(
                       'Last activity ${formatDateLabel(item.lastActivityDate)}',

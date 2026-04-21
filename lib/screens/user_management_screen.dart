@@ -722,18 +722,20 @@ class _OverviewStatTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      height: 96,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           OneLineScaleText(
             title,
+            textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.72),
               fontSize: 12,
@@ -743,6 +745,7 @@ class _OverviewStatTile extends StatelessWidget {
           const SizedBox(height: 8),
           OneLineScaleText(
             value,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 26,
@@ -798,6 +801,28 @@ class _StaffUserCard extends StatelessWidget {
     final initial = displayName.trim().isEmpty
         ? '?'
         : displayName.trim().characters.first.toUpperCase();
+    final infoPills = <Widget>[
+      _StaffInfoPill(
+        icon: Icons.storefront_rounded,
+        label: 'Station ${user.stationId}',
+      ),
+      _StaffInfoPill(
+        icon: Icons.person_add_alt_1_rounded,
+        label: 'Added ${formatDateLabel(user.createdAt.toIso8601String())}',
+      ),
+      if (user.requestCreatedAt != null)
+        _StaffInfoPill(
+          icon: Icons.schedule_rounded,
+          label:
+              'Requested ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
+        ),
+      if (user.reviewedAt != null)
+        _StaffInfoPill(
+          icon: Icons.verified_rounded,
+          label:
+              'Reviewed ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
+        ),
+    ];
 
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 12),
@@ -860,32 +885,17 @@ class _StaffUserCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _StaffInfoPill(
-                icon: Icons.storefront_rounded,
-                label: 'Station ${user.stationId}',
-              ),
-              _StaffInfoPill(
-                icon: Icons.person_add_alt_1_rounded,
-                label:
-                    'Added ${formatDateLabel(user.createdAt.toIso8601String())}',
-              ),
-              if (user.requestCreatedAt != null)
-                _StaffInfoPill(
-                  icon: Icons.schedule_rounded,
-                  label:
-                      'Requested ${formatDateLabel(user.requestCreatedAt!.toIso8601String())}',
-                ),
-              if (user.reviewedAt != null)
-                _StaffInfoPill(
-                  icon: Icons.verified_rounded,
-                  label:
-                      'Reviewed ${formatDateLabel(user.reviewedAt!.toIso8601String())}',
-                ),
-            ],
+          GridView.builder(
+            itemCount: infoPills.length,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              mainAxisExtent: 34,
+            ),
+            itemBuilder: (context, index) => infoPills[index],
           ),
           const SizedBox(height: 12),
           if (isEditing && canManage)

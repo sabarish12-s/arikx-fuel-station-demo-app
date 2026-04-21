@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/domain_models.dart';
 import '../utils/formatters.dart';
 import 'clay_widgets.dart';
+import 'responsive_text.dart';
 
 class DailyFuelStatusCard extends StatelessWidget {
   const DailyFuelStatusCard({
@@ -365,6 +366,20 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
   @override
   Widget build(BuildContext context) {
     final record = widget.record;
+    final sourceClosingDate = record?.sourceClosingDate.trim() ?? '';
+    final infoPills = <Widget>[
+      _InfoPill(label: 'Date', value: formatDateLabel(widget.targetDate)),
+      if (sourceClosingDate.isNotEmpty)
+        _InfoPill(
+          label: 'Opening source',
+          value: formatDateLabel(sourceClosingDate),
+        ),
+      _InfoPill(
+        label: 'Status',
+        value: record?.isComplete == true ? 'Saved' : 'Pending',
+      ),
+    ];
+
     return ClayCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,40 +397,24 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
                 ),
               ),
               if (widget.onHistory != null)
-                IconButton(
-                  tooltip: 'History',
+                TextButton.icon(
                   onPressed: widget.onHistory,
                   icon: const Icon(Icons.history_rounded),
+                  label: const Text('History'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: kClayPrimary,
+                    textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Opening stock is auto-filled from the previous day closing. Price comes from settings. Density can be saved separately from pump sales.',
-            style: const TextStyle(
-              color: kClaySub,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
+          Row(
             children: [
-              _InfoPill(
-                label: 'Date',
-                value: formatDateLabel(widget.targetDate),
-              ),
-              if (record != null && record.sourceClosingDate.trim().isNotEmpty)
-                _InfoPill(
-                  label: 'Opening source',
-                  value: formatDateLabel(record.sourceClosingDate),
-                ),
-              _InfoPill(
-                label: 'Status',
-                value: record?.isComplete == true ? 'Saved' : 'Pending',
-              ),
+              for (var index = 0; index < infoPills.length; index++) ...[
+                if (index > 0) const SizedBox(width: 10),
+                Expanded(child: infoPills[index]),
+              ],
             ],
           ),
           const SizedBox(height: 14),
@@ -677,6 +676,7 @@ class _InfoPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F4FB),
@@ -685,7 +685,7 @@ class _InfoPill extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          OneLineScaleText(
             label,
             style: const TextStyle(
               color: kClaySub,
@@ -694,7 +694,7 @@ class _InfoPill extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
+          OneLineScaleText(
             value,
             style: const TextStyle(
               color: kClayPrimary,

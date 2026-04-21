@@ -27,7 +27,8 @@ class AccountScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canManageDaySetup = user.role == 'admin' || user.role == 'superadmin';
+    final canAccessDaySetup = user.role == 'admin' || user.role == 'superadmin';
+    final canManageDaySetup = user.role == 'superadmin';
     final displayName = user.name.trim().isEmpty
         ? user.email
         : user.name.trim();
@@ -162,16 +163,18 @@ class AccountScreen extends StatelessWidget {
                   title: 'Day Setup',
                   subtitle: canManageDaySetup
                       ? 'Manage opening readings, stock, and fuel prices together'
+                      : canAccessDaySetup
+                      ? 'View day setup history. Only superadmin can change it'
                       : 'Day setup access is limited for this role',
                   icon: Icons.event_note_rounded,
                   iconColor: const Color(0xFF1298B8),
-                  enabled: canManageDaySetup,
-                  onTap: canManageDaySetup
+                  enabled: canAccessDaySetup,
+                  onTap: canAccessDaySetup
                       ? () {
                           Navigator.of(context).push<void>(
                             MaterialPageRoute<void>(
                               builder: (_) =>
-                                  const DaySetupScreen(canEdit: true),
+                                  DaySetupScreen(canEdit: canManageDaySetup),
                             ),
                           );
                         }

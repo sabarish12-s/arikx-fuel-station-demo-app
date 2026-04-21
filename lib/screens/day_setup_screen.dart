@@ -301,10 +301,6 @@ class _DaySetupHeroCard extends StatelessWidget {
   final VoidCallback onUpdate;
   final VoidCallback? onBack;
 
-  String _dateLabel(String value, String fallback) {
-    return value.isEmpty ? fallback : formatDateLabel(value);
-  }
-
   @override
   Widget build(BuildContext context) {
     final trimmedReason = lockedReason.trim();
@@ -328,64 +324,44 @@ class _DaySetupHeroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Stack(
             children: [
-              const Spacer(),
               if (canEdit)
-                _HeroActionPill(
-                  icon: Icons.event_note_rounded,
-                  label: 'Update',
-                  onTap: busy ? null : onUpdate,
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: _HeroActionPill(
+                    icon: Icons.event_note_rounded,
+                    label: 'Update',
+                    onTap: busy ? null : onUpdate,
+                  ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'OPERATIONS',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              letterSpacing: 1.1,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Day Setup',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            setupExists
-                ? 'Sales entry follows one dated setup chain. The next pending sales date is fixed from this setup history.'
-                : 'Create the first day setup to start the sales, stock, and pricing chain.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _HeroInfoPill(
-                label: 'Next setup date',
-                value: _dateLabel(nextSetupDate, 'Not ready'),
-              ),
-              _HeroInfoPill(
-                label: 'Allowed sales date',
-                value: _dateLabel(allowedSalesDate, 'Blocked'),
-              ),
-              _HeroInfoPill(
-                label: 'Active setup',
-                value: _dateLabel(activeSetupDate, 'Not set'),
+              const Padding(
+                padding: EdgeInsets.only(top: 2, right: 130),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'OPERATIONS',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 11,
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Day Setup',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -460,46 +436,6 @@ class _HeroActionPill extends StatelessWidget {
   }
 }
 
-class _HeroInfoPill extends StatelessWidget {
-  const _HeroInfoPill({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.64),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DaySetupHistoryCard extends StatelessWidget {
   const _DaySetupHistoryCard({
     required this.setup,
@@ -545,9 +481,7 @@ class _DaySetupHistoryCard extends StatelessWidget {
   Widget _detailGrid(List<_DaySetupDetailMetric> metrics) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth = constraints.maxWidth >= 440
-            ? (constraints.maxWidth - 10) / 2
-            : constraints.maxWidth;
+        final itemWidth = (constraints.maxWidth - 10) / 2;
         return Wrap(
           spacing: 10,
           runSpacing: 10,
@@ -910,49 +844,41 @@ class _DaySetupMetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minHeight: 92),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFFF6F8FD),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE8ECF7)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 30,
+            height: 30,
             decoration: BoxDecoration(
               color: kClayPrimary.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(11),
             ),
             child: Icon(icon, color: kClayPrimary, size: 18),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: kClaySub,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: kClayPrimary,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 9),
+          OneLineScaleText(
+            label,
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          OneLineScaleText(
+            value,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
             ),
           ),
         ],

@@ -332,11 +332,6 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Pump count is fixed. Edit station details only when needed.',
-                        style: TextStyle(color: kClaySub, height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
                       _ClayField(
                         controller: _nameController,
                         label: 'Station Name',
@@ -359,15 +354,6 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
                         controller: _shiftsController,
                         label: 'Entry cycle',
                         enabled: false,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Fixed pumps: ${station.pumps.map((pump) => formatPumpLabel(pump.id, pump.label)).join(', ')}',
-                        style: const TextStyle(
-                          color: kClaySub,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
                       ),
                     ],
                   ),
@@ -688,63 +674,44 @@ class _StationProfileHeroCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              const Spacer(),
-              if (canEdit)
-                _HeroActionPill(
-                  icon: isEditing ? Icons.close_rounded : Icons.edit_rounded,
-                  label: isEditing ? 'Cancel' : 'Edit',
-                  onTap: onEdit,
-                ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'SETTINGS',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              letterSpacing: 1.1,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Station Profile & Pumps',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Manage station details, fixed pump labels, and daily meter limits.',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.78),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _HeroInfoPill(label: 'Station', value: station.name),
-              _HeroInfoPill(label: 'Code', value: station.code),
-              _HeroInfoPill(
-                label: 'Pumps',
-                value: '${station.pumps.length} fixed',
+          if (canEdit)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: _HeroActionPill(
+                icon: isEditing ? Icons.close_rounded : Icons.edit_rounded,
+                label: isEditing ? 'Cancel' : 'Edit',
+                onTap: onEdit,
               ),
-              _HeroInfoPill(label: 'City', value: station.city),
-            ],
+            ),
+          const Padding(
+            padding: EdgeInsets.only(top: 2, right: 118),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SETTINGS',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    letterSpacing: 1.1,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 8),
+                OneLineScaleText(
+                  'Station Profile & Pumps',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -789,48 +756,6 @@ class _HeroActionPill extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _HeroInfoPill extends StatelessWidget {
-  const _HeroInfoPill({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 112),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.64),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          OneLineScaleText(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -181,55 +181,53 @@ class _InventoryPlanningSettingsScreenState
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Stack(
                     children: [
-                      if (widget.embedded) ...[
-                        Row(
+                      if (widget.embedded && widget.canEdit)
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: _EmbeddedEditHeroPill(
+                            isEditing: _isEditing,
+                            onTap: () {
+                              setState(() {
+                                if (_isEditing) {
+                                  _isEditing = false;
+                                  _resetFromStation(station);
+                                } else {
+                                  _isEditing = true;
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: 2,
+                          right: widget.embedded && widget.canEdit ? 118 : 0,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Spacer(),
-                            if (widget.canEdit)
-                              _EmbeddedEditHeroPill(
-                                isEditing: _isEditing,
-                                onTap: () {
-                                  setState(() {
-                                    if (_isEditing) {
-                                      _isEditing = false;
-                                      _resetFromStation(station);
-                                    } else {
-                                      _isEditing = true;
-                                    }
-                                  });
-                                },
+                            const Text(
+                              'REORDER ALERTS',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 11,
+                                letterSpacing: 1.1,
+                                fontWeight: FontWeight.w700,
                               ),
+                            ),
+                            const SizedBox(height: 8),
+                            OneLineScaleText(
+                              '${planning.deliveryLeadDays} day lead time',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ],
-                        ),
-                        const SizedBox(height: 18),
-                      ],
-                      const Text(
-                        'REORDER ALERTS',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${planning.deliveryLeadDays} day lead time',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Alerts begin ${planning.alertBeforeDays} day(s) before the recommended order date.',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          height: 1.4,
                         ),
                       ),
                     ],
