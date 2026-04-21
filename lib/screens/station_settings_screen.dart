@@ -275,13 +275,14 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
     final content = FutureBuilder<StationConfigModel>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const ColoredBox(
             color: kClayBg,
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && !snapshot.hasData) {
           return ColoredBox(
             color: kClayBg,
             child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
@@ -295,6 +296,7 @@ class _StationSettingsScreenState extends State<StationSettingsScreen> {
           child: ColoredBox(
             color: kClayBg,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 if (widget.embedded) ...[

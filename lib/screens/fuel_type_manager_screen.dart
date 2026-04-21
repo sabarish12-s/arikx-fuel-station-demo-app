@@ -289,11 +289,17 @@ class _FuelTypeManagerScreenState extends State<FuelTypeManagerScreen> {
     final content = FutureBuilder<List<FuelTypeModel>>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
-          return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+        if (snapshot.hasError && !snapshot.hasData) {
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              Center(child: Text(userFacingErrorMessage(snapshot.error))),
+            ],
+          );
         }
         final fuelTypes = snapshot.data ?? [];
         final activeCount = fuelTypes.where((item) => item.active).length;

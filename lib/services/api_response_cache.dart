@@ -32,11 +32,26 @@ class ApiResponseCacheUpdate {
   final bool background;
 }
 
+class _CacheEntryMeta {
+  const _CacheEntryMeta({
+    required this.key,
+    required this.cachedAt,
+    required this.sizeBytes,
+  });
+
+  final String key;
+  final DateTime cachedAt;
+  final int sizeBytes;
+}
+
 class ApiResponseCache {
   ApiResponseCache._();
 
   static const Duration ttl = Duration(hours: 24);
   static const String _prefix = 'api_response_cache_v1::';
+  static const int _maxEntryBytes = 512 * 1024;
+  static const int _maxTotalBytes = 6 * 1024 * 1024;
+  static const int _maxEntries = 32;
   static final StreamController<ApiResponseCacheUpdate> _updates =
       StreamController<ApiResponseCacheUpdate>.broadcast();
 
@@ -95,10 +110,16 @@ class ApiResponseCache {
     final payload = jsonEncode({
       'statusCode': statusCode,
       'body': body,
-      'headers': headers,
+      'headers': _compactHeaders(headers),
       'cachedAtMs': DateTime.now().millisecondsSinceEpoch,
     });
+    if (utf8.encode(payload).length > _maxEntryBytes) {
+      await prefs.remove(key);
+      await _prune(prefs);
+      return;
+    }
     await prefs.setString(key, payload);
+    await _prune(prefs);
     if (background && previous != null) {
       try {
         final previousJson = jsonDecode(previous) as Map<String, dynamic>;
@@ -136,5 +157,61 @@ class ApiResponseCache {
     final prefs = await SharedPreferences.getInstance();
     final keys = prefs.getKeys().where((key) => key.startsWith(_prefix));
     await Future.wait(keys.map(prefs.remove));
+  }
+
+  static Map<String, String> _compactHeaders(Map<String, String> headers) {
+    final contentType = headers['content-type']?.trim();
+    if (contentType == null || contentType.isEmpty) {
+      return const {};
+    }
+    return {'content-type': contentType};
+  }
+
+  static Future<void> _prune(SharedPreferences prefs) async {
+    final now = DateTime.now();
+    final removals = <String>{};
+    final entries = <_CacheEntryMeta>[];
+
+    for (final key in prefs.getKeys().where((key) => key.startsWith(_prefix))) {
+      final raw = prefs.getString(key);
+      if (raw == null || raw.isEmpty) {
+        removals.add(key);
+        continue;
+      }
+      try {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        final cachedAtMs = json['cachedAtMs'] as int? ?? 0;
+        final cachedAt = DateTime.fromMillisecondsSinceEpoch(cachedAtMs);
+        if (now.difference(cachedAt) > ttl) {
+          removals.add(key);
+          continue;
+        }
+        entries.add(
+          _CacheEntryMeta(
+            key: key,
+            cachedAt: cachedAt,
+            sizeBytes: utf8.encode(raw).length,
+          ),
+        );
+      } catch (_) {
+        removals.add(key);
+      }
+    }
+
+    entries.sort((a, b) => a.cachedAt.compareTo(b.cachedAt));
+    var totalBytes = entries.fold<int>(
+      0,
+      (sum, entry) => sum + entry.sizeBytes,
+    );
+    while (entries.length > _maxEntries || totalBytes > _maxTotalBytes) {
+      final entry = entries.removeAt(0);
+      removals.add(entry.key);
+      totalBytes -= entry.sizeBytes;
+    }
+
+    if (removals.isEmpty) {
+      return;
+    }
+    await Future.wait(removals.map(prefs.remove));
   }
 }

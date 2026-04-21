@@ -46,7 +46,9 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
           !update.path.startsWith('/inventory/deliveries')) {
         return;
       }
-      setState(() => _future = _load());
+      setState(() {
+        _future = _load();
+      });
     });
   }
 
@@ -133,7 +135,9 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load(forceRefresh: true));
+    setState(() {
+      _future = _load(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -657,10 +661,11 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         child: FutureBuilder<List<DeliveryReceiptModel>>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && !snapshot.hasData) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),

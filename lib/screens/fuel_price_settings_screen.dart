@@ -675,13 +675,14 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
     final content = FutureBuilder<List<FuelPriceModel>>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const ColoredBox(
             color: kClayBg,
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && !snapshot.hasData) {
           return ColoredBox(
             color: kClayBg,
             child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
@@ -697,6 +698,7 @@ class _FuelPriceSettingsScreenState extends State<FuelPriceSettingsScreen> {
           child: ColoredBox(
             color: kClayBg,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 if (widget.embedded)
@@ -760,7 +762,9 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = _inventoryService.fetchPrices(forceRefresh: true));
+    setState(() {
+      _future = _inventoryService.fetchPrices(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -1064,11 +1068,17 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
       body: FutureBuilder<List<FuelPriceModel>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+          if (snapshot.hasError && !snapshot.hasData) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Center(child: Text(userFacingErrorMessage(snapshot.error))),
+              ],
+            );
           }
           final prices = snapshot.data ?? const <FuelPriceModel>[];
           final activeSets = _buildHistorySets(prices, deleted: false);
@@ -1077,6 +1087,7 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 ClayCard(

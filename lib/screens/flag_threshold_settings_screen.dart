@@ -119,13 +119,14 @@ class _FlagThresholdSettingsScreenState
       child: FutureBuilder<StationConfigModel>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const ColoredBox(
               color: kClayBg,
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          if (snapshot.hasError) {
+          if (snapshot.hasError && !snapshot.hasData) {
             return ColoredBox(
               color: kClayBg,
               child: ListView(

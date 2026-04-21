@@ -65,7 +65,9 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
           !update.path.startsWith('/inventory/daily-fuel')) {
         return;
       }
-      setState(() => _future = _loadHistory());
+      setState(() {
+        _future = _loadHistory();
+      });
     });
   }
 
@@ -162,7 +164,9 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _loadHistory(forceRefresh: true));
+    setState(() {
+      _future = _loadHistory(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -444,22 +448,28 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
       child: FutureBuilder<List<DailyFuelRecordModel>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const ColoredBox(
               color: kClayBg,
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                userFacingErrorMessage(snapshot.error),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: kClayPrimary,
-                  fontWeight: FontWeight.w700,
+          if (snapshot.hasError && !snapshot.hasData) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Center(
+                  child: Text(
+                    userFacingErrorMessage(snapshot.error),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+              ],
             );
           }
 

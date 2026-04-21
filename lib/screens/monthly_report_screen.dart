@@ -98,7 +98,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
           !update.path.startsWith('/credits/customers')) {
         return;
       }
-      setState(() => _future = _fetchReport());
+      setState(() {
+        _future = _fetchReport();
+      });
     });
   }
 
@@ -269,7 +271,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _fetchReport(forceRefresh: true));
+    setState(() {
+      _future = _fetchReport(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -1103,12 +1107,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 const SizedBox.shrink(),
 
                 // ── Loading / error ───────────────────────────────────
-                if (snapshot.connectionState != ConnectionState.done)
+                if (snapshot.connectionState != ConnectionState.done &&
+                    !snapshot.hasData)
                   const Padding(
                     padding: EdgeInsets.only(top: 80),
                     child: Center(child: CircularProgressIndicator()),
                   )
-                else if (snapshot.hasError)
+                else if (snapshot.hasError && !snapshot.hasData)
                   Padding(
                     padding: const EdgeInsets.only(top: 80),
                     child: Center(

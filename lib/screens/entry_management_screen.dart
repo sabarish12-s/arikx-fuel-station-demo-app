@@ -95,7 +95,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
           !update.path.startsWith('/sales/dashboard')) {
         return;
       }
-      setState(() => _future = _loadData());
+      setState(() {
+        _future = _loadData();
+      });
     });
   }
 
@@ -154,7 +156,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
   }
 
   Future<void> _reload() async {
-    setState(() => _future = _loadData(forceRefresh: true));
+    setState(() {
+      _future = _loadData(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -893,11 +897,13 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
         child: FutureBuilder<_EntryManagementData>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && !snapshot.hasData) {
               return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                 children: [
                   Center(child: Text(userFacingErrorMessage(snapshot.error))),
@@ -928,6 +934,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
             final periodShort = _periodShort;
 
             return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 // ── Hero header ─────────────────────────────────────────

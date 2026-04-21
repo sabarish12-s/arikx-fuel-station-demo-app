@@ -133,16 +133,18 @@ class _InventoryPlanningSettingsScreenState
     final content = FutureBuilder<StationConfigModel>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const ColoredBox(
             color: kClayBg,
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && !snapshot.hasData) {
           return ColoredBox(
             color: kClayBg,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
                 Text(

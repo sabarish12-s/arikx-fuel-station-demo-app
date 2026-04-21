@@ -328,10 +328,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final content = FutureBuilder<UserManagementOverview>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && !snapshot.hasData) {
           return ColoredBox(
             color: kClayBg,
             child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
@@ -350,6 +351,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         return ColoredBox(
           color: kClayBg,
           child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
             children: [
               _UsersOverviewCard(

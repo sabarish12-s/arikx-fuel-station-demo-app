@@ -89,14 +89,16 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
         child: FutureBuilder<List<AccessRequest>>(
           future: _requestsFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const ColoredBox(
                 color: kClayBg,
                 child: Center(child: CircularProgressIndicator()),
               );
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && !snapshot.hasData) {
               return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
                   ClayCard(

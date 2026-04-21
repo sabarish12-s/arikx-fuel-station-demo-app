@@ -90,7 +90,9 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
           !update.path.startsWith('/inventory/')) {
         return;
       }
-      setState(() => _future = _load());
+      setState(() {
+        _future = _load();
+      });
     });
   }
 
@@ -486,10 +488,11 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
         child: FutureBuilder<_InventoryHubData>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && !snapshot.hasData) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -930,7 +933,9 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
   }
 
   Future<void> _reload({bool forceRefresh = true}) async {
-    setState(() => _future = _load(forceRefresh: forceRefresh));
+    setState(() {
+      _future = _load(forceRefresh: forceRefresh);
+    });
     await _future;
   }
 
@@ -1184,11 +1189,17 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
       body: FutureBuilder<_StockHistoryData>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+          if (snapshot.hasError && !snapshot.hasData) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Center(child: Text(userFacingErrorMessage(snapshot.error))),
+              ],
+            );
           }
           final data = snapshot.data!;
           final showDeletedTab = widget.canManagePlanning;
@@ -1205,6 +1216,7 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 _ClayCard(
@@ -1911,15 +1923,22 @@ class _InventoryOpeningStockHistoryScreenState
     final body = FutureBuilder<_InventoryOpeningStockHistoryData>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
-          return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+        if (snapshot.hasError && !snapshot.hasData) {
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              Center(child: Text(userFacingErrorMessage(snapshot.error))),
+            ],
+          );
         }
         final data = snapshot.data!;
         final stock = _openingStockForDate(_selectedDate, data);
         return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           children: [
             if (widget.embedded)

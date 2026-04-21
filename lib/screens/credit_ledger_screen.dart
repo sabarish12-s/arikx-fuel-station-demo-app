@@ -58,7 +58,9 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
           !update.path.startsWith('/credits/customers')) {
         return;
       }
-      setState(() => _future = _load());
+      setState(() {
+        _future = _load();
+      });
     });
   }
 
@@ -136,7 +138,9 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load(forceRefresh: true));
+    setState(() {
+      _future = _load(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -527,10 +531,11 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
             >(
               future: _future,
               builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
+                if (snapshot.connectionState != ConnectionState.done &&
+                    !snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.hasError) {
+                if (snapshot.hasError && !snapshot.hasData) {
                   return ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(16, 80, 16, 24),
@@ -1053,7 +1058,9 @@ class _CreditCustomerDetailScreenState
           !update.path.startsWith('/credits/customers/${widget.customerId}')) {
         return;
       }
-      setState(() => _future = _load());
+      setState(() {
+        _future = _load();
+      });
     });
   }
 
@@ -1071,11 +1078,15 @@ class _CreditCustomerDetailScreenState
   }
 
   void _reload() {
-    setState(() => _future = _load(forceRefresh: true));
+    setState(() {
+      _future = _load(forceRefresh: true);
+    });
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _load(forceRefresh: true));
+    setState(() {
+      _future = _load(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -1232,10 +1243,11 @@ class _CreditCustomerDetailScreenState
         child: FutureBuilder<CreditCustomerDetailModel>(
           future: _future,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snapshot.hasError) {
+            if (snapshot.hasError && !snapshot.hasData) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 80, 16, 24),

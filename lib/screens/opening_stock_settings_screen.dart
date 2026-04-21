@@ -425,13 +425,14 @@ class _OpeningStockSettingsScreenState
     return FutureBuilder<_OpeningReadingsData>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
           return const ColoredBox(
             color: kClayBg,
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.hasError) {
+        if (snapshot.hasError && !snapshot.hasData) {
           return ColoredBox(
             color: kClayBg,
             child: Center(child: Text(userFacingErrorMessage(snapshot.error))),
@@ -449,6 +450,7 @@ class _OpeningStockSettingsScreenState
           child: ColoredBox(
             color: kClayBg,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 if (widget.embedded)
@@ -661,7 +663,9 @@ class _OpeningReadingHistoryScreenState
   }
 
   Future<void> _reload({bool forceRefresh = true}) async {
-    setState(() => _future = _load(forceRefresh: forceRefresh));
+    setState(() {
+      _future = _load(forceRefresh: forceRefresh);
+    });
     await _future;
   }
 
@@ -913,11 +917,17 @@ class _OpeningReadingHistoryScreenState
       body: FutureBuilder<_OpeningHistoryData>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(child: Text(userFacingErrorMessage(snapshot.error)));
+          if (snapshot.hasError && !snapshot.hasData) {
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Center(child: Text(userFacingErrorMessage(snapshot.error))),
+              ],
+            );
           }
           final data = snapshot.data!;
           final source = _showDeleted ? data.deleted : data.active;
@@ -925,6 +935,7 @@ class _OpeningReadingHistoryScreenState
           return RefreshIndicator(
             onRefresh: _reload,
             child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               children: [
                 ClayCard(

@@ -41,7 +41,9 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
           !update.path.startsWith('/sales/entries')) {
         return;
       }
-      setState(() => _future = _loadEntries());
+      setState(() {
+        _future = _loadEntries();
+      });
     });
   }
 
@@ -67,7 +69,9 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = _loadEntries(forceRefresh: true));
+    setState(() {
+      _future = _loadEntries(forceRefresh: true);
+    });
     await _future;
   }
 
@@ -201,13 +205,14 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
       child: FutureBuilder<List<ShiftEntryModel>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              !snapshot.hasData) {
             return const ColoredBox(
               color: kClayBg,
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          if (snapshot.hasError) {
+          if (snapshot.hasError && !snapshot.hasData) {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
