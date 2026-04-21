@@ -1333,6 +1333,58 @@ class _EntryCard extends StatelessWidget {
   final VoidCallback onDelete;
   final VoidCallback onApprove;
 
+  Widget _buildActionLayout(List<Widget> buttons) {
+    if (buttons.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (buttons.length == 1) {
+      return buttons.first;
+    }
+    if (buttons.length == 2) {
+      return Row(
+        children: [
+          Expanded(child: buttons[0]),
+          const SizedBox(width: 8),
+          Expanded(child: buttons[1]),
+        ],
+      );
+    }
+    if (buttons.length == 3) {
+      return Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: buttons[0]),
+              const SizedBox(width: 8),
+              Expanded(child: buttons[1]),
+            ],
+          ),
+          const SizedBox(height: 8),
+          buttons[2],
+        ],
+      );
+    }
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: buttons[0]),
+            const SizedBox(width: 8),
+            Expanded(child: buttons[1]),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: buttons[2]),
+            const SizedBox(width: 8),
+            Expanded(child: buttons[3]),
+          ],
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFlagged = entry.flagged;
@@ -1350,6 +1402,48 @@ class _EntryCard extends StatelessWidget {
               '${pumpLabels[item.key] ?? formatPumpLabel(item.key)}: ${item.value.trim()}',
         )
         .toList();
+    final actionButtons = <Widget>[
+      _ActionBtn(
+        icon: Icons.visibility_outlined,
+        label: 'View',
+        onTap: onView,
+      ),
+    ];
+    if (actionAccess.canUpdate || actionAccess.canEdit) {
+      actionButtons.add(
+        _ActionBtn(
+          icon: Icons.edit_rounded,
+          label: actionAccess.canUpdate ? 'Update' : 'Edit',
+          onTap: submitting ? null : onEdit,
+        ),
+      );
+    }
+    if (actionAccess.canDelete || actionAccess.canOverrideDelete) {
+      actionButtons.add(
+        _ActionBtn(
+          icon: Icons.delete_outline_rounded,
+          label: isDeleting
+              ? 'Deleting...'
+              : actionAccess.canOverrideDelete
+                  ? 'Override Delete'
+                  : 'Delete',
+          onTap: submitting ? null : onDelete,
+          danger: true,
+          loading: isDeleting,
+        ),
+      );
+    }
+    if (actionAccess.canApprove) {
+      actionButtons.add(
+        _ActionBtn(
+          icon: Icons.verified_rounded,
+          label: isApproving ? 'Approving...' : 'Approve',
+          onTap: submitting ? null : onApprove,
+          filled: true,
+          loading: isApproving,
+        ),
+      );
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1478,60 +1572,7 @@ class _EntryCard extends StatelessWidget {
           const SizedBox(height: 14),
 
           // ── Action buttons ─────────────────────────────────────────
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final buttonWidth = (constraints.maxWidth - 8) / 2;
-              return Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  SizedBox(
-                    width: buttonWidth,
-                    child: _ActionBtn(
-                      icon: Icons.visibility_outlined,
-                      label: 'View',
-                      onTap: onView,
-                    ),
-                  ),
-                  if (actionAccess.canUpdate || actionAccess.canEdit)
-                    SizedBox(
-                      width: buttonWidth,
-                      child: _ActionBtn(
-                        icon: Icons.edit_rounded,
-                        label: actionAccess.canUpdate ? 'Update' : 'Edit',
-                        onTap: submitting ? null : onEdit,
-                      ),
-                    ),
-                  if (actionAccess.canDelete || actionAccess.canOverrideDelete)
-                    SizedBox(
-                      width: buttonWidth,
-                      child: _ActionBtn(
-                        icon: Icons.delete_outline_rounded,
-                        label: isDeleting
-                            ? 'Deleting...'
-                            : actionAccess.canOverrideDelete
-                            ? 'Override Delete'
-                            : 'Delete',
-                        onTap: submitting ? null : onDelete,
-                        danger: true,
-                        loading: isDeleting,
-                      ),
-                    ),
-                  if (actionAccess.canApprove)
-                    SizedBox(
-                      width: buttonWidth,
-                      child: _ActionBtn(
-                        icon: Icons.verified_rounded,
-                        label: isApproving ? 'Approving...' : 'Approve',
-                        onTap: submitting ? null : onApprove,
-                        filled: true,
-                        loading: isApproving,
-                      ),
-                    ),
-                ],
-              );
-            },
-          ),
+          _buildActionLayout(actionButtons),
         ],
       ),
     );
