@@ -464,6 +464,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     return DailyEntryDraft(
       date: entry.date,
       closingReadings: entry.closingReadings,
+      pumpSalesmen: entry.pumpSalesmen,
       pumpAttendants: entry.pumpAttendants,
       pumpTesting: entry.pumpTesting,
       pumpPayments: entry.pumpPayments,
@@ -511,6 +512,14 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 ? DailyEntryDraft(
                     date: date,
                     closingReadings: const {},
+                    pumpSalesmen: {
+                      for (final pump in dashboard.station.pumps)
+                        pump.id: const PumpSalesmanModel(
+                          salesmanId: '',
+                          salesmanName: '',
+                          salesmanCode: '',
+                        ),
+                    },
                     pumpAttendants: {
                       for (final pump in dashboard.station.pumps) pump.id: '',
                     },
@@ -538,6 +547,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 await _salesService.submitEntry(
                   date: draft.date,
                   closingReadings: draft.closingReadings,
+                  pumpSalesmen: draft.pumpSalesmen,
                   pumpAttendants: draft.pumpAttendants,
                   pumpTesting: draft.pumpTesting,
                   pumpPayments: draft.pumpPayments,
@@ -551,6 +561,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
                 await _managementService.updateEntry(
                   entryId: dashboard.selectedEntry!.id,
                   closingReadings: draft.closingReadings,
+                  pumpSalesmen: draft.pumpSalesmen,
                   pumpAttendants: draft.pumpAttendants,
                   pumpTesting: draft.pumpTesting,
                   pumpPayments: draft.pumpPayments,
@@ -585,7 +596,9 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     StationConfigModel station,
     String allowedEntryDate,
   ) async {
-    if (allowedEntryDate.trim().isNotEmpty && entry.date != allowedEntryDate) {
+    if (!_isSuperAdmin &&
+        allowedEntryDate.trim().isNotEmpty &&
+        entry.date != allowedEntryDate) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: const Color(0xFFB91C1C),
@@ -624,6 +637,7 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
               await _managementService.updateEntry(
                 entryId: detailedEntry.id,
                 closingReadings: draft.closingReadings,
+                pumpSalesmen: draft.pumpSalesmen,
                 pumpAttendants: draft.pumpAttendants,
                 pumpTesting: draft.pumpTesting,
                 pumpPayments: draft.pumpPayments,
@@ -850,40 +864,31 @@ class _EntryManagementScreenState extends State<EntryManagementScreen> {
     );
   }
 
-  bool get _isSuperAdmin => widget.currentUser.role == 'superadmin';
-
-  String _latestApprovedDate(String allowedEntryDate) {
-    final parsed = DateTime.tryParse(allowedEntryDate);
-    if (parsed == null) {
-      return '';
-    }
-    final previousDay = DateTime(
-      parsed.year,
-      parsed.month,
-      parsed.day,
-    ).subtract(const Duration(days: 1));
-    final month = previousDay.month.toString().padLeft(2, '0');
-    final day = previousDay.day.toString().padLeft(2, '0');
-    return '${previousDay.year}-$month-$day';
-  }
+  bool get _isSuperAdmin =>
+      widget.currentUser.role.trim().toLowerCase() == 'superadmin';
 
   _EntryActionAccess _actionAccessForEntry(
     ShiftEntryModel entry,
     String allowedEntryDate,
   ) {
-    final latestApprovedDate = _latestApprovedDate(allowedEntryDate);
     final isCurrentOpenUnapproved =
         !entry.isFinalized && entry.date == allowedEntryDate;
-    final isLatestApproved =
-        entry.isFinalized &&
-        latestApprovedDate.isNotEmpty &&
-        entry.date == latestApprovedDate;
+
+    if (_isSuperAdmin) {
+      return _EntryActionAccess(
+        canUpdate: isCurrentOpenUnapproved,
+        canEdit: true,
+        canDelete: !entry.isFinalized,
+        canOverrideDelete: entry.isFinalized,
+        canApprove: isCurrentOpenUnapproved,
+      );
+    }
 
     return _EntryActionAccess(
-      canUpdate: isCurrentOpenUnapproved,
-      canEdit: isLatestApproved,
-      canDelete: isCurrentOpenUnapproved,
-      canOverrideDelete: _isSuperAdmin && isLatestApproved,
+      canUpdate: false,
+      canEdit: false,
+      canDelete: false,
+      canOverrideDelete: false,
       canApprove: isCurrentOpenUnapproved,
     );
   }

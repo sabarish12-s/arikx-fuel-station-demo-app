@@ -11,6 +11,28 @@ class CreditService {
   final ApiClient _apiClient;
   final SalesService _salesService = SalesService();
 
+  Future<CreditLedgerSummaryModel> fetchSummary({
+    bool forceRefresh = false,
+  }) async {
+    final response = await _apiClient.get(
+      '/credits/summary',
+      useCache: true,
+      forceRefresh: forceRefresh,
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      final json = _apiClient.decodeObject(response);
+      return CreditLedgerSummaryModel.fromJson(
+        json['summary'] as Map<String, dynamic>? ?? const {},
+      );
+    }
+    throw Exception(
+      _apiClient.errorMessage(
+        response,
+        fallback: 'Failed to load credit summary.',
+      ),
+    );
+  }
+
   Future<(CreditLedgerSummaryModel, List<CreditCustomerSummaryModel>)>
   fetchCustomers({
     String query = '',

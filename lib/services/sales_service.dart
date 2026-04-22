@@ -121,6 +121,7 @@ class SalesService {
   Future<ShiftEntryModel> submitEntry({
     required String date,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, PumpSalesmanModel> pumpSalesmen,
     required Map<String, String> pumpAttendants,
     required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
@@ -135,6 +136,7 @@ class SalesService {
       body: _entryBody(
         date: date,
         closingReadings: closingReadings,
+        pumpSalesmen: pumpSalesmen,
         pumpAttendants: pumpAttendants,
         pumpTesting: pumpTesting,
         pumpPayments: pumpPayments,
@@ -157,6 +159,7 @@ class SalesService {
   Future<ShiftEntryModel> saveDraftEntry({
     required String date,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, PumpSalesmanModel> pumpSalesmen,
     required Map<String, String> pumpAttendants,
     required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
@@ -171,6 +174,7 @@ class SalesService {
       body: _entryBody(
         date: date,
         closingReadings: closingReadings,
+        pumpSalesmen: pumpSalesmen,
         pumpAttendants: pumpAttendants,
         pumpTesting: pumpTesting,
         pumpPayments: pumpPayments,
@@ -194,6 +198,7 @@ class SalesService {
     required String entryId,
     required String date,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, PumpSalesmanModel> pumpSalesmen,
     required Map<String, String> pumpAttendants,
     required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
@@ -208,6 +213,7 @@ class SalesService {
       body: _entryBody(
         date: date,
         closingReadings: closingReadings,
+        pumpSalesmen: pumpSalesmen,
         pumpAttendants: pumpAttendants,
         pumpTesting: pumpTesting,
         pumpPayments: pumpPayments,
@@ -230,6 +236,7 @@ class SalesService {
   Future<ShiftEntryModel> previewEntry({
     required String date,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, PumpSalesmanModel> pumpSalesmen,
     required Map<String, String> pumpAttendants,
     required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
@@ -244,6 +251,7 @@ class SalesService {
       body: _entryBody(
         date: date,
         closingReadings: closingReadings,
+        pumpSalesmen: pumpSalesmen,
         pumpAttendants: pumpAttendants,
         pumpTesting: pumpTesting,
         pumpPayments: pumpPayments,
@@ -266,6 +274,7 @@ class SalesService {
   String _entryBody({
     required String date,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, PumpSalesmanModel> pumpSalesmen,
     required Map<String, String> pumpAttendants,
     required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
@@ -278,6 +287,9 @@ class SalesService {
     return jsonEncode({
       'date': date,
       'closingReadings': closingReadings.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
+      'pumpSalesmen': pumpSalesmen.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
       'pumpAttendants': pumpAttendants,

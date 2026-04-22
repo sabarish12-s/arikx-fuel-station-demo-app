@@ -7,8 +7,9 @@ import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
 import 'fuel_price_update_requests_screen.dart';
 import 'login_screen.dart';
+import 'salesman_settings_screen.dart';
 
-enum _AccountPanel { home, fuelPriceRequests }
+enum _AccountPanel { home, fuelPriceRequests, salesmen }
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key, required this.user});
@@ -55,6 +56,12 @@ class _AccountScreenState extends State<AccountScreen> {
       case _AccountPanel.fuelPriceRequests:
         return FuelPriceUpdateRequestsScreen(
           canReview: false,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _AccountPanel.salesmen:
+        return SalesmanSettingsScreen(
+          canEdit: true,
           embedded: true,
           onBack: _showHome,
         );
@@ -176,6 +183,15 @@ class _AccountScreenState extends State<AccountScreen> {
           ClayCard(
             child: Column(
               children: [
+                _AccountActionTile(
+                  title: 'Salesmen',
+                  subtitle: 'Manage the salesman list used in daily sales',
+                  icon: Icons.badge_outlined,
+                  iconColor: const Color(0xFF4858C8),
+                  enabled: true,
+                  onTap: () => setState(() => _panel = _AccountPanel.salesmen),
+                ),
+                const Divider(color: kClayBg, height: 24),
                 _AccountActionTile(
                   title: 'Fuel Price Update',
                   subtitle: 'Request selling price changes and track status',

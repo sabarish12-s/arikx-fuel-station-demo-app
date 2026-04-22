@@ -97,6 +97,13 @@ class ApiResponseCache {
     }
   }
 
+  static Duration ageOf(
+    CachedApiResponse response, {
+    DateTime? now,
+  }) {
+    return (now ?? DateTime.now()).difference(response.cachedAt);
+  }
+
   static Future<void> write({
     required String key,
     required String path,

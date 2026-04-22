@@ -69,6 +69,18 @@ String formatPumpLabel(String pumpId, [String? label]) {
   return '$baseLabel $suffix';
 }
 
+String formatSalesmanLabel(String name, String code) {
+  final normalizedName = name.trim();
+  final normalizedCode = code.trim().toUpperCase();
+  if (normalizedName.isNotEmpty && normalizedCode.isNotEmpty) {
+    return '$normalizedName ($normalizedCode)';
+  }
+  if (normalizedName.isNotEmpty) {
+    return normalizedName;
+  }
+  return normalizedCode;
+}
+
 String formatShiftLabel(String shift) {
   switch (shift) {
     case 'morning':

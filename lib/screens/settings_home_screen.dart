@@ -7,6 +7,7 @@ import 'flag_threshold_settings_screen.dart';
 import 'fuel_price_update_requests_screen.dart';
 import 'fuel_type_manager_screen.dart';
 import 'inventory_planning_settings_screen.dart';
+import 'salesman_settings_screen.dart';
 import 'station_settings_screen.dart';
 import 'user_management_screen.dart';
 
@@ -71,6 +72,12 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
       case _SettingsPanel.inventoryPlanning:
         return InventoryPlanningSettingsScreen(
           canEdit: _canEditInventoryPlanning,
+          embedded: true,
+          onBack: _showHome,
+        );
+      case _SettingsPanel.salesmen:
+        return SalesmanSettingsScreen(
+          canEdit: true,
           embedded: true,
           onBack: _showHome,
         );
@@ -205,6 +212,14 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
             iconColor: const Color(0xFF1A3A7A),
             onTap: () =>
                 setState(() => _panel = _SettingsPanel.stationSettings),
+          ),
+          const SizedBox(height: 10),
+          _SettingsTile(
+            title: 'Salesmen',
+            subtitle: 'Master list used while entering daily sales',
+            icon: Icons.badge_outlined,
+            iconColor: const Color(0xFF4858C8),
+            onTap: () => setState(() => _panel = _SettingsPanel.salesmen),
           ),
           const SizedBox(height: 10),
           _SettingsTile(
@@ -415,6 +430,7 @@ enum _SettingsPanel {
   home,
   stationSettings,
   daySetup,
+  salesmen,
   fuelPriceRequests,
   inventoryPlanning,
   fuelTypeManager,

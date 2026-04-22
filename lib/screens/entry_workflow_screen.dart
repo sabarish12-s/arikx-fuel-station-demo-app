@@ -134,6 +134,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           if (pumpDraft.closingReadings != null)
             pumpId: pumpDraft.closingReadings!,
         },
+        pumpSalesmen: {..._draft.pumpSalesmen, pumpId: pumpDraft.salesman},
         pumpAttendants: {..._draft.pumpAttendants, pumpId: pumpDraft.attendant},
         pumpTesting: {..._draft.pumpTesting, pumpId: pumpDraft.testing},
         pumpPayments: {..._draft.pumpPayments, pumpId: pumpDraft.payments},
@@ -264,6 +265,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
           widget.station.meterLimits[pump.id] ??
           const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
       initialDraft: PumpEntryDraft(
+        salesman:
+            _draft.pumpSalesmen[pump.id] ??
+            const PumpSalesmanModel(
+              salesmanId: '',
+              salesmanName: '',
+              salesmanCode: '',
+            ),
         attendant: _draft.pumpAttendants[pump.id] ?? '',
         closingReadings: _draft.closingReadings[pump.id],
         testing:
@@ -282,6 +290,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             .toList(),
         mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
       ),
+      salesmen: widget.station.salesmen,
       suggestedCustomers: _suggestedCustomers,
       priceSnapshot: _resolvedPriceSnapshot,
       flagThreshold: widget.station.flagThreshold,
@@ -297,6 +306,13 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       context: context,
       pump: pump,
       initialDraft: PumpEntryDraft(
+        salesman:
+            _draft.pumpSalesmen[pump.id] ??
+            const PumpSalesmanModel(
+              salesmanId: '',
+              salesmanName: '',
+              salesmanCode: '',
+            ),
         attendant: _draft.pumpAttendants[pump.id] ?? '',
         closingReadings: _draft.closingReadings[pump.id],
         testing:
@@ -315,6 +331,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
             .toList(),
         mismatchReason: _draft.pumpMismatchReasons[pump.id] ?? '',
       ),
+      salesmen: widget.station.salesmen,
     );
     if (!mounted || result == null) {
       return;
@@ -438,6 +455,7 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
         preview = await _salesService.previewEntry(
           date: _draft.date,
           closingReadings: _draft.closingReadings,
+          pumpSalesmen: _draft.pumpSalesmen,
           pumpAttendants: _draft.pumpAttendants,
           pumpTesting: _draft.pumpTesting,
           pumpPayments: _draft.pumpPayments,

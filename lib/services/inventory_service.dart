@@ -708,6 +708,28 @@ class InventoryService {
     );
   }
 
+  Future<StationConfigModel> saveSalesmen(
+    List<StationSalesmanModel> salesmen,
+  ) async {
+    final response = await _apiClient.put(
+      '/inventory/station-config',
+      body: jsonEncode({
+        'salesmen': salesmen.map((item) => item.toJson()).toList(),
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _apiClient.errorMessage(
+          response,
+          fallback: 'Failed to save salesman settings.',
+        ),
+      );
+    }
+    return StationConfigModel.fromJson(
+      _apiClient.decodeObject(response)['station'] as Map<String, dynamic>,
+    );
+  }
+
   bool _isMissingRoute(String body) {
     final normalized = body.toLowerCase();
     return normalized.contains('cannot get /inventory/dashboard') ||

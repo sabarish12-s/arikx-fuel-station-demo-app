@@ -30,6 +30,8 @@ class ApiClient {
     bool useCache = false,
     bool forceRefresh = false,
     ApiCachePolicy cachePolicy = ApiCachePolicy.cacheFirst,
+    Duration maxCacheAge = const Duration(minutes: 2),
+    bool refreshInBackground = false,
   }) async {
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final headers = await authorizedHeaders();
@@ -44,8 +46,11 @@ class ApiClient {
         !forceRefresh &&
         cachePolicy == ApiCachePolicy.cacheFirst) {
       final cached = await ApiResponseCache.read(cacheKey);
-      if (cached != null) {
-        unawaited(_refreshCachedGet(uri, path, headers, cacheKey));
+      if (cached != null &&
+          ApiResponseCache.ageOf(cached) <= maxCacheAge) {
+        if (refreshInBackground) {
+          unawaited(_refreshCachedGet(uri, path, headers, cacheKey));
+        }
         return http.Response(
           cached.body,
           cached.statusCode,
@@ -59,8 +64,7 @@ class ApiClient {
       response = await _httpClient.get(uri, headers: headers);
     } catch (_) {
       if (cacheKey != null &&
-          !forceRefresh &&
-          cachePolicy == ApiCachePolicy.networkFirst) {
+          !forceRefresh) {
         final cached = await ApiResponseCache.read(cacheKey);
         if (cached != null) {
           return http.Response(

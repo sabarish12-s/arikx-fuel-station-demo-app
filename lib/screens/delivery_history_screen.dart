@@ -33,7 +33,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   DeliveryFuelFilter _fuelFilter = DeliveryFuelFilter.all;
   _DeliveryHistorySort _sort = _DeliveryHistorySort.purchaseNewest;
   AuthUser? _currentUser;
-  String _stationTitle = 'Purchase History';
+  String _stationTitle = 'Purchase Record';
 
   @override
   void initState() {
@@ -60,7 +60,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
 
   Future<void> _loadChromeData() async {
     final user = await _authService.readCurrentUser();
-    String title = user?.stationId ?? 'Purchase History';
+    String title = user?.stationId ?? 'Purchase Record';
     try {
       final station = await _inventoryService.fetchStationConfig();
       if (station.name.trim().isNotEmpty) {
@@ -534,7 +534,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Purchase Records',
+                      'Purchase Record',
                       style: TextStyle(
                         color: kClayPrimary,
                         fontSize: 16,

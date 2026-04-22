@@ -670,7 +670,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                             Expanded(
                               child: _InvActionBtn(
                                 icon: Icons.history_rounded,
-                                label: 'Purchase History',
+                                label: 'Purchase Record',
                                 onTap: _openDeliveryHistory,
                               ),
                             ),
@@ -833,7 +833,7 @@ class _InventoryHubScreenState extends State<InventoryHubScreen> {
                                           ),
                                           SizedBox(width: 4),
                                           Text(
-                                            'History',
+                                            'Purchase Record',
                                             style: TextStyle(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700,

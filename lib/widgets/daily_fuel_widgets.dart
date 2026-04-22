@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/domain_models.dart';
 import '../utils/formatters.dart';
@@ -285,77 +286,255 @@ class _DailyFuelEntrySectionState extends State<DailyFuelEntrySection> {
             }
 
             final record = widget.record;
-            return AlertDialog(
-              title: Text(
-                record?.isComplete == true ? 'Update Density' : 'Enter Density',
+            return Dialog(
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 24,
               ),
-              content: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Density for ${formatDateLabel(widget.targetDate)}',
-                        style: const TextStyle(
-                          color: kClaySub,
-                          fontWeight: FontWeight.w700,
-                        ),
+              backgroundColor: Colors.transparent,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(28),
+                    boxShadow: [
+                      BoxShadow(
+                        color: kClayPrimary.withValues(alpha: 0.12),
+                        blurRadius: 36,
+                        offset: const Offset(0, 18),
                       ),
-                      const SizedBox(height: 12),
-                      _DensityInputCard(
-                        title: 'Petrol',
-                        accent: const Color(0xFF1E5CBA),
-                        openingStock: record?.openingStock['petrol'] ?? 0,
-                        price: record?.price['petrol'] ?? 0,
-                        controller: _petrolController,
-                      ),
-                      const SizedBox(height: 10),
-                      _DensityInputCard(
-                        title: 'Diesel',
-                        accent: const Color(0xFF0F8A73),
-                        openingStock: record?.openingStock['diesel'] ?? 0,
-                        price: record?.price['diesel'] ?? 0,
-                        controller: _dieselController,
-                      ),
-                      if (error != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          error!,
-                          style: const TextStyle(
-                            color: Color(0xFFB91C1C),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
                     ],
                   ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: saving
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton.icon(
-                  onPressed: saving || widget.busy ? null : save,
-                  icon: saving || widget.busy
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_rounded),
-                  label: Text(
-                    record?.isComplete == true
-                        ? 'Update Density'
-                        : 'Save Density',
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [kClayHeroStart, kClayHeroEnd],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.opacity_rounded,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    record?.isComplete == true
+                                        ? 'Update Density'
+                                        : 'Enter Density',
+                                    style: const TextStyle(
+                                      color: kClayPrimary,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Save petrol and diesel density for ${formatDateLabel(widget.targetDate)}.',
+                                    style: const TextStyle(
+                                      color: kClaySub,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: saving
+                                  ? null
+                                  : () => Navigator.of(dialogContext).pop(),
+                              style: IconButton.styleFrom(
+                                backgroundColor: const Color(0xFFF1F4FB),
+                                foregroundColor: kClayPrimary,
+                              ),
+                              icon: const Icon(Icons.close_rounded),
+                              tooltip: 'Close',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF7F8FD),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFFE2E8F6),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _DialogInfoTile(
+                                  label: 'Date',
+                                  value: formatDateLabel(widget.targetDate),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _DialogInfoTile(
+                                  label: 'Status',
+                                  value: record?.isComplete == true
+                                      ? 'Saved'
+                                      : 'Pending',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final cards = [
+                              _DensityInputCard(
+                                title: 'Petrol',
+                                accent: const Color(0xFF1E5CBA),
+                                openingStock:
+                                    record?.openingStock['petrol'] ?? 0,
+                                price: record?.price['petrol'] ?? 0,
+                                controller: _petrolController,
+                                hintText: 'Example: 740.5',
+                                autofocus: true,
+                                textInputAction: TextInputAction.next,
+                              ),
+                              _DensityInputCard(
+                                title: 'Diesel',
+                                accent: const Color(0xFF0F8A73),
+                                openingStock:
+                                    record?.openingStock['diesel'] ?? 0,
+                                price: record?.price['diesel'] ?? 0,
+                                controller: _dieselController,
+                                hintText: 'Example: 830.2',
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => save(),
+                              ),
+                            ];
+                            final wide = constraints.maxWidth >= 620;
+                            if (wide) {
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: cards[0]),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: cards[1]),
+                                ],
+                              );
+                            }
+                            return Column(
+                              children: [
+                                cards[0],
+                                const SizedBox(height: 12),
+                                cards[1],
+                              ],
+                            );
+                          },
+                        ),
+                        if (error != null) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF2F2),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFFFECACA),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 1),
+                                  child: Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 18,
+                                    color: Color(0xFFB91C1C),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    error!,
+                                    style: const TextStyle(
+                                      color: Color(0xFFB91C1C),
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: saving
+                                    ? null
+                                    : () => Navigator.of(dialogContext).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(50),
+                                ),
+                                child: const Text('Cancel'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: saving || widget.busy ? null : save,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.fromHeight(50),
+                                  backgroundColor: kClayHeroStart,
+                                  foregroundColor: Colors.white,
+                                ),
+                                icon: saving || widget.busy
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Icon(Icons.save_rounded),
+                                label: Text(
+                                  record?.isComplete == true
+                                      ? 'Update Density'
+                                      : 'Save Density',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             );
           },
         );
@@ -586,6 +765,10 @@ class _DensityInputCard extends StatelessWidget {
     required this.openingStock,
     required this.price,
     required this.controller,
+    required this.hintText,
+    this.autofocus = false,
+    this.textInputAction,
+    this.onSubmitted,
   });
 
   final String title;
@@ -593,38 +776,143 @@ class _DensityInputCard extends StatelessWidget {
   final double openingStock;
   final double price;
   final TextEditingController controller;
+  final String hintText;
+  final bool autofocus;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF7F8FD),
         borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: accent,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: accent,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  color: accent,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          _MetricRow(label: 'Opening stock', value: formatLiters(openingStock)),
-          _MetricRow(label: 'Price', value: formatPricePerLiter(price)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _DialogInfoTile(
+                  label: 'Opening stock',
+                  value: formatLiters(openingStock),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _DialogInfoTile(
+                  label: 'Price',
+                  value: formatPricePerLiter(price),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           TextField(
             controller: controller,
+            autofocus: autofocus,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(
-              labelText: 'Density',
-              hintText: 'Enter kg/m3',
+            textInputAction: textInputAction,
+            onSubmitted: onSubmitted,
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            inputFormatters: [
+              TextInputFormatter.withFunction((oldValue, newValue) {
+                final text = newValue.text;
+                final onlyDigitsAndDots = text.runes.every(
+                  (codeUnit) =>
+                      (codeUnit >= 48 && codeUnit <= 57) || codeUnit == 46,
+                );
+                final dotCount = '.'.allMatches(text).length;
+                if (!onlyDigitsAndDots || dotCount > 1) {
+                  return oldValue;
+                }
+                return newValue;
+              }),
+            ],
+            decoration: InputDecoration(
+              labelText: '$title density',
+              hintText: hintText,
               suffixText: 'kg/m3',
-              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
+              prefixIcon: Icon(Icons.opacity_rounded, color: accent),
+              helperText: 'Required',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFFD7DEEF)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(color: accent, width: 1.6),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DialogInfoTile extends StatelessWidget {
+  const _DialogInfoTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OneLineScaleText(
+            label,
+            style: const TextStyle(
+              color: kClaySub,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          OneLineScaleText(
+            value,
+            style: const TextStyle(
+              color: kClayPrimary,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],

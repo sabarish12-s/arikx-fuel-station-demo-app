@@ -72,7 +72,7 @@ class _SalesDashboardScreenState extends State<SalesDashboardScreen> {
       forceRefresh: forceRefresh,
     );
     final parsedToday = DateTime.tryParse(today.date) ?? DateTime.now();
-    final yesterday = await _salesService.fetchDashboardForDate(
+    final yesterday = await _salesService.fetchDailySummary(
       date: _apiDate(_previousDay(parsedToday)),
       forceRefresh: forceRefresh,
     );
@@ -402,7 +402,7 @@ class _SalesDashboardBundle {
   const _SalesDashboardBundle({required this.today, required this.yesterday});
 
   final SalesDashboardModel today;
-  final SalesDashboardModel yesterday;
+  final DailySummaryModel yesterday;
 }
 
 class _PumpCashSummary {

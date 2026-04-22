@@ -94,8 +94,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         return;
       }
       if (!update.path.startsWith('/management/reports/monthly') &&
-          !update.path.startsWith('/management/entries') &&
-          !update.path.startsWith('/credits/customers')) {
+          !update.path.startsWith('/credits/summary')) {
         return;
       }
       setState(() {
@@ -159,109 +158,22 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       forceRefresh: forceRefresh,
     );
     final creditSummaryFuture = _fetchCreditSummary(forceRefresh: forceRefresh);
-    final entryPaymentBreakdownFuture = _fetchEntryPaymentBreakdown(
-      month: monthParam,
-      fromDate: fromDateParam,
-      toDate: toDateParam,
-      forceRefresh: forceRefresh,
-    );
 
     final report = await reportFuture;
     final creditSummary = await creditSummaryFuture;
-    final entryPaymentBreakdown = await entryPaymentBreakdownFuture;
     return _MonthlyReportViewData(
       report: report,
       creditOutstandingTotal:
           creditSummary?.openBalanceTotal ?? report.creditTotal,
-      paymentBreakdown: _paymentBreakdownTotal(entryPaymentBreakdown) > 0
-          ? entryPaymentBreakdown
-          : report.paymentBreakdown,
+      paymentBreakdown: report.paymentBreakdown,
     );
-  }
-
-  Future<Map<String, double>> _fetchEntryPaymentBreakdown({
-    String? month,
-    String? fromDate,
-    String? toDate,
-    bool forceRefresh = false,
-  }) async {
-    try {
-      final entries = await _managementService.fetchEntries(
-        month: month,
-        fromDate: fromDate,
-        toDate: toDate,
-        summary: false,
-        forceRefresh: forceRefresh,
-      );
-      return _paymentBreakdownFromEntries(entries);
-    } catch (_) {
-      return const <String, double>{};
-    }
-  }
-
-  Map<String, double> _paymentBreakdownFromEntries(
-    List<ShiftEntryModel> entries,
-  ) {
-    final totals = <String, double>{
-      'cash': 0,
-      'check': 0,
-      'upi': 0,
-      'credit': 0,
-    };
-
-    void addAmount(String mode, double amount) {
-      if (amount <= 0) {
-        return;
-      }
-      final normalized = mode
-          .trim()
-          .toLowerCase()
-          .replaceAll(' ', '_')
-          .replaceAll('-', '_');
-      final key = switch (normalized) {
-        'cash' => 'cash',
-        'check' || 'hp_pay' || 'hpay' => 'check',
-        'upi' => 'upi',
-        'credit' => 'credit',
-        _ => 'cash',
-      };
-      totals[key] = (totals[key] ?? 0) + amount;
-    }
-
-    for (final entry in entries) {
-      for (final payment in entry.pumpPayments.values) {
-        addAmount('cash', payment.cash);
-        addAmount('check', payment.check);
-        addAmount('upi', payment.upi);
-        addAmount('credit', payment.credit);
-      }
-
-      addAmount('cash', entry.paymentBreakdown.cash);
-      addAmount('check', entry.paymentBreakdown.check);
-      addAmount('upi', entry.paymentBreakdown.upi);
-
-      for (final collection in entry.creditCollections) {
-        addAmount(collection.paymentMode, collection.amount);
-      }
-    }
-
-    return totals.map(
-      (key, value) => MapEntry(key, double.parse(value.toStringAsFixed(2))),
-    );
-  }
-
-  double _paymentBreakdownTotal(Map<String, double> breakdown) {
-    return (breakdown['cash'] ?? 0) +
-        (breakdown['check'] ?? 0) +
-        (breakdown['upi'] ?? 0) +
-        (breakdown['credit'] ?? 0);
   }
 
   Future<CreditLedgerSummaryModel?> _fetchCreditSummary({
     bool forceRefresh = false,
   }) async {
     try {
-      final (summary, _) = await _creditService.fetchCustomers(
+      final summary = await _creditService.fetchSummary(
         forceRefresh: forceRefresh,
       );
       return summary;

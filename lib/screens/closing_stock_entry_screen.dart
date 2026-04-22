@@ -215,6 +215,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       return DailyEntryDraft(
         date: existing.date,
         closingReadings: existing.closingReadings,
+        pumpSalesmen: existing.pumpSalesmen,
         pumpAttendants: existing.pumpAttendants,
         pumpTesting: existing.pumpTesting,
         pumpPayments: existing.pumpPayments,
@@ -228,6 +229,14 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     return DailyEntryDraft(
       date: dashboard.date,
       closingReadings: const {},
+      pumpSalesmen: {
+        for (final pump in dashboard.station.pumps)
+          pump.id: const PumpSalesmanModel(
+            salesmanId: '',
+            salesmanName: '',
+            salesmanCode: '',
+          ),
+      },
       pumpAttendants: {for (final pump in dashboard.station.pumps) pump.id: ''},
       pumpTesting: {
         for (final pump in dashboard.station.pumps)
@@ -255,6 +264,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         if (pumpDraft.closingReadings != null)
           pumpId: pumpDraft.closingReadings!,
       },
+      pumpSalesmen: {...draft.pumpSalesmen, pumpId: pumpDraft.salesman},
       pumpAttendants: {...draft.pumpAttendants, pumpId: pumpDraft.attendant},
       pumpTesting: {...draft.pumpTesting, pumpId: pumpDraft.testing},
       pumpPayments: {...draft.pumpPayments, pumpId: pumpDraft.payments},
@@ -285,6 +295,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
     final saved = await _salesService.saveDraftEntry(
       date: draft.date,
       closingReadings: draft.closingReadings,
+      pumpSalesmen: draft.pumpSalesmen,
       pumpAttendants: draft.pumpAttendants,
       pumpTesting: draft.pumpTesting,
       pumpPayments: draft.pumpPayments,
@@ -455,6 +466,13 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
               dashboard.station.meterLimits[pump.id] ??
               const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
           initialDraft: PumpEntryDraft(
+            salesman:
+                draft.pumpSalesmen[pump.id] ??
+                const PumpSalesmanModel(
+                  salesmanId: '',
+                  salesmanName: '',
+                  salesmanCode: '',
+                ),
             attendant: draft.pumpAttendants[pump.id] ?? '',
             closingReadings: draft.closingReadings[pump.id],
             testing:
@@ -474,6 +492,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
             mismatchReason: draft.pumpMismatchReasons[pump.id] ?? '',
           ),
           suggestedCustomers: _suggestedCustomers,
+          salesmen: dashboard.station.salesmen,
           priceSnapshot: _resolvedPriceSnapshot,
           flagThreshold: dashboard.station.flagThreshold,
         );
@@ -514,6 +533,13 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           context: context,
           pump: pump,
           initialDraft: PumpEntryDraft(
+            salesman:
+                draft.pumpSalesmen[pump.id] ??
+                const PumpSalesmanModel(
+                  salesmanId: '',
+                  salesmanName: '',
+                  salesmanCode: '',
+                ),
             attendant: draft.pumpAttendants[pump.id] ?? '',
             closingReadings: draft.closingReadings[pump.id],
             testing:
@@ -532,6 +558,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
                 .toList(),
             mismatchReason: draft.pumpMismatchReasons[pump.id] ?? '',
           ),
+          salesmen: dashboard.station.salesmen,
         );
         if (!mounted || result == null) {
           return;
@@ -638,6 +665,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
       final preview = await _salesService.previewEntry(
         date: draft.date,
         closingReadings: draft.closingReadings,
+        pumpSalesmen: draft.pumpSalesmen,
         pumpAttendants: draft.pumpAttendants,
         pumpTesting: draft.pumpTesting,
         pumpPayments: draft.pumpPayments,
@@ -661,6 +689,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
         await _salesService.submitEntry(
           date: draft.date,
           closingReadings: draft.closingReadings,
+          pumpSalesmen: draft.pumpSalesmen,
           pumpAttendants: draft.pumpAttendants,
           pumpTesting: draft.pumpTesting,
           pumpPayments: draft.pumpPayments,
@@ -675,6 +704,7 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           entryId: existingEntryId,
           date: draft.date,
           closingReadings: draft.closingReadings,
+          pumpSalesmen: draft.pumpSalesmen,
           pumpAttendants: draft.pumpAttendants,
           pumpTesting: draft.pumpTesting,
           pumpPayments: draft.pumpPayments,

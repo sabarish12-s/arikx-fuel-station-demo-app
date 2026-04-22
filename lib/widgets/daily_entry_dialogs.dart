@@ -468,6 +468,14 @@ Future<DailyEntryDraft?> showDailyEntryEditorDialog({
               result = DailyEntryDraft(
                 date: selectedDate,
                 closingReadings: closingReadings,
+                pumpSalesmen: {
+                  for (final pump in station.pumps)
+                    pump.id: const PumpSalesmanModel(
+                      salesmanId: '',
+                      salesmanName: '',
+                      salesmanCode: '',
+                    ),
+                },
                 pumpAttendants: attendants,
                 pumpTesting: pumpTesting,
                 pumpPayments: pumpPayments,
@@ -1271,6 +1279,7 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
   required Map<String, Map<String, double>> priceSnapshot,
   required double flagThreshold,
   required PumpEntryDraft initialDraft,
+  required List<StationSalesmanModel> salesmen,
   List<CreditCustomerSummaryModel> suggestedCustomers = const [],
 }) async {
   return showDialog<MapEntry<String, PumpEntryDraft>>(
@@ -1285,6 +1294,7 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
         priceSnapshot: priceSnapshot,
         flagThreshold: flagThreshold,
         initialDraft: initialDraft,
+        salesmen: salesmen,
         suggestedCustomers: suggestedCustomers,
       ),
     ),
@@ -1295,13 +1305,18 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpCashCollectionDialog({
   required BuildContext context,
   required StationPumpModel pump,
   required PumpEntryDraft initialDraft,
+  required List<StationSalesmanModel> salesmen,
 }) async {
   return showDialog<MapEntry<String, PumpEntryDraft>>(
     context: context,
     barrierDismissible: false,
     builder: (dialogContext) => Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: _PumpCashCollectionDialog(pump: pump, initialDraft: initialDraft),
+      child: _PumpCashCollectionDialog(
+        pump: pump,
+        initialDraft: initialDraft,
+        salesmen: salesmen,
+      ),
     ),
   );
 }
@@ -1685,6 +1700,7 @@ class _PumpEntryDialog extends StatefulWidget {
     required this.priceSnapshot,
     required this.flagThreshold,
     required this.initialDraft,
+    required this.salesmen,
     required this.suggestedCustomers,
   });
 
@@ -1694,6 +1710,7 @@ class _PumpEntryDialog extends StatefulWidget {
   final Map<String, Map<String, double>> priceSnapshot;
   final double flagThreshold;
   final PumpEntryDraft initialDraft;
+  final List<StationSalesmanModel> salesmen;
   final List<CreditCustomerSummaryModel> suggestedCustomers;
 
   @override
@@ -1702,7 +1719,6 @@ class _PumpEntryDialog extends StatefulWidget {
 
 class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  late final TextEditingController _attendantController;
   late final TextEditingController _petrolController;
   late final TextEditingController _dieselController;
   late final TextEditingController _twoTController;
@@ -1715,13 +1731,12 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
   late bool _testingEnabled;
   late bool _testingAddsToInventory;
   late List<_CreditEntryControllers> _creditEntryControllers;
+  String? _selectedSalesmanId;
 
   @override
   void initState() {
     super.initState();
-    _attendantController = TextEditingController(
-      text: widget.initialDraft.attendant,
-    );
+    _selectedSalesmanId = _resolveInitialSalesmanId();
     _petrolController = TextEditingController(
       text: widget.initialDraft.closingReadings == null
           ? ''
@@ -1811,7 +1826,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     _cashController.removeListener(_refreshTotals);
     _checkController.removeListener(_refreshTotals);
     _upiController.removeListener(_refreshTotals);
-    _attendantController.dispose();
     _petrolController.dispose();
     _dieselController.dispose();
     _twoTController.dispose();
@@ -1828,6 +1842,87 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     _testingPetrolController.dispose();
     _testingDieselController.dispose();
     super.dispose();
+  }
+
+  String? _resolveInitialSalesmanId() {
+    final draftSalesman = widget.initialDraft.salesman;
+    if (draftSalesman.salesmanId.trim().isNotEmpty) {
+      return draftSalesman.salesmanId.trim();
+    }
+    final draftCode = draftSalesman.salesmanCode.trim().toUpperCase();
+    if (draftCode.isEmpty) {
+      return null;
+    }
+    for (final salesman in widget.salesmen) {
+      if (salesman.code.trim().toUpperCase() == draftCode) {
+        return salesman.id;
+      }
+    }
+    return null;
+  }
+
+  StationSalesmanModel? get _selectedSalesman {
+    final lookup = _selectedSalesmanId?.trim() ?? '';
+    if (lookup.isEmpty) {
+      return null;
+    }
+    for (final salesman in widget.salesmen) {
+      if (salesman.id == lookup) {
+        return salesman;
+      }
+    }
+    return null;
+  }
+
+  List<StationSalesmanModel> get _availableSalesmen {
+    final selected = _selectedSalesman;
+    final includedIds = <String>{};
+    final available = <StationSalesmanModel>[];
+    for (final salesman in widget.salesmen) {
+      final shouldInclude =
+          salesman.active || (selected != null && salesman.id == selected.id);
+      if (!shouldInclude || includedIds.contains(salesman.id)) {
+        continue;
+      }
+      includedIds.add(salesman.id);
+      available.add(salesman);
+    }
+    available.sort(
+      (left, right) => left.displayLabel.compareTo(right.displayLabel),
+    );
+    return available;
+  }
+
+  bool get _requiresSalesmanSelection {
+    final petrolClosing = _parseClosingReadingForPreview(
+      _petrolController.text,
+      openingValue: widget.opening.petrol,
+    );
+    final dieselClosing = _parseClosingReadingForPreview(
+      _dieselController.text,
+      openingValue: widget.opening.diesel,
+    );
+    final hasMeterMovement =
+        (petrolClosing - widget.opening.petrol).abs() >
+            _readingComparisonTolerance ||
+        (dieselClosing - widget.opening.diesel).abs() >
+            _readingComparisonTolerance;
+    final hasTwoTSales = _parseDirectSaleAmount(_twoTController.text) > 0;
+    final hasCollections = _collectionTotal > 0;
+    return hasMeterMovement || hasTwoTSales || hasCollections || _testingEnabled;
+  }
+
+  String? _validateSalesmanSelection() {
+    if (!_requiresSalesmanSelection) {
+      return null;
+    }
+    if (_availableSalesmen.isEmpty) {
+      return 'Add a salesman in settings first.';
+    }
+    if (_selectedSalesman == null) {
+      return 'Select a salesman.';
+    }
+    return null;
   }
 
   bool get _supportsTwoT => true;
@@ -2125,7 +2220,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
 
   void _markPumpAsNil() {
     setState(() {
-      _attendantController.text = 'Nil';
+      _selectedSalesmanId = null;
       _petrolController.text = widget.opening.petrol.toStringAsFixed(2);
       _dieselController.text = widget.opening.diesel.toStringAsFixed(2);
       if (_supportsTwoT) {
@@ -2159,6 +2254,13 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       ).showSnackBar(SnackBar(content: Text(testingError)));
       return;
     }
+    final salesmanError = _validateSalesmanSelection();
+    if (salesmanError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(salesmanError)));
+      return;
+    }
 
     final namedCreditEntries = _buildCreditEntries();
     final creditAmount = namedCreditEntries.fold<double>(
@@ -2181,7 +2283,18 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
       MapEntry(
         widget.pump.id,
         PumpEntryDraft(
-          attendant: _attendantController.text.trim(),
+          salesman: _selectedSalesman == null
+              ? const PumpSalesmanModel(
+                  salesmanId: '',
+                  salesmanName: '',
+                  salesmanCode: '',
+                )
+              : PumpSalesmanModel(
+                  salesmanId: _selectedSalesman!.id,
+                  salesmanName: _selectedSalesman!.name,
+                  salesmanCode: _selectedSalesman!.code,
+                ),
+          attendant: _selectedSalesman?.displayLabel ?? '',
           closingReadings: PumpReadings(
             petrol: _parseAmount(_petrolController.text),
             diesel: _parseAmount(_dieselController.text),
@@ -2349,14 +2462,32 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          TextFormField(
-                            controller: _attendantController,
-                            textInputAction: TextInputAction.next,
-                            decoration: const InputDecoration(
-                              labelText: 'Pump attendant name',
+                          DropdownButtonFormField<String>(
+                            initialValue: _selectedSalesmanId,
+                            decoration: InputDecoration(
+                              labelText: 'Salesman',
+                              helperText:
+                                  _selectedSalesman == null &&
+                                      widget.initialDraft.attendant.trim().isNotEmpty
+                                  ? 'Legacy value: ${widget.initialDraft.attendant}'
+                                  : 'Select from the salesman list in settings.',
                               filled: true,
                               fillColor: Colors.white,
                             ),
+                            items: _availableSalesmen
+                                .map(
+                                  (salesman) => DropdownMenuItem<String>(
+                                    value: salesman.id,
+                                    child: Text(salesman.displayLabel),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedSalesmanId = value;
+                              });
+                            },
+                            validator: (_) => _validateSalesmanSelection(),
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -3508,10 +3639,12 @@ class _PumpCashCollectionDialog extends StatefulWidget {
   const _PumpCashCollectionDialog({
     required this.pump,
     required this.initialDraft,
+    required this.salesmen,
   });
 
   final StationPumpModel pump;
   final PumpEntryDraft initialDraft;
+  final List<StationSalesmanModel> salesmen;
 
   @override
   State<_PumpCashCollectionDialog> createState() =>
@@ -3519,16 +3652,14 @@ class _PumpCashCollectionDialog extends StatefulWidget {
 }
 
 class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
-  late final TextEditingController _attendantController;
   late final TextEditingController _cashController;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  String? _selectedSalesmanId;
 
   @override
   void initState() {
     super.initState();
-    _attendantController = TextEditingController(
-      text: widget.initialDraft.attendant,
-    );
+    _selectedSalesmanId = _resolveInitialSalesmanId();
     _cashController = TextEditingController(
       text: widget.initialDraft.payments.cash == 0
           ? ''
@@ -3538,9 +3669,67 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
 
   @override
   void dispose() {
-    _attendantController.dispose();
     _cashController.dispose();
     super.dispose();
+  }
+
+  String? _resolveInitialSalesmanId() {
+    final draftSalesman = widget.initialDraft.salesman;
+    if (draftSalesman.salesmanId.trim().isNotEmpty) {
+      return draftSalesman.salesmanId.trim();
+    }
+    final draftCode = draftSalesman.salesmanCode.trim().toUpperCase();
+    if (draftCode.isEmpty) {
+      return null;
+    }
+    for (final salesman in widget.salesmen) {
+      if (salesman.code.trim().toUpperCase() == draftCode) {
+        return salesman.id;
+      }
+    }
+    return null;
+  }
+
+  StationSalesmanModel? get _selectedSalesman {
+    final lookup = _selectedSalesmanId?.trim() ?? '';
+    if (lookup.isEmpty) {
+      return null;
+    }
+    for (final salesman in widget.salesmen) {
+      if (salesman.id == lookup) {
+        return salesman;
+      }
+    }
+    return null;
+  }
+
+  List<StationSalesmanModel> get _availableSalesmen {
+    final selected = _selectedSalesman;
+    final available = <StationSalesmanModel>[];
+    for (final salesman in widget.salesmen) {
+      if (!salesman.active && (selected == null || salesman.id != selected.id)) {
+        continue;
+      }
+      available.add(salesman);
+    }
+    available.sort(
+      (left, right) => left.displayLabel.compareTo(right.displayLabel),
+    );
+    return available;
+  }
+
+  String? _validateSalesmanSelection() {
+    final cash = _parseAmount(_cashController.text);
+    if (cash <= 0) {
+      return null;
+    }
+    if (_availableSalesmen.isEmpty) {
+      return 'Add a salesman in settings first.';
+    }
+    if (_selectedSalesman == null) {
+      return 'Select a salesman.';
+    }
+    return null;
   }
 
   double _parseAmount(String raw) => double.tryParse(raw.trim()) ?? 0;
@@ -3563,12 +3752,30 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+    final salesmanError = _validateSalesmanSelection();
+    if (salesmanError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(salesmanError)));
+      return;
+    }
     final cash = _parseAmount(_cashController.text);
     Navigator.of(context).pop(
       MapEntry(
         widget.pump.id,
         PumpEntryDraft(
-          attendant: _attendantController.text.trim(),
+          salesman: _selectedSalesman == null
+              ? const PumpSalesmanModel(
+                  salesmanId: '',
+                  salesmanName: '',
+                  salesmanCode: '',
+                )
+              : PumpSalesmanModel(
+                  salesmanId: _selectedSalesman!.id,
+                  salesmanName: _selectedSalesman!.name,
+                  salesmanCode: _selectedSalesman!.code,
+                ),
+          attendant: _selectedSalesman?.displayLabel ?? '',
           closingReadings: widget.initialDraft.closingReadings,
           testing: widget.initialDraft.testing,
           payments: PumpPaymentBreakdownModel(
@@ -3611,15 +3818,32 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _attendantController,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(
+              DropdownButtonFormField<String>(
+                initialValue: _selectedSalesmanId,
+                decoration: InputDecoration(
                   labelText: 'Cash collected from',
-                  helperText: 'Pump attendant name',
+                  helperText:
+                      _selectedSalesman == null &&
+                          widget.initialDraft.attendant.trim().isNotEmpty
+                      ? 'Legacy value: ${widget.initialDraft.attendant}'
+                      : 'Select from the salesman list in settings.',
                   filled: true,
                   fillColor: Colors.white,
                 ),
+                items: _availableSalesmen
+                    .map(
+                      (salesman) => DropdownMenuItem<String>(
+                        value: salesman.id,
+                        child: Text(salesman.displayLabel),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedSalesmanId = value;
+                  });
+                },
+                validator: (_) => _validateSalesmanSelection(),
               ),
               const SizedBox(height: 12),
               TextFormField(

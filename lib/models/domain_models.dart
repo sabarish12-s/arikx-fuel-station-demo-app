@@ -1,3 +1,5 @@
+import '../utils/formatters.dart';
+
 class PumpReadings {
   const PumpReadings({
     required this.petrol,
@@ -147,6 +149,104 @@ class CreditCollectionModel {
   }
 }
 
+class StationSalesmanModel {
+  const StationSalesmanModel({
+    required this.id,
+    required this.name,
+    required this.code,
+    required this.active,
+    this.createdAt = '',
+    this.updatedAt = '',
+  });
+
+  final String id;
+  final String name;
+  final String code;
+  final bool active;
+  final String createdAt;
+  final String updatedAt;
+
+  String get displayLabel => formatSalesmanLabel(name, code);
+
+  factory StationSalesmanModel.fromJson(Map<String, dynamic> json) {
+    return StationSalesmanModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      code: json['code']?.toString() ?? '',
+      active: json['active'] as bool? ?? true,
+      createdAt: json['createdAt']?.toString() ?? '',
+      updatedAt: json['updatedAt']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'code': code,
+      'active': active,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+    };
+  }
+
+  StationSalesmanModel copyWith({
+    String? id,
+    String? name,
+    String? code,
+    bool? active,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return StationSalesmanModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      code: code ?? this.code,
+      active: active ?? this.active,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+}
+
+class PumpSalesmanModel {
+  const PumpSalesmanModel({
+    required this.salesmanId,
+    required this.salesmanName,
+    required this.salesmanCode,
+  });
+
+  final String salesmanId;
+  final String salesmanName;
+  final String salesmanCode;
+
+  bool get isAssigned =>
+      salesmanId.trim().isNotEmpty ||
+      salesmanName.trim().isNotEmpty ||
+      salesmanCode.trim().isNotEmpty;
+
+  String get displayLabel => formatSalesmanLabel(salesmanName, salesmanCode);
+
+  factory PumpSalesmanModel.fromJson(Map<String, dynamic> json) {
+    return PumpSalesmanModel(
+      salesmanId:
+          json['salesmanId']?.toString() ?? json['id']?.toString() ?? '',
+      salesmanName:
+          json['salesmanName']?.toString() ?? json['name']?.toString() ?? '',
+      salesmanCode:
+          json['salesmanCode']?.toString() ?? json['code']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'salesmanId': salesmanId,
+      'salesmanName': salesmanName,
+      'salesmanCode': salesmanCode,
+    };
+  }
+}
+
 double parseTestingQuantity(dynamic value) {
   if (value == true) {
     return 5;
@@ -209,6 +309,7 @@ class DailyEntryDraft {
   const DailyEntryDraft({
     required this.date,
     required this.closingReadings,
+    required this.pumpSalesmen,
     required this.pumpAttendants,
     required this.pumpTesting,
     required this.pumpPayments,
@@ -222,6 +323,7 @@ class DailyEntryDraft {
 
   final String date;
   final Map<String, PumpReadings> closingReadings;
+  final Map<String, PumpSalesmanModel> pumpSalesmen;
   final Map<String, String> pumpAttendants;
   final Map<String, PumpTestingModel> pumpTesting;
   final Map<String, PumpPaymentBreakdownModel> pumpPayments;
@@ -235,6 +337,7 @@ class DailyEntryDraft {
   DailyEntryDraft copyWith({
     String? date,
     Map<String, PumpReadings>? closingReadings,
+    Map<String, PumpSalesmanModel>? pumpSalesmen,
     Map<String, String>? pumpAttendants,
     Map<String, PumpTestingModel>? pumpTesting,
     Map<String, PumpPaymentBreakdownModel>? pumpPayments,
@@ -248,6 +351,7 @@ class DailyEntryDraft {
     return DailyEntryDraft(
       date: date ?? this.date,
       closingReadings: closingReadings ?? this.closingReadings,
+      pumpSalesmen: pumpSalesmen ?? this.pumpSalesmen,
       pumpAttendants: pumpAttendants ?? this.pumpAttendants,
       pumpTesting: pumpTesting ?? this.pumpTesting,
       pumpPayments: pumpPayments ?? this.pumpPayments,
@@ -263,6 +367,7 @@ class DailyEntryDraft {
 
 class PumpEntryDraft {
   const PumpEntryDraft({
+    required this.salesman,
     required this.attendant,
     required this.closingReadings,
     required this.testing,
@@ -271,6 +376,7 @@ class PumpEntryDraft {
     this.mismatchReason = '',
   });
 
+  final PumpSalesmanModel salesman;
   final String attendant;
   final PumpReadings? closingReadings;
   final PumpTestingModel testing;
@@ -1112,6 +1218,7 @@ class StationConfigModel {
     required this.baseReadings,
     required this.meterLimits,
     required this.inventoryPlanning,
+    this.salesmen = const [],
     this.flagThreshold = 0.01,
   });
 
@@ -1124,6 +1231,7 @@ class StationConfigModel {
   final Map<String, PumpReadings> baseReadings;
   final Map<String, PumpReadings> meterLimits;
   final InventoryPlanningModel inventoryPlanning;
+  final List<StationSalesmanModel> salesmen;
   final double flagThreshold;
 
   factory StationConfigModel.fromJson(Map<String, dynamic> json) {
@@ -1157,6 +1265,12 @@ class StationConfigModel {
       inventoryPlanning: InventoryPlanningModel.fromJson(
         json['inventoryPlanning'] as Map<String, dynamic>? ?? const {},
       ),
+      salesmen: (json['salesmen'] as List<dynamic>? ?? const [])
+          .map(
+            (item) =>
+                StationSalesmanModel.fromJson(item as Map<String, dynamic>),
+          )
+          .toList(),
       flagThreshold: (json['flagThreshold'] as num?)?.toDouble() ?? 0.01,
     );
   }
@@ -1176,6 +1290,7 @@ class StationConfigModel {
         (key, value) => MapEntry(key, value.toJson()),
       ),
       'inventoryPlanning': inventoryPlanning.toJson(),
+      'salesmen': salesmen.map((item) => item.toJson()).toList(),
       'flagThreshold': flagThreshold,
     };
   }
@@ -1333,6 +1448,7 @@ class ShiftEntryModel {
     required this.openingReadings,
     required this.closingReadings,
     required this.soldByPump,
+    required this.pumpSalesmen,
     required this.pumpAttendants,
     required this.pumpTesting,
     required this.pumpPayments,
@@ -1369,6 +1485,7 @@ class ShiftEntryModel {
   final Map<String, PumpReadings> openingReadings;
   final Map<String, PumpReadings> closingReadings;
   final Map<String, PumpReadings> soldByPump;
+  final Map<String, PumpSalesmanModel> pumpSalesmen;
   final Map<String, String> pumpAttendants;
   final Map<String, PumpTestingModel> pumpTesting;
   final Map<String, PumpPaymentBreakdownModel> pumpPayments;
@@ -1432,6 +1549,15 @@ class ShiftEntryModel {
       openingReadings: parseReadings('openingReadings'),
       closingReadings: parseReadings('closingReadings'),
       soldByPump: parseReadings('soldByPump'),
+      pumpSalesmen:
+          (json['pumpSalesmen'] as Map<String, dynamic>? ?? const {}).map(
+            (key, value) => MapEntry(
+              key,
+              PumpSalesmanModel.fromJson(
+                value as Map<String, dynamic>? ?? const {},
+              ),
+            ),
+          ),
       pumpAttendants:
           (json['pumpAttendants'] as Map<String, dynamic>? ?? const {}).map(
             (key, value) => MapEntry(key, value?.toString() ?? ''),

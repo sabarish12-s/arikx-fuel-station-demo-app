@@ -120,6 +120,7 @@ class ManagementService {
   Future<ShiftEntryModel> updateEntry({
     required String entryId,
     required Map<String, PumpReadings> closingReadings,
+    required Map<String, PumpSalesmanModel> pumpSalesmen,
     required Map<String, String> pumpAttendants,
     required Map<String, PumpTestingModel> pumpTesting,
     required Map<String, PumpPaymentBreakdownModel> pumpPayments,
@@ -133,6 +134,9 @@ class ManagementService {
       _entryPath(entryId),
       body: jsonEncode({
         'closingReadings': closingReadings.map(
+          (key, value) => MapEntry(key, value.toJson()),
+        ),
+        'pumpSalesmen': pumpSalesmen.map(
           (key, value) => MapEntry(key, value.toJson()),
         ),
         'pumpAttendants': pumpAttendants,
