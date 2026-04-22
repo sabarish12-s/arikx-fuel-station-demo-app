@@ -266,6 +266,260 @@ InputDecoration clayDialogInputDecoration({
   );
 }
 
+const double kClayDropdownRadius = 16;
+const double kClayDropdownMenuMaxHeight = 320;
+
+const _kClayDropdownLabelStyle = TextStyle(
+  fontSize: 11,
+  fontWeight: FontWeight.w800,
+  color: kClaySub,
+);
+
+const _kClayDropdownTextStyle = TextStyle(
+  color: kClayPrimary,
+  fontWeight: FontWeight.w800,
+  fontSize: 14,
+);
+
+BoxDecoration clayDropdownDecoration({bool compact = false}) {
+  return BoxDecoration(
+    color: compact ? const Color(0xFFF7F8FD) : const Color(0xFFECEFF8),
+    borderRadius: BorderRadius.circular(kClayDropdownRadius),
+    border: Border.all(color: const Color(0xFFDDE3F0)),
+    boxShadow: compact
+        ? [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.28),
+              offset: const Offset(2, 3),
+              blurRadius: 8,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-2, -2),
+              blurRadius: 6,
+            ),
+          ]
+        : [
+            BoxShadow(
+              color: const Color(0xFFB8C0DC).withValues(alpha: 0.52),
+              offset: const Offset(4, 5),
+              blurRadius: 13,
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              offset: Offset(-3, -3),
+              blurRadius: 9,
+            ),
+          ],
+  );
+}
+
+class ClayDropdownField<T> extends StatelessWidget {
+  const ClayDropdownField({
+    super.key,
+    required this.label,
+    required this.items,
+    required this.onChanged,
+    this.value,
+    this.initialValue,
+    this.icon,
+    this.hintText,
+    this.helperText,
+    this.validator,
+    this.compact = false,
+    this.enabled = true,
+  }) : assert(value == null || initialValue == null);
+
+  final String label;
+  final T? value;
+  final T? initialValue;
+  final IconData? icon;
+  final String? hintText;
+  final String? helperText;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+  final FormFieldValidator<T>? validator;
+  final bool compact;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedValue = value ?? initialValue;
+    final verticalPadding = compact ? 12.0 : 15.0;
+    final field = DropdownButtonFormField<T>(
+      initialValue: selectedValue,
+      items: _premiumItems(items),
+      onChanged: enabled ? onChanged : null,
+      validator: validator,
+      isExpanded: true,
+      menuMaxHeight: kClayDropdownMenuMaxHeight,
+      dropdownColor: Colors.white,
+      borderRadius: BorderRadius.circular(kClayDropdownRadius),
+      icon: const Icon(
+        Icons.keyboard_arrow_down_rounded,
+        color: kClaySub,
+        size: 24,
+      ),
+      style: _kClayDropdownTextStyle.copyWith(fontSize: compact ? 13 : 14),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hintText,
+        helperText: helperText,
+        prefixIcon: icon == null
+            ? null
+            : Icon(icon, color: kClayHeroStart, size: compact ? 18 : 20),
+        filled: true,
+        fillColor: Colors.transparent,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        disabledBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: compact ? 13 : 16,
+          vertical: verticalPadding,
+        ),
+        labelStyle: _kClayDropdownLabelStyle,
+        hintStyle: const TextStyle(
+          color: kClaySub,
+          fontWeight: FontWeight.w600,
+        ),
+        helperStyle: const TextStyle(
+          color: kClaySub,
+          fontWeight: FontWeight.w600,
+        ),
+        errorMaxLines: 2,
+      ),
+    );
+
+    return Container(
+      width: double.infinity,
+      decoration: clayDropdownDecoration(compact: compact),
+      child: field,
+    );
+  }
+
+  List<DropdownMenuItem<T>> _premiumItems(List<DropdownMenuItem<T>> source) {
+    return source
+        .map(
+          (item) => DropdownMenuItem<T>(
+            value: item.value,
+            enabled: item.enabled,
+            alignment: item.alignment,
+            onTap: item.onTap,
+            child: DefaultTextStyle.merge(
+              style: _kClayDropdownTextStyle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              child: item.child,
+            ),
+          ),
+        )
+        .toList();
+  }
+}
+
+class ClaySearchDropdownField<T> extends StatelessWidget {
+  const ClaySearchDropdownField({
+    super.key,
+    required this.label,
+    required this.entries,
+    required this.onSelected,
+    this.selectedValue,
+    this.hintText,
+    this.icon,
+    this.enabled = true,
+  });
+
+  final String label;
+  final T? selectedValue;
+  final String? hintText;
+  final IconData? icon;
+  final List<DropdownMenuEntry<T>> entries;
+  final ValueChanged<T?>? onSelected;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width - 48;
+        return Container(
+          width: double.infinity,
+          decoration: clayDropdownDecoration(),
+          child: DropdownMenu<T>(
+            key: ValueKey<Object?>(
+              Object.hash(selectedValue, entries.length, enabled),
+            ),
+            width: width,
+            menuHeight: kClayDropdownMenuMaxHeight,
+            initialSelection: selectedValue,
+            enabled: enabled,
+            enableFilter: true,
+            enableSearch: true,
+            requestFocusOnTap: true,
+            label: Text(label),
+            hintText: hintText,
+            leadingIcon: icon == null
+                ? null
+                : Icon(icon, color: kClayHeroStart, size: 20),
+            trailingIcon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: kClaySub,
+            ),
+            selectedTrailingIcon: const Icon(
+              Icons.keyboard_arrow_up_rounded,
+              color: kClaySub,
+            ),
+            textStyle: _kClayDropdownTextStyle,
+            inputDecorationTheme: const InputDecorationTheme(
+              filled: true,
+              fillColor: Colors.transparent,
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 15,
+              ),
+              labelStyle: _kClayDropdownLabelStyle,
+              hintStyle: TextStyle(
+                color: kClaySub,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            menuStyle: MenuStyle(
+              backgroundColor: const WidgetStatePropertyAll(Colors.white),
+              surfaceTintColor: const WidgetStatePropertyAll(Colors.white),
+              elevation: const WidgetStatePropertyAll(10),
+              shape: WidgetStatePropertyAll(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(kClayDropdownRadius),
+                ),
+              ),
+              side: const WidgetStatePropertyAll(
+                BorderSide(color: Color(0xFFE6EAF6)),
+              ),
+              padding: const WidgetStatePropertyAll(
+                EdgeInsets.symmetric(vertical: 6),
+              ),
+              maximumSize: WidgetStatePropertyAll(
+                Size(width, kClayDropdownMenuMaxHeight),
+              ),
+            ),
+            dropdownMenuEntries: entries,
+            onSelected: enabled ? onSelected : null,
+          ),
+        );
+      },
+    );
+  }
+}
+
 Future<bool> showClayConfirmDialog({
   required BuildContext context,
   required String title,

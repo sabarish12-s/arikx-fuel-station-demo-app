@@ -131,15 +131,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 title: 'Role access',
                 subtitle:
                     'Choose what this user can manage inside the station.',
-                child: DropdownButtonFormField<String>(
-                  initialValue: role,
-                  decoration: clayDialogInputDecoration(
-                    label: 'Role',
-                    prefixIcon: const Icon(
-                      Icons.admin_panel_settings_outlined,
-                      color: kClaySub,
-                    ),
-                  ),
+                child: ClayDropdownField<String>(
+                  label: 'Role',
+                  icon: Icons.admin_panel_settings_outlined,
+                  value: role,
                   items: canManageSuperAdmins
                       ? const [
                           DropdownMenuItem(
@@ -448,8 +443,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           style: const TextStyle(color: Color(0xFF55606E)),
                         ),
                         const SizedBox(height: 10),
-                        DropdownButtonFormField<String>(
-                          initialValue: selectedRole,
+                        ClayDropdownField<String>(
+                          label: 'Role',
+                          icon: Icons.admin_panel_settings_outlined,
+                          value: selectedRole,
+                          compact: true,
                           items: canManageSuperAdmins
                               ? const [
                                   DropdownMenuItem(
@@ -1071,20 +1069,12 @@ class _RoleDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
+    return ClayDropdownField<String>(
+      label: 'Role',
+      icon: Icons.admin_panel_settings_rounded,
+      value: value,
       items: items,
       onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: 'Role',
-        prefixIcon: const Icon(Icons.admin_panel_settings_rounded),
-        filled: true,
-        fillColor: const Color(0xFFECEFF8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-      ),
     );
   }
 }

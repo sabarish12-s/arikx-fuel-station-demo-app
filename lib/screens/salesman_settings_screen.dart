@@ -219,9 +219,6 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                   _SalesmanHeroCard(
                     canEdit: widget.canEdit,
                     onBack: widget.onBack,
-                    onAdd: widget.canEdit && !_saving
-                        ? () => _openEditor(station)
-                        : null,
                   ),
                   const SizedBox(height: 14),
                 ],
@@ -357,12 +354,10 @@ class _SalesmanHeroCard extends StatelessWidget {
   const _SalesmanHeroCard({
     required this.canEdit,
     this.onBack,
-    this.onAdd,
   });
 
   final bool canEdit;
   final VoidCallback? onBack;
-  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -400,23 +395,16 @@ class _SalesmanHeroCard extends StatelessWidget {
                 ),
                 SizedBox(height: 8),
                 OneLineScaleText(
-                  'Salesman Master List',
+                  'Salesman List',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
                   ),
                 ),
               ],
             ),
           ),
-          if (canEdit)
-            FilledButton.tonalIcon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add'),
-            ),
         ],
       ),
     );

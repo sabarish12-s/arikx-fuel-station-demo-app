@@ -1125,17 +1125,10 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<_FuelPriceHistorySort>(
-                        initialValue: _sort,
-                        decoration: InputDecoration(
-                          labelText: 'Sort by',
-                          filled: true,
-                          fillColor: const Color(0xFFECEFF8),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
+                      ClayDropdownField<_FuelPriceHistorySort>(
+                        label: 'Sort by',
+                        value: _sort,
+                        compact: true,
                         items: _FuelPriceHistorySort.values
                             .map(
                               (item) => DropdownMenuItem(

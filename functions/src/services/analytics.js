@@ -16,6 +16,7 @@ const {
 } = require('./dailyFuelRecords');
 
 const DAILY_SUMMARY_BACKFILL_COLLECTION_NAME = 'dailySalesSummaryBackfillStatus';
+const DAILY_SUMMARY_BACKFILL_VERSION = '2026-04-22-opening-readings';
 const stationSummaryBackfillPromises = new Map();
 
 function roundNumber(value) {
@@ -448,7 +449,6 @@ async function buildDailySummaryForDate(stationId, date) {
     ShiftEntry.allForStationRange(stationId, {
       fromDate: date,
       toDate: date,
-      includePrevious: false,
     }),
     CreditTransaction.allForStationRange(stationId, {
       fromDate: date,
@@ -498,7 +498,7 @@ async function syncDailySalesSummaryForDate(stationId, date) {
 
 async function backfillDailySalesSummariesForStation(stationId) {
   const [entries, creditTransactions, existingSummaries] = await Promise.all([
-    ShiftEntry.allForStation(stationId),
+    ShiftEntry.allForStation(stationId, {forceRefresh: true}),
     CreditTransaction.allForStation(stationId),
     DailySalesSummary.allForStationRange(stationId),
   ]);
@@ -568,7 +568,8 @@ async function ensureDailySalesSummariesBackfilled(stationId) {
     .collection(DAILY_SUMMARY_BACKFILL_COLLECTION_NAME)
     .doc(stationId);
   const backfillSnapshot = await backfillRef.get();
-  if (backfillSnapshot.exists) {
+  const backfillStatus = backfillSnapshot.exists ? backfillSnapshot.data() || {} : {};
+  if (backfillStatus.version === DAILY_SUMMARY_BACKFILL_VERSION) {
     return;
   }
 
@@ -582,6 +583,7 @@ async function ensureDailySalesSummariesBackfilled(stationId) {
     await backfillDailySalesSummariesForStation(stationId);
     await backfillRef.set({
       stationId,
+      version: DAILY_SUMMARY_BACKFILL_VERSION,
       completedAt: nowIso(),
     }, {merge: true});
   })();

@@ -19,10 +19,7 @@ import 'daily_fuel_history_screen.dart';
 import 'entry_workflow_screen.dart';
 
 class EntryManagementScreen extends StatefulWidget {
-  const EntryManagementScreen({
-    super.key,
-    required this.currentUser,
-  });
+  const EntryManagementScreen({super.key, required this.currentUser});
 
   final AuthUser currentUser;
 
@@ -1415,11 +1412,7 @@ class _EntryCard extends StatelessWidget {
         )
         .toList();
     final actionButtons = <Widget>[
-      _ActionBtn(
-        icon: Icons.visibility_outlined,
-        label: 'View',
-        onTap: onView,
-      ),
+      _ActionBtn(icon: Icons.visibility_outlined, label: 'View', onTap: onView),
     ];
     if (actionAccess.canUpdate || actionAccess.canEdit) {
       actionButtons.add(
@@ -1437,8 +1430,8 @@ class _EntryCard extends StatelessWidget {
           label: isDeleting
               ? 'Deleting...'
               : actionAccess.canOverrideDelete
-                  ? 'Override Delete'
-                  : 'Delete',
+              ? 'Override Delete'
+              : 'Delete',
           onTap: submitting ? null : onDelete,
           danger: true,
           loading: isDeleting,
@@ -2281,7 +2274,9 @@ List<Widget> _managementBuildPumpDetailCards(ShiftEntryModel entry) {
             ),
             _ManagementDetailRow(
               label: 'Testing',
-              value: _managementFormatTesting(entry.pumpTesting[pumpIds[index]]),
+              value: _managementFormatTesting(
+                entry.pumpTesting[pumpIds[index]],
+              ),
             ),
             if (entry.pumpPayments.containsKey(pumpIds[index])) ...[
               _ManagementMoneyBreakdownTile(
@@ -2506,10 +2501,7 @@ class _ManagementHeaderInfoGrid extends StatelessWidget {
 }
 
 class _ManagementHeaderInfoCard extends StatelessWidget {
-  const _ManagementHeaderInfoCard({
-    required this.label,
-    required this.value,
-  });
+  const _ManagementHeaderInfoCard({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -2883,7 +2875,9 @@ String _managementDisplayOrPlaceholder(String value) {
 
 String _managementFormatDateTimeOrPlaceholder(String value) {
   final trimmed = value.trim();
-  return trimmed.isEmpty ? _entryDetailNotEntered : formatDateTimeLabel(trimmed);
+  return trimmed.isEmpty
+      ? _entryDetailNotEntered
+      : formatDateTimeLabel(trimmed);
 }
 
 String _managementFormatTesting(PumpTestingModel? testing) {
@@ -2903,8 +2897,7 @@ List<String> _managementPumpIds(ShiftEntryModel entry) {
     ...entry.pumpTesting.keys,
     ...entry.pumpPayments.keys,
     ...entry.pumpCollections.keys,
-  }.toList()
-    ..sort();
+  }.toList()..sort();
   return ids;
 }
 
@@ -3112,52 +3105,12 @@ class _DialogDropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFECEFF8),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
-            offset: const Offset(3, 3),
-            blurRadius: 8,
-          ),
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-2, -2),
-            blurRadius: 6,
-          ),
-        ],
-      ),
-      child: DropdownButtonFormField<T>(
-        initialValue: value,
-        items: items,
-        onChanged: onChanged,
-        isExpanded: true,
-        borderRadius: BorderRadius.circular(16),
-        icon: const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: Color(0xFF8A93B8),
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF1A3A7A), size: 18),
-          filled: true,
-          fillColor: Colors.transparent,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          labelStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF8A93B8),
-          ),
-        ),
-      ),
+    return ClayDropdownField<T>(
+      label: label,
+      icon: icon,
+      value: value,
+      items: items,
+      onChanged: onChanged,
     );
   }
 }

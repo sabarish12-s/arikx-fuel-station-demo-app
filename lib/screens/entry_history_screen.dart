@@ -335,51 +335,24 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Sorting',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<_EntryHistorySort>(
-                value: _sort,
-                isExpanded: true,
-                dropdownColor: kClayPrimary,
-                borderRadius: BorderRadius.circular(16),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                ),
-                iconEnabledColor: Colors.white,
-                items: _EntryHistorySort.values
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(_sortLabel(item)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() => _sort = value);
-                },
-              ),
-            ),
+          ClayDropdownField<_EntryHistorySort>(
+            label: 'Sorting',
+            value: _sort,
+            compact: true,
+            items: _EntryHistorySort.values
+                .map(
+                  (item) => DropdownMenuItem(
+                    value: item,
+                    child: Text(_sortLabel(item)),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              setState(() => _sort = value);
+            },
           ),
         ],
       ),
@@ -744,7 +717,7 @@ class _EntryDetailSheet extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                         _DetailSection(
-                          title: 'Readings',
+                          title: 'Stock',
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -762,12 +735,9 @@ class _EntryDetailSheet extends StatelessWidget {
                                 title: 'Sold total',
                                 totals: entry.totals.sold,
                               ),
-                              const SizedBox(height: 10),
-                              _FuelBreakdownTile(
-                                title: 'Inventory total',
-                                totals: entry.inventoryTotals,
-                              ),
                               const SizedBox(height: 14),
+                              const _SubSectionLabel('Readings'),
+                              const SizedBox(height: 8),
                               ..._buildPumpReadingCards(entry),
                             ],
                           ),
@@ -775,9 +745,7 @@ class _EntryDetailSheet extends StatelessWidget {
                         const SizedBox(height: 12),
                         _DetailSection(
                           title: 'Pump Details',
-                          child: Column(
-                            children: _buildPumpDetailCards(entry),
-                          ),
+                          child: Column(children: _buildPumpDetailCards(entry)),
                         ),
                         const SizedBox(height: 12),
                         _DetailSection(
@@ -790,17 +758,13 @@ class _EntryDetailSheet extends StatelessWidget {
                                   'Cash': entry.paymentBreakdown.cash,
                                   'HP Pay': entry.paymentBreakdown.check,
                                   'UPI': entry.paymentBreakdown.upi,
+                                  'Credit': entry.creditEntries.fold<double>(
+                                    0,
+                                    (sum, credit) => sum + credit.amount,
+                                  ),
                                 },
                               ),
                               const SizedBox(height: 10),
-                              _DetailRow(
-                                label: 'Payment total',
-                                value: formatCurrency(entry.paymentTotal),
-                              ),
-                              _DetailRow(
-                                label: 'Recorded sales',
-                                value: formatCurrency(entry.revenue),
-                              ),
                               _DetailRow(
                                 label: 'Computed revenue',
                                 value: formatCurrency(entry.computedRevenue),
@@ -815,11 +779,16 @@ class _EntryDetailSheet extends StatelessWidget {
                                 label: 'Mismatch amount',
                                 value: formatCurrency(entry.mismatchAmount),
                               ),
-                              _DetailRow(
-                                label: 'Mismatch reason',
-                                value: _displayOrPlaceholder(
-                                  entry.mismatchReason,
+                              if (entry.flagged)
+                                _DetailRow(
+                                  label: 'Mismatch reason',
+                                  value: _displayOrPlaceholder(
+                                    entry.mismatchReason,
+                                  ),
                                 ),
+                              _DetailRow(
+                                label: 'Profit',
+                                value: formatCurrency(entry.profit),
                                 isLast: true,
                               ),
                             ],
@@ -834,51 +803,6 @@ class _EntryDetailSheet extends StatelessWidget {
                               const _SubSectionLabel('Issued'),
                               const SizedBox(height: 8),
                               ..._buildCreditEntryCards(entry.creditEntries),
-                              const SizedBox(height: 14),
-                              const _SubSectionLabel('Collected'),
-                              const SizedBox(height: 8),
-                              ..._buildCreditCollectionCards(
-                                entry.creditCollections,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _DetailSection(
-                          title: 'Totals',
-                          child: Column(
-                            children: [
-                              _FuelBreakdownTile(
-                                title: 'Opening',
-                                totals: entry.totals.opening,
-                              ),
-                              const SizedBox(height: 10),
-                              _FuelBreakdownTile(
-                                title: 'Closing',
-                                totals: entry.totals.closing,
-                              ),
-                              const SizedBox(height: 10),
-                              _FuelBreakdownTile(
-                                title: 'Sold',
-                                totals: entry.totals.sold,
-                              ),
-                              const SizedBox(height: 10),
-                              _FuelBreakdownTile(
-                                title: 'Inventory',
-                                totals: entry.inventoryTotals,
-                              ),
-                              const SizedBox(height: 10),
-                              _DetailRow(
-                                label: 'Credit collection total',
-                                value: formatCurrency(
-                                  entry.creditCollectionTotal,
-                                ),
-                              ),
-                              _DetailRow(
-                                label: 'Profit',
-                                value: formatCurrency(entry.profit),
-                                isLast: true,
-                              ),
                             ],
                           ),
                         ),
@@ -892,14 +816,16 @@ class _EntryDetailSheet extends StatelessWidget {
                                 value: _displayOrPlaceholder(
                                   entry.varianceNote,
                                 ),
+                                isLast: !entry.flagged,
                               ),
-                              _DetailRow(
-                                label: 'Mismatch reason',
-                                value: _displayOrPlaceholder(
-                                  entry.mismatchReason,
+                              if (entry.flagged)
+                                _DetailRow(
+                                  label: 'Mismatch reason',
+                                  value: _displayOrPlaceholder(
+                                    entry.mismatchReason,
+                                  ),
+                                  isLast: true,
                                 ),
-                                isLast: true,
-                              ),
                             ],
                           ),
                         ),
@@ -982,10 +908,7 @@ class _EntryDetailSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
               ] else ...[
-                const _DetailRow(
-                  label: 'Pump payments',
-                  value: _notEntered,
-                ),
+                const _DetailRow(label: 'Pump payments', value: _notEntered),
               ],
               _DetailRow(
                 label: 'Pump collection',
@@ -1029,49 +952,6 @@ class _EntryDetailSheet extends StatelessWidget {
           ),
         ),
         if (index != entries.length - 1) const SizedBox(height: 10),
-      ],
-    ];
-  }
-
-  List<Widget> _buildCreditCollectionCards(
-    List<CreditCollectionModel> collections,
-  ) {
-    if (collections.isEmpty) {
-      return const [_EmptySubCard(message: _notEntered)];
-    }
-    return [
-      for (int index = 0; index < collections.length; index++) ...[
-        _SubCard(
-          title: collections[index].name.trim().isEmpty
-              ? 'Collection ${index + 1}'
-              : collections[index].name.trim(),
-          child: Column(
-            children: [
-              _DetailRow(
-                label: 'Amount',
-                value: formatCurrency(collections[index].amount),
-              ),
-              _DetailRow(
-                label: 'Date',
-                value: _displayOrPlaceholder(
-                  collections[index].date.isEmpty
-                      ? ''
-                      : formatDateLabel(collections[index].date),
-                ),
-              ),
-              _DetailRow(
-                label: 'Payment mode',
-                value: _displayOrPlaceholder(collections[index].paymentMode),
-              ),
-              _DetailRow(
-                label: 'Note',
-                value: _displayOrPlaceholder(collections[index].note),
-                isLast: true,
-              ),
-            ],
-          ),
-        ),
-        if (index != collections.length - 1) const SizedBox(height: 10),
       ],
     ];
   }
@@ -1125,23 +1005,19 @@ class _EntryHeaderHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            formatDateLabel(entry.date),
-            style: const TextStyle(
-              color: kClayPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Row(
             children: [
-              _HeaderBadge(
-                label: formatShiftLabel(entry.shift),
-                filled: false,
+              Expanded(
+                child: OneLineScaleText(
+                  formatDateLabel(entry.date),
+                  style: const TextStyle(
+                    color: kClayPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
+              const SizedBox(width: 12),
               _HeaderBadge(
                 label: _statusLabel(entry),
                 accent: _statusAccent(entry),
@@ -1170,18 +1046,15 @@ class _HeaderInfoGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth = (constraints.maxWidth - 10) / 2;
+        final itemWidth = (constraints.maxWidth - 12) / 2;
         return Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 12,
+          runSpacing: 12,
           children: [
             for (final item in items)
               SizedBox(
                 width: itemWidth,
-                child: _HeaderInfoCard(
-                  label: item.label,
-                  value: item.value,
-                ),
+                child: _HeaderInfoCard(label: item.label, value: item.value),
               ),
           ],
         );
@@ -1233,22 +1106,17 @@ class _HeaderInfoCard extends StatelessWidget {
 }
 
 class _HeaderBadge extends StatelessWidget {
-  const _HeaderBadge({
-    required this.label,
-    this.accent = kClayPrimary,
-    this.filled = true,
-  });
+  const _HeaderBadge({required this.label, this.accent = kClayPrimary});
 
   final String label;
   final Color accent;
-  final bool filled;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: filled ? accent.withValues(alpha: 0.12) : Colors.white,
+        color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
@@ -1357,11 +1225,20 @@ class _FuelBreakdownTile extends StatelessWidget {
       title: title,
       child: Column(
         children: [
-          _MiniValueRow(label: 'Petrol', value: formatLiters(_fuelPetrol(totals))),
+          _MiniValueRow(
+            label: 'Petrol',
+            value: formatLiters(_fuelPetrol(totals)),
+          ),
           const SizedBox(height: 8),
-          _MiniValueRow(label: 'Diesel', value: formatLiters(_fuelDiesel(totals))),
+          _MiniValueRow(
+            label: 'Diesel',
+            value: formatLiters(_fuelDiesel(totals)),
+          ),
           const SizedBox(height: 8),
-          _MiniValueRow(label: '2T Oil', value: formatLiters(_fuelTwoT(totals))),
+          _MiniValueRow(
+            label: '2T Oil',
+            value: formatLiters(_fuelTwoT(totals)),
+          ),
         ],
       ),
     );
@@ -1440,6 +1317,7 @@ class _MiniValueRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
+          flex: 4,
           child: Text(
             label,
             style: const TextStyle(
@@ -1450,15 +1328,19 @@ class _MiniValueRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        Flexible(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: kClayPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              height: 1.3,
+        Expanded(
+          flex: 6,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: kClayPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                height: 1.3,
+              ),
             ),
           ),
         ),
@@ -1557,8 +1439,7 @@ String _formatTesting(PumpTestingModel? testing) {
   if (testing == null || !testing.enabled) {
     return _notEntered;
   }
-  final addToInventory = testing.addToInventory ? 'Yes' : 'No';
-  return 'Petrol ${formatLiters(testing.petrol)}, Diesel ${formatLiters(testing.diesel)}, Add to inventory $addToInventory';
+  return 'Petrol ${formatLiters(testing.petrol)}   Diesel ${formatLiters(testing.diesel)}';
 }
 
 double _fuelPetrol(Object? totals) {
@@ -1600,8 +1481,7 @@ List<String> _pumpIds(ShiftEntryModel entry) {
     ...entry.pumpTesting.keys,
     ...entry.pumpPayments.keys,
     ...entry.pumpCollections.keys,
-  }.toList()
-    ..sort();
+  }.toList()..sort();
   return ids;
 }
 

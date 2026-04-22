@@ -297,25 +297,15 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                     break;
                   }
                 }
-                final dropdownWidth = constraints.maxWidth.isFinite
-                    ? constraints.maxWidth
-                    : MediaQuery.sizeOf(context).width - 96;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    DropdownMenu<String>(
-                      width: dropdownWidth,
-                      enableFilter: true,
-                      enableSearch: true,
-                      requestFocusOnTap: true,
-                      label: const Text('Customer'),
+                    ClaySearchDropdownField<String>(
+                      label: 'Customer',
+                      icon: Icons.person_search_rounded,
+                      selectedValue: selectedCustomerId,
                       hintText: 'Search and select existing customer',
-                      onSelected: (value) {
-                        setState(() {
-                          selectedCustomerId = value;
-                        });
-                      },
-                      dropdownMenuEntries: customers
+                      entries: customers
                           .map(
                             (item) => DropdownMenuEntry<String>(
                               value: item.customer.id,
@@ -323,6 +313,11 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                             ),
                           )
                           .toList(),
+                      onSelected: (value) {
+                        setState(() {
+                          selectedCustomerId = value;
+                        });
+                      },
                     ),
                     const SizedBox(height: 10),
                     TextField(
@@ -349,12 +344,10 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: paymentMode,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment mode',
-                        filled: true,
-                      ),
+                    ClayDropdownField<String>(
+                      label: 'Payment mode',
+                      icon: Icons.payments_outlined,
+                      value: paymentMode,
                       items: const [
                         DropdownMenuItem(value: 'cash', child: Text('Cash')),
                         DropdownMenuItem(value: 'check', child: Text('HP Pay')),
@@ -1129,12 +1122,10 @@ class _CreditCustomerDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: paymentMode,
-                  decoration: const InputDecoration(
-                    labelText: 'Payment mode',
-                    filled: true,
-                  ),
+                ClayDropdownField<String>(
+                  label: 'Payment mode',
+                  icon: Icons.payments_outlined,
+                  value: paymentMode,
                   items: const [
                     DropdownMenuItem(value: 'cash', child: Text('Cash')),
                     DropdownMenuItem(value: 'check', child: Text('HP Pay')),

@@ -16,6 +16,7 @@ import '../utils/user_facing_errors.dart';
 import '../widgets/app_date_range_picker.dart';
 import '../widgets/app_bottom_nav_bar.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/clay_widgets.dart';
 import '../widgets/responsive_text.dart';
 import 'credit_ledger_screen.dart';
 import 'management_shell.dart';
@@ -2006,52 +2007,12 @@ class _ReportDropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFECEFF8),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
-            offset: const Offset(3, 3),
-            blurRadius: 8,
-          ),
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-2, -2),
-            blurRadius: 6,
-          ),
-        ],
-      ),
-      child: DropdownButtonFormField<T>(
-        initialValue: value,
-        items: items,
-        onChanged: onChanged,
-        isExpanded: true,
-        borderRadius: BorderRadius.circular(16),
-        icon: const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: Color(0xFF8A93B8),
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF1A3A7A), size: 18),
-          filled: true,
-          fillColor: Colors.transparent,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          labelStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF8A93B8),
-          ),
-        ),
-      ),
+    return ClayDropdownField<T>(
+      label: label,
+      icon: icon,
+      value: value,
+      items: items,
+      onChanged: onChanged,
     );
   }
 }
@@ -2567,17 +2528,10 @@ class _DailyBreakdownScreenState extends State<_DailyBreakdownScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<_DailyBreakdownSort>(
-                  initialValue: _sort,
-                  decoration: InputDecoration(
-                    labelText: 'Sort by',
-                    filled: true,
-                    fillColor: const Color(0xFFECEFF8),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
+                ClayDropdownField<_DailyBreakdownSort>(
+                  label: 'Sort by',
+                  value: _sort,
+                  compact: true,
                   items: _DailyBreakdownSort.values
                       .map(
                         (item) => DropdownMenuItem(

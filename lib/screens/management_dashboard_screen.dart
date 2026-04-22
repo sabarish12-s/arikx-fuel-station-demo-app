@@ -1279,52 +1279,12 @@ class _DashboardDropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFECEFF8),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFB8C0DC).withValues(alpha: 0.5),
-            offset: const Offset(3, 3),
-            blurRadius: 8,
-          ),
-          const BoxShadow(
-            color: Colors.white,
-            offset: Offset(-2, -2),
-            blurRadius: 6,
-          ),
-        ],
-      ),
-      child: DropdownButtonFormField<T>(
-        initialValue: value,
-        items: items,
-        onChanged: onChanged,
-        isExpanded: true,
-        borderRadius: BorderRadius.circular(16),
-        icon: const Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: Color(0xFF8A93B8),
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, color: const Color(0xFF1A3A7A), size: 18),
-          filled: true,
-          fillColor: Colors.transparent,
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-          labelStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF8A93B8),
-          ),
-        ),
-      ),
+    return ClayDropdownField<T>(
+      label: label,
+      icon: icon,
+      value: value,
+      items: items,
+      onChanged: onChanged,
     );
   }
 }

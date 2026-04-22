@@ -4,6 +4,7 @@ import '../models/domain_models.dart';
 import '../utils/fuel_prices.dart';
 import '../utils/formatters.dart';
 import 'busy_action_button.dart';
+import 'clay_widgets.dart';
 import 'responsive_text.dart';
 
 const double _defaultTestingQuantity = 5;
@@ -1564,15 +1565,11 @@ class _CreditEntriesDialogState extends State<_CreditEntriesDialog> {
                       ),
                       child: Column(
                         children: [
-                          DropdownButtonFormField<String>(
-                            initialValue: item.customerIdController.text.isEmpty
+                          ClayDropdownField<String>(
+                            label: 'Existing customer',
+                            value: item.customerIdController.text.isEmpty
                                 ? null
                                 : item.customerIdController.text,
-                            decoration: const InputDecoration(
-                              labelText: 'Existing customer',
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
                             items: customerItems,
                             onChanged: (value) {
                               setState(() {
@@ -1909,7 +1906,10 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
             _readingComparisonTolerance;
     final hasTwoTSales = _parseDirectSaleAmount(_twoTController.text) > 0;
     final hasCollections = _collectionTotal > 0;
-    return hasMeterMovement || hasTwoTSales || hasCollections || _testingEnabled;
+    return hasMeterMovement ||
+        hasTwoTSales ||
+        hasCollections ||
+        _testingEnabled;
   }
 
   String? _validateSalesmanSelection() {
@@ -2462,18 +2462,17 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedSalesmanId,
-                            decoration: InputDecoration(
-                              labelText: 'Salesman',
-                              helperText:
-                                  _selectedSalesman == null &&
-                                      widget.initialDraft.attendant.trim().isNotEmpty
-                                  ? 'Legacy value: ${widget.initialDraft.attendant}'
-                                  : 'Select from the salesman list in settings.',
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
+                          ClayDropdownField<String>(
+                            label: 'Salesman',
+                            icon: Icons.person_outline_rounded,
+                            value: _selectedSalesmanId,
+                            helperText:
+                                _selectedSalesman == null &&
+                                    widget.initialDraft.attendant
+                                        .trim()
+                                        .isNotEmpty
+                                ? 'Legacy value: ${widget.initialDraft.attendant}'
+                                : 'Select from the salesman list in settings.',
                             items: _availableSalesmen
                                 .map(
                                   (salesman) => DropdownMenuItem<String>(
@@ -2768,13 +2767,10 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                       ],
                                     ),
                                     const SizedBox(height: 8),
-                                    DropdownButtonFormField<String>(
-                                      initialValue: item.customerMode,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Customer type',
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                      ),
+                                    ClayDropdownField<String>(
+                                      label: 'Customer type',
+                                      icon: Icons.group_outlined,
+                                      value: item.customerMode,
                                       items: const [
                                         DropdownMenuItem<String>(
                                           value: _creditCustomerModeExisting,
@@ -2799,39 +2795,33 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                                     const SizedBox(height: 10),
                                     if (item.customerMode ==
                                         _creditCustomerModeExisting) ...[
-                                      DropdownButtonFormField<String>(
-                                        initialValue:
+                                      ClayDropdownField<String>(
+                                        label: widget.suggestedCustomers.isEmpty
+                                            ? 'Existing customer (none available yet)'
+                                            : 'Existing customer',
+                                        icon: Icons.person_search_rounded,
+                                        value:
                                             item
                                                 .customerIdController
                                                 .text
                                                 .isEmpty
                                             ? null
                                             : item.customerIdController.text,
-                                        decoration: InputDecoration(
-                                          labelText:
-                                              widget.suggestedCustomers.isEmpty
-                                              ? 'Existing customer (none available yet)'
-                                              : 'Existing customer',
-                                          filled: true,
-                                          fillColor: Colors.white,
-                                        ),
                                         items: customerItems,
-                                        onChanged:
-                                            widget.suggestedCustomers.isEmpty
-                                            ? null
-                                            : (value) {
-                                                setState(() {
-                                                  item
-                                                          .customerIdController
-                                                          .text =
-                                                      value ?? '';
-                                                  final selected =
-                                                      _findCustomerById(value);
-                                                  item.nameController.text =
-                                                      selected?.customer.name ??
-                                                      '';
-                                                });
-                                              },
+                                        enabled: widget
+                                            .suggestedCustomers
+                                            .isNotEmpty,
+                                        onChanged: (value) {
+                                          setState(() {
+                                            item.customerIdController.text =
+                                                value ?? '';
+                                            final selected = _findCustomerById(
+                                              value,
+                                            );
+                                            item.nameController.text =
+                                                selected?.customer.name ?? '';
+                                          });
+                                        },
                                         validator: (_) =>
                                             _validateCreditCustomerRow(item),
                                       ),
@@ -3094,7 +3084,9 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                               value: _testingAddsToInventory,
                               contentPadding: EdgeInsets.zero,
                               controlAffinity: ListTileControlAffinity.leading,
-                              title: const Text('Reduce testing from inventory'),
+                              title: const Text(
+                                'Reduce testing from inventory',
+                              ),
                               subtitle: const Text(
                                 'If selected, inventory will reduce by the testing quantity too.',
                               ),
@@ -3388,15 +3380,12 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                 ),
                 child: Column(
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: item.customerIdController.text.isEmpty
+                    ClayDropdownField<String>(
+                      label: 'Existing customer',
+                      icon: Icons.person_search_rounded,
+                      value: item.customerIdController.text.isEmpty
                           ? null
                           : item.customerIdController.text,
-                      decoration: const InputDecoration(
-                        labelText: 'Existing customer',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
                       items: customerItems,
                       onChanged: (value) {
                         setState(() {
@@ -3485,15 +3474,12 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                 ),
                 child: Column(
                   children: [
-                    DropdownButtonFormField<String>(
-                      initialValue: item.customerIdController.text.isEmpty
+                    ClayDropdownField<String>(
+                      label: 'Existing customer',
+                      icon: Icons.person_search_rounded,
+                      value: item.customerIdController.text.isEmpty
                           ? null
                           : item.customerIdController.text,
-                      decoration: const InputDecoration(
-                        labelText: 'Existing customer',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
                       items: customerItems,
                       onChanged: (value) {
                         setState(() {
@@ -3536,15 +3522,12 @@ class _PaymentEntryPageState extends State<_PaymentEntryPage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: item.paymentModeController.text.isEmpty
+                    ClayDropdownField<String>(
+                      label: 'Payment mode',
+                      icon: Icons.payments_outlined,
+                      value: item.paymentModeController.text.isEmpty
                           ? null
                           : item.paymentModeController.text,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment mode',
-                        filled: true,
-                        fillColor: Colors.white,
-                      ),
                       items: const [
                         DropdownMenuItem(value: 'cash', child: Text('Cash')),
                         DropdownMenuItem(value: 'check', child: Text('HP Pay')),
@@ -3707,7 +3690,8 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
     final selected = _selectedSalesman;
     final available = <StationSalesmanModel>[];
     for (final salesman in widget.salesmen) {
-      if (!salesman.active && (selected == null || salesman.id != selected.id)) {
+      if (!salesman.active &&
+          (selected == null || salesman.id != selected.id)) {
         continue;
       }
       available.add(salesman);
@@ -3818,18 +3802,15 @@ class _PumpCashCollectionDialogState extends State<_PumpCashCollectionDialog> {
                 ),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedSalesmanId,
-                decoration: InputDecoration(
-                  labelText: 'Cash collected from',
-                  helperText:
-                      _selectedSalesman == null &&
-                          widget.initialDraft.attendant.trim().isNotEmpty
-                      ? 'Legacy value: ${widget.initialDraft.attendant}'
-                      : 'Select from the salesman list in settings.',
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
+              ClayDropdownField<String>(
+                label: 'Cash collected from',
+                icon: Icons.person_outline_rounded,
+                value: _selectedSalesmanId,
+                helperText:
+                    _selectedSalesman == null &&
+                        widget.initialDraft.attendant.trim().isNotEmpty
+                    ? 'Legacy value: ${widget.initialDraft.attendant}'
+                    : 'Select from the salesman list in settings.',
                 items: _availableSalesmen
                     .map(
                       (salesman) => DropdownMenuItem<String>(

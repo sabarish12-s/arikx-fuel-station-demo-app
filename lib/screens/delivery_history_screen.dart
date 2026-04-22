@@ -168,11 +168,6 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     final petrol = delivery.quantities['petrol'] ?? 0;
     final diesel = delivery.quantities['diesel'] ?? 0;
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
-    final activeFuelCount = [
-      petrol,
-      diesel,
-      twoT,
-    ].where((quantity) => quantity > 0).length;
 
     switch (_fuelFilter) {
       case DeliveryFuelFilter.all:
@@ -183,8 +178,6 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         return diesel > 0;
       case DeliveryFuelFilter.twoT:
         return twoT > 0;
-      case DeliveryFuelFilter.mixed:
-        return activeFuelCount > 1;
     }
   }
 
@@ -226,8 +219,6 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         return 'Diesel';
       case DeliveryFuelFilter.twoT:
         return '2T Oil';
-      case DeliveryFuelFilter.mixed:
-        return 'Mixed';
     }
   }
 
@@ -241,6 +232,19 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         return 'Quantity - high to low';
       case _DeliveryHistorySort.quantityLow:
         return 'Quantity - low to high';
+    }
+  }
+
+  double _filteredVolume(DeliveryReceiptModel delivery) {
+    switch (_fuelFilter) {
+      case DeliveryFuelFilter.petrol:
+        return delivery.quantities['petrol'] ?? 0;
+      case DeliveryFuelFilter.diesel:
+        return delivery.quantities['diesel'] ?? 0;
+      case DeliveryFuelFilter.twoT:
+        return delivery.quantities['two_t_oil'] ?? 0;
+      case DeliveryFuelFilter.all:
+        return delivery.quantity;
     }
   }
 
@@ -342,62 +346,26 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     required String Function(T value) labelFor,
     required ValueChanged<T> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 6, 10, 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFECEFF8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDDE3F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              color: kClaySub,
-              fontSize: 9,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 2),
-          DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              value: value,
-              isExpanded: true,
-              isDense: true,
-              icon: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF5D6685),
-                size: 22,
+    return ClayDropdownField<T>(
+      label: label,
+      value: value,
+      compact: true,
+      items: values
+          .map(
+            (item) => DropdownMenuItem<T>(
+              value: item,
+              child: Text(
+                labelFor(item),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              style: const TextStyle(
-                color: kClayPrimary,
-                fontWeight: FontWeight.w900,
-                fontSize: 13,
-              ),
-              dropdownColor: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              items: values
-                  .map(
-                    (item) => DropdownMenuItem<T>(
-                      value: item,
-                      child: Text(
-                        labelFor(item),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (selected) {
-                if (selected == null) return;
-                onChanged(selected);
-              },
             ),
-          ),
-        ],
-      ),
+          )
+          .toList(),
+      onChanged: (selected) {
+        if (selected == null) return;
+        onChanged(selected);
+      },
     );
   }
 
@@ -458,36 +426,34 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     required IconData icon,
     required String label,
     required String value,
+    int flex = 1,
   }) {
     return Expanded(
+      flex: flex,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
         decoration: BoxDecoration(
           color: const Color(0xFFECEFF8),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
           children: [
-            Icon(icon, color: kClayPrimary, size: 17),
-            const SizedBox(width: 8),
+            Icon(icon, color: kClayPrimary, size: 16),
+            const SizedBox(width: 6),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  OneLineScaleText(
                     value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: kClayPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  Text(
+                  OneLineScaleText(
                     label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: kClaySub,
                       fontSize: 10,
@@ -506,6 +472,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   Widget _buildFilterCard({
     required int totalCount,
     required int visibleCount,
+    required double visibleVolume,
   }) {
     return ClayCard(
       margin: const EdgeInsets.only(bottom: 14),
@@ -570,11 +537,18 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                 label: 'total records',
                 value: totalCount.toString(),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               _countPill(
                 icon: Icons.visibility_rounded,
                 label: 'visible now',
                 value: visibleCount.toString(),
+              ),
+              const SizedBox(width: 8),
+              _countPill(
+                icon: Icons.water_drop_outlined,
+                label: 'total volume',
+                value: formatLiters(visibleVolume),
+                flex: 2,
               ),
             ],
           ),
@@ -676,6 +650,10 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
             }
             final deliveries = snapshot.data ?? const <DeliveryReceiptModel>[];
             final visibleDeliveries = _filteredAndSorted(deliveries);
+            final visibleVolume = visibleDeliveries.fold<double>(
+              0,
+              (sum, delivery) => sum + _filteredVolume(delivery),
+            );
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -683,6 +661,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
                 _buildFilterCard(
                   totalCount: deliveries.length,
                   visibleCount: visibleDeliveries.length,
+                  visibleVolume: visibleVolume,
                 ),
                 if (visibleDeliveries.isEmpty)
                   _emptyState(hasPurchases: deliveries.isNotEmpty)
@@ -703,7 +682,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   }
 }
 
-enum DeliveryFuelFilter { all, petrol, diesel, twoT, mixed }
+enum DeliveryFuelFilter { all, petrol, diesel, twoT }
 
 enum _DeliveryHistorySort {
   purchaseNewest,
@@ -733,7 +712,6 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
       case DeliveryFuelFilter.twoT:
         return '2T Oil Purchase';
       case DeliveryFuelFilter.all:
-      case DeliveryFuelFilter.mixed:
         break;
     }
     final petrol = delivery.quantities['petrol'] ?? 0;
@@ -753,7 +731,6 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     final twoT = delivery.quantities['two_t_oil'] ?? 0;
     if (petrol > 0 &&
         (fuelFilter == DeliveryFuelFilter.all ||
-            fuelFilter == DeliveryFuelFilter.mixed ||
             fuelFilter == DeliveryFuelFilter.petrol)) {
       items.add(
         _DeliveryQtyItem(
@@ -765,7 +742,6 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     }
     if (diesel > 0 &&
         (fuelFilter == DeliveryFuelFilter.all ||
-            fuelFilter == DeliveryFuelFilter.mixed ||
             fuelFilter == DeliveryFuelFilter.diesel)) {
       items.add(
         _DeliveryQtyItem(
@@ -777,7 +753,6 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
     }
     if (twoT > 0 &&
         (fuelFilter == DeliveryFuelFilter.all ||
-            fuelFilter == DeliveryFuelFilter.mixed ||
             fuelFilter == DeliveryFuelFilter.twoT)) {
       items.add(
         _DeliveryQtyItem(
@@ -799,7 +774,6 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
       case DeliveryFuelFilter.twoT:
         return delivery.quantities['two_t_oil'] ?? 0;
       case DeliveryFuelFilter.all:
-      case DeliveryFuelFilter.mixed:
         return delivery.quantity;
     }
   }
@@ -813,7 +787,6 @@ class DeliveryReceiptSummaryCard extends StatelessWidget {
       case DeliveryFuelFilter.twoT:
         return '2T';
       case DeliveryFuelFilter.all:
-      case DeliveryFuelFilter.mixed:
         return _isTwoTOnly() ? '2T' : 'PD';
     }
   }

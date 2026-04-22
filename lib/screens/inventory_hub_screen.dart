@@ -1292,17 +1292,10 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<_StockHistorySort>(
-                        initialValue: _sort,
-                        decoration: InputDecoration(
-                          labelText: 'Sort by',
-                          filled: true,
-                          fillColor: const Color(0xFFECEFF8),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
+                      ClayDropdownField<_StockHistorySort>(
+                        label: 'Sort by',
+                        value: _sort,
+                        compact: true,
                         items: _StockHistorySort.values
                             .map(
                               (item) => DropdownMenuItem(

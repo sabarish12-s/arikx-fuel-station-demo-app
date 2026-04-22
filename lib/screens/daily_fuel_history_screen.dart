@@ -390,52 +390,24 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Sort by',
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 1.1,
-              fontWeight: FontWeight.w800,
-              color: Colors.white70,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<_DailyFuelHistorySort>(
-                value: _sort,
-                isExpanded: true,
-                dropdownColor: kClayPrimary,
-                borderRadius: BorderRadius.circular(16),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-                iconEnabledColor: Colors.white,
-                items: _DailyFuelHistorySort.values
-                    .map(
-                      (item) => DropdownMenuItem(
-                        value: item,
-                        child: Text(_sortLabel(item)),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() => _sort = value);
-                },
-              ),
-            ),
+          ClayDropdownField<_DailyFuelHistorySort>(
+            label: 'Sort by',
+            value: _sort,
+            compact: true,
+            items: _DailyFuelHistorySort.values
+                .map(
+                  (item) => DropdownMenuItem(
+                    value: item,
+                    child: Text(_sortLabel(item)),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null) {
+                return;
+              }
+              setState(() => _sort = value);
+            },
           ),
         ],
       ),

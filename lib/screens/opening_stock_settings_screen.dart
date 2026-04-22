@@ -977,17 +977,10 @@ class _OpeningReadingHistoryScreenState
                         ],
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<_OpeningHistorySort>(
-                        initialValue: _sort,
-                        decoration: InputDecoration(
-                          labelText: 'Sort by',
-                          filled: true,
-                          fillColor: const Color(0xFFECEFF8),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
+                      ClayDropdownField<_OpeningHistorySort>(
+                        label: 'Sort by',
+                        value: _sort,
+                        compact: true,
                         items: _OpeningHistorySort.values
                             .map(
                               (item) => DropdownMenuItem(
