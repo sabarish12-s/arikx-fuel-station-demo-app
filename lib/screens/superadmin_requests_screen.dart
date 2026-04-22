@@ -227,7 +227,9 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
-                                  request.roleRequested.toUpperCase(),
+                                  _accessRoleLabel(
+                                    request.roleRequested,
+                                  ).toUpperCase(),
                                   style: const TextStyle(
                                     color: kClayHeroStart,
                                     fontSize: 11,
@@ -272,6 +274,19 @@ class _SuperAdminRequestsScreenState extends State<SuperAdminRequestsScreen> {
         ),
       ),
     );
+  }
+}
+
+String _accessRoleLabel(String role) {
+  switch (role.trim().toLowerCase()) {
+    case 'sales':
+      return 'Manager';
+    case 'admin':
+      return 'Admin';
+    case 'superadmin':
+      return 'Superadmin';
+    default:
+      return role;
   }
 }
 

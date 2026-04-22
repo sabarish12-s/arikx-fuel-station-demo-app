@@ -149,18 +149,18 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
     return role == 'admin' || role == 'superadmin';
   }
 
-  int get _selectedNavIndex => _usesManagementNav ? 2 : 0;
+  int get _selectedNavIndex => _usesManagementNav ? 3 : 0;
 
   List<AppBottomNavItem> get _navItems {
     if (_usesManagementNav) {
       return const [
         AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
-        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entries'),
-        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
         AppBottomNavItem(
           icon: Icons.local_gas_station_outlined,
           label: 'Inventory',
         ),
+        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entry'),
+        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Report'),
         AppBottomNavItem(
           icon: Icons.manage_accounts_outlined,
           label: 'Settings',

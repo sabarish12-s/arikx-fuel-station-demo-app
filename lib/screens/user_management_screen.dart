@@ -139,7 +139,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       ? const [
                           DropdownMenuItem(
                             value: 'sales',
-                            child: Text('Sales'),
+                            child: Text('Manager'),
                           ),
                           DropdownMenuItem(
                             value: 'admin',
@@ -153,7 +153,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       : const [
                           DropdownMenuItem(
                             value: 'sales',
-                            child: Text('Sales'),
+                            child: Text('Manager'),
                           ),
                           DropdownMenuItem(
                             value: 'admin',
@@ -198,7 +198,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       return;
     }
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${request.email} approved as $role.')),
+      SnackBar(
+        content: Text('${request.email} approved as ${_roleLabel(role)}.'),
+      ),
     );
     await _reload();
   }
@@ -276,9 +278,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     setState(() {
       _editingUserIds.remove(user.id);
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('${user.email} updated to $role.')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${user.email} updated to ${_roleLabel(role)}.')),
+    );
     await _reload();
   }
 
@@ -452,7 +454,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               ? const [
                                   DropdownMenuItem(
                                     value: 'sales',
-                                    child: Text('Sales'),
+                                    child: Text('Manager'),
                                   ),
                                   DropdownMenuItem(
                                     value: 'admin',
@@ -466,7 +468,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               : const [
                                   DropdownMenuItem(
                                     value: 'sales',
-                                    child: Text('Sales'),
+                                    child: Text('Manager'),
                                   ),
                                   DropdownMenuItem(
                                     value: 'admin',
@@ -523,7 +525,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 final roleItems =
                     user.role == 'superadmin' || canManageSuperAdmins
                     ? const [
-                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                        DropdownMenuItem(
+                          value: 'sales',
+                          child: Text('Manager'),
+                        ),
                         DropdownMenuItem(value: 'admin', child: Text('Admin')),
                         DropdownMenuItem(
                           value: 'superadmin',
@@ -531,7 +536,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         ),
                       ]
                     : const [
-                        DropdownMenuItem(value: 'sales', child: Text('Sales')),
+                        DropdownMenuItem(
+                          value: 'sales',
+                          child: Text('Manager'),
+                        ),
                         DropdownMenuItem(value: 'admin', child: Text('Admin')),
                       ];
 
@@ -1178,7 +1186,7 @@ String _roleLabel(String role) {
     case 'admin':
       return 'Admin';
     case 'sales':
-      return 'Sales';
+      return 'Manager';
     default:
       return role;
   }

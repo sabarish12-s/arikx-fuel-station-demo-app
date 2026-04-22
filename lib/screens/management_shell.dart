@@ -41,16 +41,16 @@ class _ManagementShellState extends State<ManagementShell> {
     _stationTitle = widget.user.stationId;
     _screens = [
       ManagementDashboardScreen(user: widget.user),
-      EntryManagementScreen(
-        key: ValueKey(_entryRefreshToken),
-        currentUser: widget.user,
-      ),
-      const MonthlyReportScreen(),
       InventoryHubScreen(
         key: _inventoryKey,
         canManagePlanning: true,
         showStockManagement: false,
       ),
+      EntryManagementScreen(
+        key: ValueKey(_entryRefreshToken),
+        currentUser: widget.user,
+      ),
+      const MonthlyReportScreen(),
       SettingsHomeScreen(key: _settingsKey, user: widget.user),
     ];
     _loadStationTitle();
@@ -70,9 +70,9 @@ class _ManagementShellState extends State<ManagementShell> {
 
   void _selectIndex(int value) {
     setState(() {
-      if (value == 1 && _index != value) {
+      if (value == 2 && _index != value) {
         _entryRefreshToken += 1;
-        _screens[1] = EntryManagementScreen(
+        _screens[2] = EntryManagementScreen(
           key: ValueKey(_entryRefreshToken),
           currentUser: widget.user,
         );
@@ -149,7 +149,7 @@ class _ManagementShellState extends State<ManagementShell> {
         onSelected: (value) {
           if (value == 4 && _index == 4) {
             SettingsHomeScreen.resetToHome(_settingsKey);
-          } else if (value == 3 && _index == 3) {
+          } else if (value == 1 && _index == 1) {
             InventoryHubScreen.resetToHome(_inventoryKey);
           } else {
             _selectIndex(value);
@@ -157,12 +157,12 @@ class _ManagementShellState extends State<ManagementShell> {
         },
         items: const [
           AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
-          AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entries'),
-          AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
           AppBottomNavItem(
             icon: Icons.local_gas_station_outlined,
             label: 'Inventory',
           ),
+          AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entry'),
+          AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Report'),
           AppBottomNavItem(
             icon: Icons.manage_accounts_outlined,
             label: 'Settings',

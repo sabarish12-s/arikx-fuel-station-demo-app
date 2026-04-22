@@ -689,7 +689,7 @@ class _FuelPriceRequestCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             request.requestedByName.trim().isEmpty
-                ? 'Requested by sales'
+                ? 'Requested by manager'
                 : 'Requested by ${request.requestedByName}',
             style: const TextStyle(
               color: kClaySub,

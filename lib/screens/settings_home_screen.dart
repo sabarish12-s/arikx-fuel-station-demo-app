@@ -245,7 +245,7 @@ class SettingsHomeScreenState extends State<SettingsHomeScreen> {
           const SizedBox(height: 10),
           _SettingsTile(
             title: 'Fuel Price Approvals',
-            subtitle: 'Approve sales-submitted price changes',
+            subtitle: 'Approve manager-submitted price changes',
             icon: Icons.fact_check_outlined,
             iconColor: const Color(0xFF2AA878),
             onTap: () =>
