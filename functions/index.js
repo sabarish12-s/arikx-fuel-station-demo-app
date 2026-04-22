@@ -1,9 +1,49 @@
+const {onRequest} = require('firebase-functions/v2/https');
 const {onSchedule} = require('firebase-functions/v2/scheduler');
 const {defineString} = require('firebase-functions/params');
 const logger = require('firebase-functions/logger');
+const app = require('./src/app');
+const {initializeDatabase, seedDatabaseDefaults} = require('./src/config/db');
 
 const backendReorderAlertUrl = defineString('BACKEND_REORDER_ALERT_URL');
 const inventoryAlertRunToken = defineString('INVENTORY_ALERT_RUN_TOKEN');
+
+let apiInitialized = false;
+let seedPromise = null;
+
+function initializeApi() {
+  if (!apiInitialized) {
+    initializeDatabase();
+    apiInitialized = true;
+  }
+  if (!seedPromise) {
+    seedPromise = seedDatabaseDefaults()
+      .then(() => {
+        logger.info('Firestore defaults are ready.');
+      })
+      .catch((error) => {
+        logger.error('Firestore default seed failed.', {
+          message: error.message,
+          code: error.code,
+        });
+      });
+  }
+}
+
+exports.api = onRequest(
+  {
+    region: 'asia-south1',
+    minInstances: 0,
+    maxInstances: 3,
+    memory: '512MiB',
+    timeoutSeconds: 60,
+    invoker: 'public',
+  },
+  (req, res) => {
+    initializeApi();
+    return app(req, res);
+  },
+);
 
 function normalizeBaseUrl(value) {
   return String(value || '').trim().replace(/\/+$/, '');

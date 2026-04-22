@@ -1,6 +1,6 @@
 const String backendBaseUrl = String.fromEnvironment(
   'BACKEND_BASE_URL',
-  defaultValue: 'https://rk-fuels-backend.onrender.com',
+  defaultValue: 'https://asia-south1-rk-fuels-app-2026.cloudfunctions.net/api',
 );
 
 const String googleWebClientId = String.fromEnvironment(
