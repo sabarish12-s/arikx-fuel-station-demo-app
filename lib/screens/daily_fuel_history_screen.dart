@@ -54,9 +54,8 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    _toDate = DateTime(today.year, today.month, today.day);
-    _fromDate = _toDate.subtract(const Duration(days: 29));
+    _fromDate = currentMonthStartDate();
+    _toDate = currentMonthEndDate();
     _future = _loadHistory();
     _loadChromeData();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
@@ -149,11 +148,7 @@ class _DailyFuelHistoryScreenState extends State<DailyFuelHistoryScreen> {
     );
   }
 
-  String _toApiDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
+  String _toApiDate(DateTime date) => apiDateKey(date);
 
   Future<List<DailyFuelRecordModel>> _loadHistory({bool forceRefresh = false}) {
     return _inventoryService.fetchDailyFuelHistory(

@@ -13,6 +13,8 @@ class StockReportRow {
     required this.eventType,
     required this.stockInwards,
     required this.sales,
+    required this.cumulativeInwards,
+    required this.cumulativeSales,
     required this.manualStock,
     required this.runningBalance,
     required this.details,
@@ -22,6 +24,8 @@ class StockReportRow {
   final String eventType;
   final double stockInwards;
   final double sales;
+  final double cumulativeInwards;
+  final double cumulativeSales;
   final double? manualStock;
   final double runningBalance;
   final String details;
@@ -30,6 +34,8 @@ class StockReportRow {
 class StockReportSection {
   const StockReportSection({
     required this.label,
+    required this.openingDate,
+    required this.openingStock,
     required this.rows,
     required this.totalInwards,
     required this.totalSales,
@@ -37,6 +43,8 @@ class StockReportSection {
   });
 
   final String label;
+  final String openingDate;
+  final double openingStock;
   final List<StockReportRow> rows;
   final double totalInwards;
   final double totalSales;
@@ -142,7 +150,6 @@ class ReportExportService {
     'Petrol Sold (L)',
     'Diesel Sold (L)',
     '2T Oil Sold (L)',
-    'Entries',
   ];
 
   List<dynamic> _pointRow(TrendPointModel p) => [
@@ -153,7 +160,6 @@ class ReportExportService {
     p.petrolSold.toStringAsFixed(2),
     p.dieselSold.toStringAsFixed(2),
     p.twoTSold.toStringAsFixed(2),
-    p.entries.toString(),
   ];
 
   String _safeTitle(String title) {
@@ -212,8 +218,6 @@ class ReportExportService {
     double gtPetrol = 0;
     double gtDiesel = 0;
     double gtTwoT = 0;
-    int gtEntries = 0;
-
     for (final monthKey in sortedKeys) {
       final points = byMonth[monthKey]!;
       final label = _monthLabel(monthKey);
@@ -229,7 +233,6 @@ class ReportExportService {
       double mPetrol = 0;
       double mDiesel = 0;
       double mTwoT = 0;
-      int mEntries = 0;
 
       for (final p in points) {
         buffer.writeln(_row(_pointRow(p)));
@@ -239,7 +242,6 @@ class ReportExportService {
         mPetrol += p.petrolSold;
         mDiesel += p.dieselSold;
         mTwoT += p.twoTSold;
-        mEntries += p.entries;
       }
 
       buffer.writeln(
@@ -251,7 +253,6 @@ class ReportExportService {
           mPetrol.toStringAsFixed(2),
           mDiesel.toStringAsFixed(2),
           mTwoT.toStringAsFixed(2),
-          mEntries.toString(),
         ]),
       );
 
@@ -261,7 +262,6 @@ class ReportExportService {
       gtPetrol += mPetrol;
       gtDiesel += mDiesel;
       gtTwoT += mTwoT;
-      gtEntries += mEntries;
     }
 
     if (sortedKeys.length > 1) {
@@ -277,7 +277,6 @@ class ReportExportService {
           gtPetrol.toStringAsFixed(2),
           gtDiesel.toStringAsFixed(2),
           gtTwoT.toStringAsFixed(2),
-          gtEntries.toString(),
         ]),
       );
     }
@@ -306,9 +305,24 @@ class ReportExportService {
           'Event',
           'Stock Inwards (L)',
           'Sales (L)',
+          'Cumulative Inwards (L)',
+          'Cumulative Sales (L)',
           'Manual Stock (L)',
           'Running Balance (L)',
           'Details',
+        ]),
+      );
+      buffer.writeln(
+        _row([
+          _formatRowDate(section.openingDate),
+          'Opening Stock',
+          '0.00',
+          '0.00',
+          '0.00',
+          '0.00',
+          section.openingStock.toStringAsFixed(2),
+          section.openingStock.toStringAsFixed(2),
+          'Opening stock at start of period',
         ]),
       );
 
@@ -319,24 +333,14 @@ class ReportExportService {
             row.eventType,
             row.stockInwards.toStringAsFixed(2),
             row.sales.toStringAsFixed(2),
+            row.cumulativeInwards.toStringAsFixed(2),
+            row.cumulativeSales.toStringAsFixed(2),
             row.manualStock?.toStringAsFixed(2) ?? '',
             row.runningBalance.toStringAsFixed(2),
             row.details,
           ]),
         );
       }
-
-      buffer.writeln(
-        _row([
-          '${section.label.toUpperCase()} TOTAL',
-          '',
-          section.totalInwards.toStringAsFixed(2),
-          section.totalSales.toStringAsFixed(2),
-          '',
-          section.closingBalance.toStringAsFixed(2),
-          '',
-        ]),
-      );
     }
 
     return buffer.toString();

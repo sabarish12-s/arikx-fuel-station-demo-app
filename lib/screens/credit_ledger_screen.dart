@@ -728,6 +728,8 @@ class _CreditLedgerScreenState extends State<CreditLedgerScreen> {
                               MaterialPageRoute<void>(
                                 builder: (_) => CreditCustomerDetailScreen(
                                   customerId: item.customer.id,
+                                  initialUser: _currentUser,
+                                  initialStationTitle: _stationTitle,
                                 ),
                               ),
                             );
@@ -1022,9 +1024,16 @@ class _CustomerCard extends StatelessWidget {
 // Credit Customer Detail Screen
 // ─────────────────────────────────────────────────────────────────────────────
 class CreditCustomerDetailScreen extends StatefulWidget {
-  const CreditCustomerDetailScreen({super.key, required this.customerId});
+  const CreditCustomerDetailScreen({
+    super.key,
+    required this.customerId,
+    this.initialUser,
+    this.initialStationTitle,
+  });
 
   final String customerId;
+  final AuthUser? initialUser;
+  final String? initialStationTitle;
 
   @override
   State<CreditCustomerDetailScreen> createState() =>
@@ -1034,8 +1043,12 @@ class CreditCustomerDetailScreen extends StatefulWidget {
 class _CreditCustomerDetailScreenState
     extends State<CreditCustomerDetailScreen> {
   final CreditService _creditService = CreditService();
+  final AuthService _authService = AuthService();
+  final InventoryService _inventoryService = InventoryService();
   late Future<CreditCustomerDetailModel> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
+  AuthUser? _currentUser;
+  late String _stationTitle;
 
   String _errorText(Object? error) {
     return userFacingErrorMessage(error);
@@ -1044,7 +1057,12 @@ class _CreditCustomerDetailScreenState
   @override
   void initState() {
     super.initState();
+    _currentUser = widget.initialUser;
+    _stationTitle = widget.initialStationTitle?.trim().isNotEmpty == true
+        ? widget.initialStationTitle!.trim()
+        : widget.initialUser?.stationId ?? 'Credit Ledger';
     _future = _load();
+    _loadChromeData();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted ||
           !update.background ||
@@ -1054,6 +1072,28 @@ class _CreditCustomerDetailScreenState
       setState(() {
         _future = _load();
       });
+    });
+  }
+
+  Future<void> _loadChromeData() async {
+    final user = _currentUser ?? await _authService.readCurrentUser();
+    String title = widget.initialStationTitle?.trim().isNotEmpty == true
+        ? widget.initialStationTitle!.trim()
+        : user?.stationId ?? 'Credit Ledger';
+    try {
+      final station = await _inventoryService.fetchStationConfig();
+      if (station.name.trim().isNotEmpty) {
+        title = station.name.trim();
+      }
+    } catch (_) {
+      // Keep the user station id fallback when station config is unavailable.
+    }
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _currentUser = user;
+      _stationTitle = title;
     });
   }
 
@@ -1081,6 +1121,58 @@ class _CreditCustomerDetailScreenState
       _future = _load(forceRefresh: true);
     });
     await _future;
+  }
+
+  bool get _usesManagementNav {
+    final role = _currentUser?.role.trim().toLowerCase();
+    return role == 'admin' || role == 'superadmin';
+  }
+
+  int get _selectedNavIndex => _usesManagementNav ? 3 : 0;
+
+  List<AppBottomNavItem> get _navItems {
+    if (_usesManagementNav) {
+      return const [
+        AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+        AppBottomNavItem(
+          icon: Icons.local_gas_station_outlined,
+          label: 'Inventory',
+        ),
+        AppBottomNavItem(icon: Icons.edit_note_rounded, label: 'Entry'),
+        AppBottomNavItem(icon: Icons.bar_chart_rounded, label: 'Report'),
+        AppBottomNavItem(
+          icon: Icons.manage_accounts_outlined,
+          label: 'Settings',
+        ),
+      ];
+    }
+    return const [
+      AppBottomNavItem(icon: Icons.grid_view_rounded, label: 'Dashboard'),
+      AppBottomNavItem(icon: Icons.inventory_2_outlined, label: 'Sales'),
+      AppBottomNavItem(
+        icon: Icons.local_gas_station_outlined,
+        label: 'Inventory',
+      ),
+      AppBottomNavItem(icon: Icons.local_shipping_outlined, label: 'History'),
+      AppBottomNavItem(icon: Icons.person_outline_rounded, label: 'Account'),
+    ];
+  }
+
+  void _openShellAt(int index) {
+    final user = _currentUser;
+    if (user == null) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => _usesManagementNav
+            ? ManagementShell(user: user, initialIndex: index)
+            : SalesShell(user: user, initialIndex: index),
+      ),
+      (_) => false,
+    );
   }
 
   Future<void> _recordCollection(CreditCustomerDetailModel detail) async {
@@ -1223,11 +1315,35 @@ class _CreditCustomerDetailScreenState
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: kClayBg,
+        scrolledUnderElevation: 0,
+        elevation: 0,
         iconTheme: const IconThemeData(color: kClayPrimary),
-        title: const Text(
-          'Credit Detail',
-          style: TextStyle(fontWeight: FontWeight.w900, color: kClayPrimary),
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back_rounded),
+          onPressed: () => Navigator.of(context).maybePop(),
         ),
+        title: Row(
+          children: [
+            const AppLogo(size: 28),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OneLineScaleText(
+                _stationTitle,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: kClayPrimary,
+                  fontSize: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: AppBottomNavBar(
+        selectedIndex: _selectedNavIndex,
+        onSelected: _openShellAt,
+        items: _navItems,
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -1251,7 +1367,7 @@ class _CreditCustomerDetailScreenState
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
               children: [
                 // ── Customer hero ────────────────────────────────
                 Container(

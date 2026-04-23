@@ -36,11 +36,6 @@ const DEFAULT_STATION = {
     pump2: {petrol: 4150, diesel: 3050, twoT: 600},
     pump3: {petrol: 4100, diesel: 3000, twoT: 0},
   },
-  meterLimits: {
-    pump1: {petrol: 0, diesel: 0, twoT: 0},
-    pump2: {petrol: 0, diesel: 0, twoT: 0},
-    pump3: {petrol: 0, diesel: 0, twoT: 0},
-  },
   inventoryPlanning: {
     openingStock: {
       petrol: 0,

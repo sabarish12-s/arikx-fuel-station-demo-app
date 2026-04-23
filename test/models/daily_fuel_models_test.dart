@@ -10,7 +10,6 @@ Map<String, dynamic> _stationJson() {
     'shifts': const <String>['morning', 'afternoon', 'night'],
     'pumps': const <Map<String, dynamic>>[],
     'baseReadings': const <String, dynamic>{},
-    'meterLimits': const <String, dynamic>{},
     'inventoryPlanning': const <String, dynamic>{},
   };
 }
@@ -24,14 +23,8 @@ Map<String, dynamic> _dailyFuelJson() {
       'petrol': 1450.5,
       'diesel': 2980.25,
     },
-    'density': const <String, dynamic>{
-      'petrol': 742.125,
-      'diesel': 833.625,
-    },
-    'price': const <String, dynamic>{
-      'petrol': 102.45,
-      'diesel': 94.15,
-    },
+    'density': const <String, dynamic>{'petrol': 742.125, 'diesel': 833.625},
+    'price': const <String, dynamic>{'petrol': 102.45, 'diesel': 94.15},
     'sourceClosingDate': '2026-04-17',
     'createdBy': 'sales-1',
     'createdByName': 'Sales User',
@@ -61,14 +54,17 @@ void main() {
       expect(record.isComplete, isTrue);
     });
 
-    test('treats records with both densities as complete even when flag is absent', () {
-      final json = _dailyFuelJson()..remove('complete');
+    test(
+      'treats records with both densities as complete even when flag is absent',
+      () {
+        final json = _dailyFuelJson()..remove('complete');
 
-      final record = DailyFuelRecordModel.fromJson(json);
+        final record = DailyFuelRecordModel.fromJson(json);
 
-      expect(record.complete, isFalse);
-      expect(record.isComplete, isTrue);
-    });
+        expect(record.complete, isFalse);
+        expect(record.isComplete, isTrue);
+      },
+    );
   });
 
   group('dashboard model parsing', () {
@@ -95,37 +91,40 @@ void main() {
       expect(dashboard.dailyFuelRecord?.density['petrol'], 742.125);
     });
 
-    test('management dashboard exposes the register summary for entries gating', () {
-      final dashboard = ManagementDashboardModel.fromJson(<String, dynamic>{
-        'station': _stationJson(),
-        'today': '2026-04-19',
-        'range': const <String, dynamic>{
-          'label': 'Today',
-          'preset': 'today',
-          'fromDate': '2026-04-19',
-          'toDate': '2026-04-19',
-        },
-        'setupExists': true,
-        'allowedEntryDate': '2026-04-18',
-        'activeSetupDate': '2026-04-18',
-        'entryLockedReason': '',
-        'pendingRequests': 0,
-        'varianceCount': 0,
-        'totals': const <String, dynamic>{'entriesCompleted': 2},
-        'pumpPerformance': const <dynamic>[],
-        'attendantPerformance': const <dynamic>[],
-        'trend': const <dynamic>[],
-        'recentEntries': const <dynamic>[],
-        'fuelTypes': const <dynamic>[],
-        'prices': const <dynamic>[],
-        'dailyFuelRecord': _dailyFuelJson(),
-        'dailyFuelRecordComplete': true,
-      });
+    test(
+      'management dashboard exposes the register summary for entries gating',
+      () {
+        final dashboard = ManagementDashboardModel.fromJson(<String, dynamic>{
+          'station': _stationJson(),
+          'today': '2026-04-19',
+          'range': const <String, dynamic>{
+            'label': 'Today',
+            'preset': 'today',
+            'fromDate': '2026-04-19',
+            'toDate': '2026-04-19',
+          },
+          'setupExists': true,
+          'allowedEntryDate': '2026-04-18',
+          'activeSetupDate': '2026-04-18',
+          'entryLockedReason': '',
+          'pendingRequests': 0,
+          'varianceCount': 0,
+          'totals': const <String, dynamic>{'entriesCompleted': 2},
+          'pumpPerformance': const <dynamic>[],
+          'attendantPerformance': const <dynamic>[],
+          'trend': const <dynamic>[],
+          'recentEntries': const <dynamic>[],
+          'fuelTypes': const <dynamic>[],
+          'prices': const <dynamic>[],
+          'dailyFuelRecord': _dailyFuelJson(),
+          'dailyFuelRecordComplete': true,
+        });
 
-      expect(dashboard.allowedEntryDate, '2026-04-18');
-      expect(dashboard.entriesCompleted, 2);
-      expect(dashboard.dailyFuelRecordComplete, isTrue);
-      expect(dashboard.dailyFuelRecord?.price['diesel'], 94.15);
-    });
+        expect(dashboard.allowedEntryDate, '2026-04-18');
+        expect(dashboard.entriesCompleted, 2);
+        expect(dashboard.dailyFuelRecordComplete, isTrue);
+        expect(dashboard.dailyFuelRecord?.price['diesel'], 94.15);
+      },
+    );
   });
 }

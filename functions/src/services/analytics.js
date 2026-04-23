@@ -312,7 +312,6 @@ function buildSalesDashboardStation(station) {
     id: station?.id || '',
     name: station?.name || '',
     pumps: station?.pumps || [],
-    meterLimits: station?.meterLimits || {},
     flagThreshold: Number(station?.flagThreshold ?? 0.01),
     salesmen: station?.salesmen || [],
   };

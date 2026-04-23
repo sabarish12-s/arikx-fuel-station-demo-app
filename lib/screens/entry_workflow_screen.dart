@@ -261,9 +261,6 @@ class _EntryWorkflowScreenState extends State<EntryWorkflowScreen> {
       opening:
           widget.openingReadings[pump.id] ??
           const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
-      limit:
-          widget.station.meterLimits[pump.id] ??
-          const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
       initialDraft: PumpEntryDraft(
         salesman:
             _draft.pumpSalesmen[pump.id] ??

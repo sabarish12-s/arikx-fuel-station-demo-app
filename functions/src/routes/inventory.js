@@ -214,7 +214,13 @@ router.get('/dashboard', async (req, res) => {
 
 router.get('/deliveries', async (req, res) => {
   const summary = req.query.view?.toString() !== 'detail';
-  const deliveries = await DeliveryReceipt.allForStation(req.authUser.stationId);
+  const deliveries = await DeliveryReceipt.allForStationRange(
+    req.authUser.stationId,
+    {
+      fromDate: req.query.from?.toString() || '',
+      toDate: req.query.to?.toString() || '',
+    },
+  );
   return res.status(200).json({
     deliveries: deliveries.map((receipt) => (summary ? receipt.toSummaryJson() : receipt.toJson())),
   });
@@ -587,18 +593,6 @@ router.put('/station-config', async (req, res) => {
       ...pump,
       label: labelById.get(String(pump.id)) || String(pump.label || ''),
     }));
-  }
-
-  if (isManagement && req.body?.meterLimits && typeof req.body.meterLimits === 'object') {
-    station.meterLimits = station.pumps.reduce((accumulator, pump) => {
-      const source = req.body.meterLimits?.[pump.id] || {};
-      accumulator[pump.id] = {
-        petrol: Number(source.petrol || 0),
-        diesel: Number(source.diesel || 0),
-        twoT: Number(source.twoT || 0),
-      };
-      return accumulator;
-    }, {});
   }
 
   if (isManagement && req.body?.baseReadings && typeof req.body.baseReadings === 'object') {

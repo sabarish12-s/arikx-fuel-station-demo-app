@@ -480,10 +480,18 @@ class InventoryService {
   }
 
   Future<List<DeliveryReceiptModel>> fetchDeliveries({
+    String? fromDate,
+    String? toDate,
     bool forceRefresh = false,
   }) async {
+    final params = <String, String>{
+      'view': 'summary',
+      if (fromDate != null && fromDate.isNotEmpty) 'from': fromDate,
+      if (toDate != null && toDate.isNotEmpty) 'to': toDate,
+    };
+    final suffix = '?${Uri(queryParameters: params).query}';
     final response = await _apiClient.get(
-      '/inventory/deliveries?view=summary',
+      '/inventory/deliveries$suffix',
       useCache: true,
       forceRefresh: forceRefresh,
     );

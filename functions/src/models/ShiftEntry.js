@@ -399,15 +399,11 @@ function buildVarianceNote({
   invalidPumpIds,
   mismatchAmount,
   mismatchReason,
-  limitBreaches = [],
   flagThreshold = 0.01,
 }) {
   const notes = [];
   if (invalidPumpIds.length > 0) {
     notes.push(`Closing meter readings are below opening readings for ${invalidPumpIds.join(', ')}.`);
-  }
-  if (limitBreaches.length > 0) {
-    notes.push(`Meter sales exceed configured limit for ${limitBreaches.join(', ')}.`);
   }
   if (Math.abs(mismatchAmount) >= (flagThreshold ?? 0.01)) {
     const prefix = mismatchAmount > 0 ? 'Payment exceeds computed revenue' : 'Payment is short against computed revenue';
@@ -468,7 +464,6 @@ function calculateMetrics({
   creditEntries,
   creditCollections,
   mismatchReason,
-  meterLimits = {},
   readingMode = 'meter',
   pumpLabels = {},
   flagThreshold = 0.01,
@@ -636,26 +631,10 @@ function calculateMetrics({
   const invalidPumpIds = Object.entries(soldByPump)
     .filter(([, values]) => values.petrol < 0 || values.diesel < 0 || values.twoT < 0)
     .map(([pumpId]) => formattedPumpLabel(pumpId, pumpLabels));
-  const limitBreaches = [];
-  if (readingMode === 'meter') {
-    for (const [pumpId, values] of Object.entries(soldByPump)) {
-      const limits = meterLimits?.[pumpId] || {};
-      for (const fuelKey of ['petrol', 'diesel', 'twoT']) {
-        const limit = Number(limits?.[fuelKey] || 0);
-        if (limit > 0 && Number(values?.[fuelKey] || 0) > limit) {
-          const fuelLabel = fuelKey === 'twoT' ? '2T oil' : fuelKey;
-          limitBreaches.push(
-            `${formattedPumpLabel(pumpId, pumpLabels)} ${fuelLabel}`,
-          );
-        }
-      }
-    }
-  }
 
   const threshold = typeof flagThreshold === 'number' && flagThreshold >= 0 ? flagThreshold : 0.01;
   const flagged =
     invalidPumpIds.length > 0 ||
-    limitBreaches.length > 0 ||
     Math.abs(mismatchAmount) >= threshold;
 
   return {
@@ -675,7 +654,6 @@ function calculateMetrics({
       invalidPumpIds,
       mismatchAmount,
       mismatchReason,
-      limitBreaches,
       flagThreshold,
     }),
   };
@@ -1162,7 +1140,6 @@ class ShiftEntry {
         creditEntries: entry.creditEntries,
         creditCollections: entry.creditCollections,
         mismatchReason: entry.mismatchReason,
-        meterLimits: station?.meterLimits || {},
         readingMode: entry.readingMode || 'stock',
         pumpLabels,
         flagThreshold: station?.flagThreshold ?? 0.01,
@@ -1498,7 +1475,6 @@ class ShiftEntry {
       creditEntries: normalizedCreditEntries,
       creditCollections: normalizedCreditCollections,
       mismatchReason,
-      meterLimits: station?.meterLimits || {},
       readingMode: 'meter',
       pumpLabels,
       flagThreshold: station?.flagThreshold ?? 0.01,
@@ -1593,7 +1569,6 @@ class ShiftEntry {
       creditEntries: normalizedCreditEntries,
       creditCollections: normalizedCreditCollections,
       mismatchReason,
-      meterLimits: station?.meterLimits || {},
       readingMode: 'meter',
       pumpLabels,
       flagThreshold: station?.flagThreshold ?? 0.01,
@@ -1789,7 +1764,6 @@ class ShiftEntry {
         creditEntries: entry.creditEntries,
         creditCollections: entry.creditCollections,
         mismatchReason: entry.mismatchReason,
-        meterLimits: station?.meterLimits || {},
         readingMode: entry.readingMode || 'stock',
         pumpLabels,
         flagThreshold: station?.flagThreshold ?? 0.01,
@@ -1870,7 +1844,6 @@ class ShiftEntry {
       creditEntries: nextCreditEntries,
       creditCollections: nextCreditCollections,
       mismatchReason: nextMismatchReason,
-      meterLimits: station?.meterLimits || {},
       readingMode: 'meter',
       pumpLabels,
       flagThreshold: station?.flagThreshold ?? 0.01,
@@ -1952,7 +1925,6 @@ class ShiftEntry {
       creditEntries: nextCreditEntries,
       creditCollections: nextCreditCollections,
       mismatchReason: nextMismatchReason,
-      meterLimits: station?.meterLimits || {},
       readingMode: 'meter',
       pumpLabels,
       flagThreshold: station?.flagThreshold ?? 0.01,

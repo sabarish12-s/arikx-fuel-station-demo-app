@@ -95,7 +95,6 @@ class _InventoryPlanningSettingsScreenState
         shifts: station.shifts,
         pumps: station.pumps,
         baseReadings: station.baseReadings,
-        meterLimits: station.meterLimits,
         inventoryPlanning: InventoryPlanningModel(
           openingStock: station.inventoryPlanning.openingStock,
           currentStock: station.inventoryPlanning.currentStock,

@@ -462,9 +462,6 @@ class _ClosingStockEntryScreenState extends State<ClosingStockEntryScreen> {
           opening:
               dashboard.openingReadings[pump.id] ??
               const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
-          limit:
-              dashboard.station.meterLimits[pump.id] ??
-              const PumpReadings(petrol: 0, diesel: 0, twoT: 0),
           initialDraft: PumpEntryDraft(
             salesman:
                 draft.pumpSalesmen[pump.id] ??

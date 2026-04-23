@@ -98,7 +98,6 @@ class Station {
     shifts = [],
     pumps = [],
     baseReadings = {},
-    meterLimits = {},
     inventoryPlanning = {},
     flagThreshold = 0.01,
     salesmen = [],
@@ -110,7 +109,6 @@ class Station {
     this.shifts = shifts;
     this.pumps = pumps;
     this.baseReadings = baseReadings;
-    this.meterLimits = meterLimits;
     this.inventoryPlanning = normalizeInventoryPlanning(inventoryPlanning);
     this.flagThreshold = typeof flagThreshold === 'number' && flagThreshold >= 0
       ? flagThreshold
@@ -131,7 +129,6 @@ class Station {
       shifts: ['daily'],
       pumps: claims.pumps || [],
       baseReadings: claims.baseReadings || {},
-      meterLimits: claims.meterLimits || {},
       inventoryPlanning: claims.inventoryPlanning || {},
       flagThreshold: claims.flagThreshold != null ? Number(claims.flagThreshold) : 0.01,
       salesmen: claims.salesmen || [],
@@ -153,7 +150,6 @@ class Station {
         shifts: ['daily'],
         pumps: this.pumps,
         baseReadings: this.baseReadings,
-        meterLimits: this.meterLimits,
         inventoryPlanning: this.inventoryPlanning,
         flagThreshold: this.flagThreshold,
         salesmen: this.salesmen,
@@ -184,7 +180,6 @@ class Station {
         }
       }
       const baseReadings = {...(existing.baseReadings || {})};
-      const meterLimits = {...(existing.meterLimits || {})};
       const inventoryPlanning = normalizeInventoryPlanning(existing.inventoryPlanning);
       const salesmen = normalizeSalesmen(existing.salesmen || []);
       for (const [pumpId, readings] of Object.entries(DEFAULT_STATION.baseReadings)) {
@@ -194,22 +189,6 @@ class Station {
           baseReadings[pumpId] = current;
           changed = true;
         }
-      }
-      for (const [pumpId, readings] of Object.entries(DEFAULT_STATION.meterLimits || {})) {
-        const current = {...(meterLimits[pumpId] || {})};
-        if (current.petrol == null) {
-          current.petrol = readings.petrol || 0;
-          changed = true;
-        }
-        if (current.diesel == null) {
-          current.diesel = readings.diesel || 0;
-          changed = true;
-        }
-        if (current.twoT == null) {
-          current.twoT = readings.twoT || 0;
-          changed = true;
-        }
-        meterLimits[pumpId] = current;
       }
       if (!inventoryPlanning.updatedAt) {
         inventoryPlanning.updatedAt = DEFAULT_STATION.inventoryPlanning.updatedAt || '';
@@ -245,7 +224,6 @@ class Station {
       if (changed) {
         existing.pumps = pumps;
         existing.baseReadings = baseReadings;
-        existing.meterLimits = meterLimits;
         existing.inventoryPlanning = inventoryPlanning;
         existing.salesmen = salesmen;
         await existing.save();
@@ -318,7 +296,6 @@ class Station {
       shifts: this.shifts,
       pumps: this.pumps,
       baseReadings: this.baseReadings,
-      meterLimits: this.meterLimits,
       inventoryPlanning: this.inventoryPlanning,
       flagThreshold: this.flagThreshold,
       salesmen: this.salesmen,

@@ -1216,7 +1216,6 @@ class StationConfigModel {
     required this.shifts,
     required this.pumps,
     required this.baseReadings,
-    required this.meterLimits,
     required this.inventoryPlanning,
     this.salesmen = const [],
     this.flagThreshold = 0.01,
@@ -1229,7 +1228,6 @@ class StationConfigModel {
   final List<String> shifts;
   final List<StationPumpModel> pumps;
   final Map<String, PumpReadings> baseReadings;
-  final Map<String, PumpReadings> meterLimits;
   final InventoryPlanningModel inventoryPlanning;
   final List<StationSalesmanModel> salesmen;
   final double flagThreshold;
@@ -1237,8 +1235,6 @@ class StationConfigModel {
   factory StationConfigModel.fromJson(Map<String, dynamic> json) {
     final Map<String, dynamic> baseReadingsJson =
         json['baseReadings'] as Map<String, dynamic>? ?? const {};
-    final Map<String, dynamic> meterLimitsJson =
-        json['meterLimits'] as Map<String, dynamic>? ?? const {};
     final rawShifts = (json['shifts'] as List<dynamic>? ?? const [])
         .map((item) => item.toString().trim())
         .where((item) => item.isNotEmpty)
@@ -1255,10 +1251,6 @@ class StationConfigModel {
           )
           .toList(),
       baseReadings: baseReadingsJson.map(
-        (key, value) =>
-            MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
-      ),
-      meterLimits: meterLimitsJson.map(
         (key, value) =>
             MapEntry(key, PumpReadings.fromJson(value as Map<String, dynamic>)),
       ),
@@ -1284,9 +1276,6 @@ class StationConfigModel {
       'shifts': shifts.toSet().toList(),
       'pumps': pumps.map((pump) => pump.toJson()).toList(),
       'baseReadings': baseReadings.map(
-        (key, value) => MapEntry(key, value.toJson()),
-      ),
-      'meterLimits': meterLimits.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
       'inventoryPlanning': inventoryPlanning.toJson(),
@@ -1549,8 +1538,8 @@ class ShiftEntryModel {
       openingReadings: parseReadings('openingReadings'),
       closingReadings: parseReadings('closingReadings'),
       soldByPump: parseReadings('soldByPump'),
-      pumpSalesmen:
-          (json['pumpSalesmen'] as Map<String, dynamic>? ?? const {}).map(
+      pumpSalesmen: (json['pumpSalesmen'] as Map<String, dynamic>? ?? const {})
+          .map(
             (key, value) => MapEntry(
               key,
               PumpSalesmanModel.fromJson(

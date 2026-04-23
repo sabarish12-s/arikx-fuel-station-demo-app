@@ -727,8 +727,8 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
   late Future<List<FuelPriceModel>> _future;
   bool _showDeleted = false;
   bool _deleting = false;
-  String _fromDate = '';
-  String _toDate = '';
+  String _fromDate = currentMonthStartDateKey();
+  String _toDate = currentMonthEndDateKey();
   _FuelPriceHistorySort _sort = _FuelPriceHistorySort.effectiveNewest;
 
   static const List<String> _fuelOrder = ['petrol', 'diesel', 'two_t_oil'];
@@ -833,16 +833,16 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
 
   void _clearFilters() {
     setState(() {
-      _fromDate = '';
-      _toDate = '';
+      _fromDate = currentMonthStartDateKey();
+      _toDate = currentMonthEndDateKey();
     });
   }
 
-  String _dateKey(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
+  bool get _hasCustomDateRange =>
+      _fromDate != currentMonthStartDateKey() ||
+      _toDate != currentMonthEndDateKey();
+
+  String _dateKey(DateTime date) => apiDateKey(date);
 
   String _prettyFuelLabel(String fuelTypeId) {
     switch (fuelTypeId) {
@@ -1142,7 +1142,7 @@ class _FuelPriceHistoryScreenState extends State<_FuelPriceHistoryScreen> {
                           setState(() => _sort = value);
                         },
                       ),
-                      if (_fromDate.isNotEmpty || _toDate.isNotEmpty) ...[
+                      if (_hasCustomDateRange) ...[
                         const SizedBox(height: 10),
                         TextButton(
                           onPressed: _clearFilters,

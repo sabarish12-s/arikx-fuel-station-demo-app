@@ -1276,7 +1276,6 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
   required BuildContext context,
   required StationPumpModel pump,
   required PumpReadings opening,
-  required PumpReadings limit,
   required Map<String, Map<String, double>> priceSnapshot,
   required double flagThreshold,
   required PumpEntryDraft initialDraft,
@@ -1291,7 +1290,6 @@ Future<MapEntry<String, PumpEntryDraft>?> showPumpEntryDialog({
       child: _PumpEntryDialog(
         pump: pump,
         opening: opening,
-        limit: limit,
         priceSnapshot: priceSnapshot,
         flagThreshold: flagThreshold,
         initialDraft: initialDraft,
@@ -1693,7 +1691,6 @@ class _PumpEntryDialog extends StatefulWidget {
   const _PumpEntryDialog({
     required this.pump,
     required this.opening,
-    required this.limit,
     required this.priceSnapshot,
     required this.flagThreshold,
     required this.initialDraft,
@@ -1703,7 +1700,6 @@ class _PumpEntryDialog extends StatefulWidget {
 
   final StationPumpModel pump;
   final PumpReadings opening;
-  final PumpReadings limit;
   final Map<String, Map<String, double>> priceSnapshot;
   final double flagThreshold;
   final PumpEntryDraft initialDraft;
@@ -1968,7 +1964,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     String label,
     String raw, {
     required double openingValue,
-    required double limitValue,
   }) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) {
@@ -1983,12 +1978,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     }
     if (openingValue - parsed > _readingComparisonTolerance) {
       return 'Must be >= opening ${formatLiters(openingValue)}.';
-    }
-    final sale = (parsed - openingValue).abs() <= _readingComparisonTolerance
-        ? 0
-        : parsed - openingValue;
-    if (limitValue > 0 && sale > limitValue) {
-      return '$label exceeds the daily limit of ${formatLiters(limitValue)}.';
     }
     return null;
   }
@@ -2008,11 +1997,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     return null;
   }
 
-  String? _validateDirectSale(
-    String label,
-    String raw, {
-    required double limitValue,
-  }) {
+  String? _validateDirectSale(String label, String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) {
       return null;
@@ -2023,9 +2008,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
     }
     if (parsed < 0) {
       return '$label cannot be negative.';
-    }
-    if (limitValue > 0 && parsed > limitValue) {
-      return '$label exceeds the daily limit of ${formatLiters(limitValue)}.';
     }
     return null;
   }
@@ -2498,7 +2480,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                             decoration: InputDecoration(
                               labelText: 'Petrol closing meter reading',
                               helperText:
-                                  "Opening ${formatLiters(widget.opening.petrol)}${widget.limit.petrol > 0 ? ' | Limit ${formatLiters(widget.limit.petrol)}' : ''}",
+                                  'Opening ${formatLiters(widget.opening.petrol)}',
                               helperMaxLines: 1,
                               errorMaxLines: 1,
                               filled: true,
@@ -2508,7 +2490,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                               'Petrol closing meter reading',
                               value ?? '',
                               openingValue: widget.opening.petrol,
-                              limitValue: widget.limit.petrol,
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -2521,7 +2502,7 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                             decoration: InputDecoration(
                               labelText: 'Diesel closing meter reading',
                               helperText:
-                                  "Opening ${formatLiters(widget.opening.diesel)}${widget.limit.diesel > 0 ? ' | Limit ${formatLiters(widget.limit.diesel)}' : ''}",
+                                  'Opening ${formatLiters(widget.opening.diesel)}',
                               helperMaxLines: 1,
                               errorMaxLines: 1,
                               filled: true,
@@ -2531,7 +2512,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                               'Diesel closing meter reading',
                               value ?? '',
                               openingValue: widget.opening.diesel,
-                              limitValue: widget.limit.diesel,
                             ),
                           ),
                           if (_supportsTwoT) ...[
@@ -2545,9 +2525,8 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
                                 labelText: '2T oil sold',
-                                helperText: widget.limit.twoT > 0
-                                    ? 'Direct sale entry | Limit ${formatLiters(widget.limit.twoT)}'
-                                    : 'Direct sale entry. No meter reading required.',
+                                helperText:
+                                    'Direct sale entry. No meter reading required.',
                                 helperMaxLines: 1,
                                 errorMaxLines: 1,
                                 filled: true,
@@ -2556,7 +2535,6 @@ class _PumpEntryDialogState extends State<_PumpEntryDialog> {
                               validator: (value) => _validateDirectSale(
                                 '2T oil sold',
                                 value ?? '',
-                                limitValue: widget.limit.twoT,
                               ),
                             ),
                           ],

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/auth_models.dart';
 import '../models/domain_models.dart';
@@ -455,12 +456,41 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
   }
 
   Future<void> _openDailyBreakdown(List<TrendPointModel> points) async {
+    var breakdownPoints = points;
+    if (_filterByDateRange && _fromDate != null && _toDate != null) {
+      try {
+        final from = DateTime(_fromDate!.year, _fromDate!.month);
+        final to = DateTime(_toDate!.year, _toDate!.month + 1, 0);
+        final expandedReport = await _managementService.fetchMonthlyReport(
+          fromDate: _toApiDate(from),
+          toDate: _toApiDate(to),
+        );
+        if (expandedReport.trend.isNotEmpty) {
+          breakdownPoints = expandedReport.trend;
+        }
+      } catch (_) {
+        // Keep the already loaded filtered points if the broader lookup fails.
+      }
+    }
+    if (!mounted) return;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => _DailyBreakdownScreen(
-          points: points,
+          points: breakdownPoints,
           initialFromDate: _fromDate,
           initialToDate: _toDate,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openSalesTrendFullScreen(List<TrendPointModel> trend) async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => _MonthlySalesTrendFullScreenPage(
+          trend: trend,
+          rangeLabel: _activeFilterLabel,
         ),
       ),
     );
@@ -872,6 +902,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 eventType: 'Manual Stock Set',
                 stockInwards: 0,
                 sales: 0,
+                cumulativeInwards: totalInwards,
+                cumulativeSales: totalSales,
                 manualStock: value,
                 runningBalance: runningBalance,
                 details: event.details,
@@ -888,6 +920,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                 eventType: 'Delivery',
                 stockInwards: value,
                 sales: 0,
+                cumulativeInwards: totalInwards,
+                cumulativeSales: totalSales,
                 manualStock: null,
                 runningBalance: runningBalance,
                 details: event.details,
@@ -903,6 +937,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
               eventType: 'Sale',
               stockInwards: 0,
               sales: value,
+              cumulativeInwards: totalInwards,
+              cumulativeSales: totalSales,
               manualStock: null,
               runningBalance: runningBalance,
               details: event.details,
@@ -912,6 +948,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
 
         return StockReportSection(
           label: label,
+          openingDate: fromStr,
+          openingStock: _round2(startingStock[fuelKey] ?? 0),
           rows: rows,
           totalInwards: totalInwards,
           totalSales: totalSales,
@@ -1245,13 +1283,27 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Sales Trend',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF1A2561),
-              ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Sales Trend',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A2561),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.open_in_full_rounded, size: 18),
+                  color: const Color(0xFF8A93B8),
+                  tooltip: 'Expand',
+                  onPressed: report.trend.isEmpty
+                      ? null
+                      : () => _openSalesTrendFullScreen(report.trend),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -1265,6 +1317,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                     )
                   : LineChart(
                       LineChartData(
+                        minX: 0,
+                        maxX: (report.trend.length - 1).toDouble(),
                         minY: 0,
                         maxY: maxFuelTrend <= 0 ? 10 : maxFuelTrend * 1.2,
                         gridData: FlGridData(
@@ -1293,10 +1347,11 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                               interval: maxFuelTrend <= 0
                                   ? 5
                                   : (maxFuelTrend * 1.2) / 4,
-                              getTitlesWidget: (value, meta) => Padding(
-                                padding: const EdgeInsets.only(right: 6),
+                              getTitlesWidget: (value, meta) => SideTitleWidget(
+                                axisSide: meta.axisSide,
+                                space: 6,
                                 child: Text(
-                                  '${_compactK(value)} L',
+                                  '${_compactLitersLabel(value)} L',
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: Color(0xFF8A93B8),
@@ -1308,10 +1363,13 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              reservedSize: 26,
+                              reservedSize: 32,
                               interval: 1,
                               getTitlesWidget: (value, meta) {
-                                final idx = value.toInt();
+                                final idx = value.round();
+                                if ((value - idx).abs() > 0.01) {
+                                  return const SizedBox.shrink();
+                                }
                                 if (idx < 0 || idx >= report.trend.length) {
                                   return const SizedBox.shrink();
                                 }
@@ -1326,13 +1384,20 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                                 final lbl = dt == null
                                     ? report.trend[idx].date
                                     : '${dt.day}/${dt.month}';
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    lbl,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF8A93B8),
+                                return SideTitleWidget(
+                                  axisSide: meta.axisSide,
+                                  space: 8,
+                                  child: SizedBox(
+                                    width: 30,
+                                    child: Center(
+                                      child: Text(
+                                        lbl,
+                                        maxLines: 1,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF8A93B8),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 );
@@ -1344,26 +1409,23 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                         lineTouchData: LineTouchData(
                           enabled: true,
                           touchTooltipData: LineTouchTooltipData(
-                            getTooltipItems: (spots) => spots.map((spot) {
-                              final index = spot.x
-                                  .toInt()
-                                  .clamp(0, report.trend.length - 1)
-                                  .toInt();
-                              final point = report.trend[index];
-                              final isPetrol = spot.barIndex == 0;
-                              return LineTooltipItem(
-                                isPetrol
-                                    ? '${formatDateLabel(point.date)}\nPetrol ${formatLiters(spot.y)}'
-                                    : 'Diesel ${formatLiters(spot.y)}',
-                                TextStyle(
-                                  color: isPetrol
-                                      ? const Color(0xFF1A3A7A)
-                                      : const Color(0xFF2AA878),
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                              );
-                            }).toList(),
+                            fitInsideHorizontally: true,
+                            fitInsideVertically: true,
+                            getTooltipItems: (spots) {
+                              final ordered = spots.toList()
+                                ..sort(
+                                  (left, right) =>
+                                      left.barIndex.compareTo(right.barIndex),
+                                );
+                              return [
+                                for (var i = 0; i < ordered.length; i++)
+                                  _monthlyTrendTooltipItem(
+                                    ordered[i],
+                                    report.trend,
+                                    showDate: i == 0,
+                                  ),
+                              ];
+                            },
                           ),
                         ),
                         lineBarsData: [
@@ -1608,16 +1670,345 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
       ),
     ];
   }
+}
 
-  String _compactK(double value) {
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}K';
-    }
-    return value.toStringAsFixed(0);
+// Sales trend chart helpers.
+String _compactLitersLabel(double value) {
+  if (value >= 1000) {
+    return '${(value / 1000).toStringAsFixed(value >= 10000 ? 0 : 1)}K';
+  }
+  return value.toStringAsFixed(0);
+}
+
+String _monthlyTrendDateLabel(String raw) {
+  final date = DateTime.tryParse(raw);
+  if (date == null) return raw;
+  return '${date.day}/${date.month}';
+}
+
+LineTooltipItem _monthlyTrendTooltipItem(
+  LineBarSpot spot,
+  List<TrendPointModel> trend, {
+  required bool showDate,
+}) {
+  final index = spot.x.round().clamp(0, trend.length - 1).toInt();
+  final point = trend[index];
+  final isPetrol = spot.barIndex == 0;
+  final color = isPetrol ? const Color(0xFF1A3A7A) : const Color(0xFF2AA878);
+  final seriesLabel = isPetrol ? 'Petrol' : 'Diesel';
+  final prefix = showDate ? '${formatDateLabel(point.date)}\n' : '';
+
+  return LineTooltipItem(
+    '$prefix$seriesLabel ${formatLiters(spot.y)}',
+    TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
+  );
+}
+
+LineChartData _monthlySalesTrendChartData({
+  required List<TrendPointModel> trend,
+  required double maxFuelTrend,
+  required bool compact,
+}) {
+  final chartMaxY = maxFuelTrend <= 0 ? 10.0 : maxFuelTrend * 1.2;
+  final horizontalInterval = maxFuelTrend <= 0 ? 5.0 : chartMaxY / 4;
+
+  bool shouldShowBottomLabel(int index) {
+    if (!compact) return true;
+    if (trend.length <= 6) return true;
+    return index.isEven || index == trend.length - 1;
+  }
+
+  return LineChartData(
+    minX: 0,
+    maxX: (trend.length - 1).toDouble(),
+    minY: 0,
+    maxY: chartMaxY,
+    gridData: FlGridData(
+      show: true,
+      drawVerticalLine: false,
+      horizontalInterval: horizontalInterval,
+      getDrawingHorizontalLine: (_) => FlLine(
+        color: const Color(0xFFD8DCF0),
+        strokeWidth: 1,
+        dashArray: [4, 4],
+      ),
+    ),
+    titlesData: FlTitlesData(
+      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+      leftTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: compact ? 52 : 60,
+          interval: horizontalInterval,
+          getTitlesWidget: (value, meta) => SideTitleWidget(
+            axisSide: meta.axisSide,
+            space: compact ? 6 : 8,
+            child: Text(
+              '${_compactLitersLabel(value)} L',
+              style: TextStyle(
+                fontSize: compact ? 11 : 12,
+                color: const Color(0xFF8A93B8),
+              ),
+            ),
+          ),
+        ),
+      ),
+      bottomTitles: AxisTitles(
+        sideTitles: SideTitles(
+          showTitles: true,
+          reservedSize: compact ? 32 : 36,
+          interval: 1,
+          getTitlesWidget: (value, meta) {
+            final index = value.round();
+            if ((value - index).abs() > 0.01 ||
+                index < 0 ||
+                index >= trend.length ||
+                !shouldShowBottomLabel(index)) {
+              return const SizedBox.shrink();
+            }
+
+            return SideTitleWidget(
+              axisSide: meta.axisSide,
+              space: compact ? 8 : 10,
+              child: SizedBox(
+                width: compact ? 30 : 38,
+                child: Center(
+                  child: Text(
+                    _monthlyTrendDateLabel(trend[index].date),
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: compact ? 10 : 11,
+                      color: const Color(0xFF8A93B8),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+    borderData: FlBorderData(show: false),
+    lineTouchData: LineTouchData(
+      enabled: true,
+      touchTooltipData: LineTouchTooltipData(
+        fitInsideHorizontally: true,
+        fitInsideVertically: true,
+        getTooltipItems: (spots) {
+          final ordered = spots.toList()
+            ..sort((left, right) => left.barIndex.compareTo(right.barIndex));
+          return [
+            for (var i = 0; i < ordered.length; i++)
+              _monthlyTrendTooltipItem(ordered[i], trend, showDate: i == 0),
+          ];
+        },
+      ),
+      getTouchedSpotIndicator: (barData, spotIndexes) => [
+        for (final _ in spotIndexes)
+          TouchedSpotIndicatorData(
+            const FlLine(color: Color(0xFF9DB4E5), strokeWidth: 1.2),
+            FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+                radius: compact ? 4 : 5,
+                color: bar.color ?? const Color(0xFF1A3A7A),
+                strokeWidth: 2,
+                strokeColor: Colors.white,
+              ),
+            ),
+          ),
+      ],
+    ),
+    lineBarsData: [
+      LineChartBarData(
+        isCurved: true,
+        curveSmoothness: compact ? 0.28 : 0.22,
+        preventCurveOverShooting: true,
+        color: const Color(0xFF1A3A7A),
+        barWidth: compact ? 2.5 : 3,
+        isStrokeCapRound: true,
+        dotData: FlDotData(
+          show: compact ? trend.length <= 8 : true,
+          getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+            radius: compact ? 4 : 5,
+            color: const Color(0xFF1A3A7A),
+            strokeWidth: 2,
+            strokeColor: Colors.white,
+          ),
+        ),
+        belowBarData: BarAreaData(
+          show: true,
+          color: const Color(0xFF1A3A7A).withValues(alpha: 0.10),
+        ),
+        spots: [
+          for (var i = 0; i < trend.length; i++)
+            FlSpot(i.toDouble(), trend[i].petrolSold),
+        ],
+      ),
+      LineChartBarData(
+        isCurved: true,
+        curveSmoothness: compact ? 0.28 : 0.22,
+        preventCurveOverShooting: true,
+        color: const Color(0xFF2AA878),
+        barWidth: compact ? 2.5 : 3,
+        isStrokeCapRound: true,
+        dotData: FlDotData(
+          show: compact ? trend.length <= 8 : true,
+          getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
+            radius: compact ? 4 : 5,
+            color: const Color(0xFF2AA878),
+            strokeWidth: 2,
+            strokeColor: Colors.white,
+          ),
+        ),
+        belowBarData: BarAreaData(
+          show: true,
+          color: const Color(0xFF2AA878).withValues(alpha: 0.08),
+        ),
+        spots: [
+          for (var i = 0; i < trend.length; i++)
+            FlSpot(i.toDouble(), trend[i].dieselSold),
+        ],
+      ),
+    ],
+  );
+}
+
+class _MonthlySalesTrendFullScreenPage extends StatefulWidget {
+  const _MonthlySalesTrendFullScreenPage({
+    required this.trend,
+    required this.rangeLabel,
+  });
+
+  final List<TrendPointModel> trend;
+  final String rangeLabel;
+
+  @override
+  State<_MonthlySalesTrendFullScreenPage> createState() =>
+      _MonthlySalesTrendFullScreenPageState();
+}
+
+class _MonthlySalesTrendFullScreenPageState
+    extends State<_MonthlySalesTrendFullScreenPage> {
+  @override
+  void initState() {
+    super.initState();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
+
+  @override
+  void dispose() {
+    SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
+    super.dispose();
+  }
+
+  double get _maxFuelTrend => widget.trend.fold<double>(
+    0,
+    (max, item) =>
+        [max, item.petrolSold, item.dieselSold].reduce((a, b) => a > b ? a : b),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFECEFF8),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFECEFF8),
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded),
+          tooltip: 'Close',
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Sales Trend',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            ),
+            Text(
+              widget.rangeLabel,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF8A93B8)),
+            ),
+          ],
+        ),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+          child: Column(
+            children: [
+              const Row(
+                children: [
+                  _TrendLegendDot(color: Color(0xFF1A3A7A), label: 'Petrol'),
+                  SizedBox(width: 16),
+                  _TrendLegendDot(color: Color(0xFF2AA878), label: 'Diesel'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(10, 18, 18, 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFB8C0DC).withValues(alpha: 0.55),
+                        offset: const Offset(6, 6),
+                        blurRadius: 16,
+                      ),
+                    ],
+                  ),
+                  child: widget.trend.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No trend data for this filter.',
+                            style: TextStyle(color: Color(0xFF8A93B8)),
+                          ),
+                        )
+                      : LayoutBuilder(
+                          builder: (context, constraints) {
+                            final naturalWidth = widget.trend.length <= 12
+                                ? constraints.maxWidth
+                                : widget.trend.length * 54.0;
+                            final chartWidth =
+                                naturalWidth < constraints.maxWidth
+                                ? constraints.maxWidth
+                                : naturalWidth;
+
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox(
+                                width: chartWidth,
+                                height: constraints.maxHeight,
+                                child: LineChart(
+                                  _monthlySalesTrendChartData(
+                                    trend: widget.trend,
+                                    maxFuelTrend: _maxFuelTrend,
+                                    compact: false,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-// ─── Clay card ─────────────────────────────────────────────────────────────────
 PieChartSectionData _paymentPieSection(
   double value,
   double total,
@@ -1626,7 +2017,7 @@ PieChartSectionData _paymentPieSection(
   return PieChartSectionData(
     value: value,
     color: color,
-    title: value / total >= 0.05 ? '${((value / total) * 100).round()}%' : '',
+    title: value / total >= 0.005 ? '${((value / total) * 100).round()}%' : '',
     radius: 80,
     titleStyle: const TextStyle(
       color: Colors.white,

@@ -913,8 +913,8 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
   late Future<_StockHistoryData> _future;
   bool _showDeleted = false;
   bool _deleting = false;
-  String _fromDate = '';
-  String _toDate = '';
+  String _fromDate = currentMonthStartDateKey();
+  String _toDate = currentMonthEndDateKey();
   _StockHistorySort _sort = _StockHistorySort.savedNewest;
 
   @override
@@ -1008,11 +1008,15 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
 
   void _clearFilters() {
     setState(() {
-      _fromDate = '';
-      _toDate = '';
+      _fromDate = currentMonthStartDateKey();
+      _toDate = currentMonthEndDateKey();
       _future = _load(forceRefresh: true);
     });
   }
+
+  bool get _hasCustomDateRange =>
+      _fromDate != currentMonthStartDateKey() ||
+      _toDate != currentMonthEndDateKey();
 
   String _displayDate(String raw) =>
       raw.trim().isEmpty ? 'Not available' : formatDateLabel(raw);
@@ -1309,7 +1313,7 @@ class _StockHistoryScreenState extends State<_StockHistoryScreen> {
                           setState(() => _sort = value);
                         },
                       ),
-                      if (_fromDate.isNotEmpty || _toDate.isNotEmpty) ...[
+                      if (_hasCustomDateRange) ...[
                         const SizedBox(height: 10),
                         TextButton(
                           onPressed: _clearFilters,

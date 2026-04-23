@@ -28,8 +28,8 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   final InventoryService _inventoryService = InventoryService();
   late Future<List<DeliveryReceiptModel>> _future;
   late final StreamSubscription<ApiResponseCacheUpdate> _cacheSubscription;
-  String _fromDate = '';
-  String _toDate = '';
+  String _fromDate = currentMonthStartDateKey();
+  String _toDate = currentMonthEndDateKey();
   DeliveryFuelFilter _fuelFilter = DeliveryFuelFilter.all;
   _DeliveryHistorySort _sort = _DeliveryHistorySort.purchaseNewest;
   AuthUser? _currentUser;
@@ -131,7 +131,11 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
   }
 
   Future<List<DeliveryReceiptModel>> _load({bool forceRefresh = false}) {
-    return _inventoryService.fetchDeliveries(forceRefresh: forceRefresh);
+    return _inventoryService.fetchDeliveries(
+      fromDate: _fromDate,
+      toDate: _toDate,
+      forceRefresh: forceRefresh,
+    );
   }
 
   Future<void> _refresh() async {
@@ -145,11 +149,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
     return userFacingErrorMessage(error);
   }
 
-  String _apiDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
+  String _apiDate(DateTime date) => apiDateKey(date);
 
   int _compareDateValues(String left, String right) {
     final leftDate = DateTime.tryParse(left);
@@ -201,12 +201,23 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
         case _DeliveryHistorySort.purchaseOldest:
           return _compareDateValues(left.date, right.date);
         case _DeliveryHistorySort.quantityHigh:
-          return right.quantity.compareTo(left.quantity);
+          return _compareVolumeThenDate(right, left);
         case _DeliveryHistorySort.quantityLow:
-          return left.quantity.compareTo(right.quantity);
+          return _compareVolumeThenDate(left, right);
       }
     });
     return filtered;
+  }
+
+  int _compareVolumeThenDate(
+    DeliveryReceiptModel left,
+    DeliveryReceiptModel right,
+  ) {
+    final byVolume = _filteredVolume(left).compareTo(_filteredVolume(right));
+    if (byVolume != 0) {
+      return byVolume;
+    }
+    return _compareDateValues(right.date, left.date);
   }
 
   String _fuelFilterLabel(DeliveryFuelFilter filter) {
@@ -266,21 +277,26 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
       } else {
         _toDate = value;
       }
+      _future = _load(forceRefresh: true);
     });
   }
 
   void _clearFilters() {
     setState(() {
-      _fromDate = '';
-      _toDate = '';
+      _fromDate = currentMonthStartDateKey();
+      _toDate = currentMonthEndDateKey();
       _fuelFilter = DeliveryFuelFilter.all;
       _sort = _DeliveryHistorySort.purchaseNewest;
+      _future = _load(forceRefresh: true);
     });
   }
 
+  bool get _hasCustomDateRange =>
+      _fromDate != currentMonthStartDateKey() ||
+      _toDate != currentMonthEndDateKey();
+
   bool get _hasFilters =>
-      _fromDate.isNotEmpty ||
-      _toDate.isNotEmpty ||
+      _hasCustomDateRange ||
       _fuelFilter != DeliveryFuelFilter.all ||
       _sort != _DeliveryHistorySort.purchaseNewest;
 
@@ -394,7 +410,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
           Text(
             hasPurchases
                 ? 'No purchases match these filters'
-                : 'No purchases recorded yet',
+                : 'No purchases for selected dates',
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: kClayPrimary,
@@ -406,7 +422,7 @@ class _DeliveryHistoryScreenState extends State<DeliveryHistoryScreen> {
           Text(
             hasPurchases
                 ? 'Change the date range, fuel type, or sorting to find older records.'
-                : 'Recorded fuel purchases will appear here with date, quantity, and notes.',
+                : 'Change the date range or record a purchase to show it here.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: kClaySub, fontSize: 12, height: 1.35),
           ),

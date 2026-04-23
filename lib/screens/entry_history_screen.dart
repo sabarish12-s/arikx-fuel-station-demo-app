@@ -30,9 +30,8 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    final today = DateTime.now();
-    _toDate = DateTime(today.year, today.month, today.day);
-    _fromDate = _toDate.subtract(const Duration(days: 29));
+    _fromDate = currentMonthStartDate();
+    _toDate = currentMonthEndDate();
     _future = _loadEntries();
     _cacheSubscription = ApiResponseCache.updates.listen((update) {
       if (!mounted ||
@@ -52,11 +51,7 @@ class _EntryHistoryScreenState extends State<EntryHistoryScreen> {
     super.dispose();
   }
 
-  String _toApiDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
+  String _toApiDate(DateTime date) => apiDateKey(date);
 
   Future<List<ShiftEntryModel>> _loadEntries({bool forceRefresh = false}) {
     return _salesService.fetchEntries(

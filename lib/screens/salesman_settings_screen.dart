@@ -35,7 +35,9 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
 
   Future<void> _reload({bool forceRefresh = true}) async {
     setState(() {
-      _future = _inventoryService.fetchStationConfig(forceRefresh: forceRefresh);
+      _future = _inventoryService.fetchStationConfig(
+        forceRefresh: forceRefresh,
+      );
     });
     await _future;
   }
@@ -47,9 +49,9 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Salesman settings saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Salesman settings saved.')));
       await _reload();
     } catch (error) {
       if (!mounted) {
@@ -103,9 +105,7 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
               children: [
                 TextFormField(
                   controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Salesman name',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Salesman name'),
                   validator: (value) {
                     if ((value ?? '').trim().isEmpty) {
                       return 'Enter salesman name.';
@@ -119,7 +119,8 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                   textCapitalization: TextCapitalization.characters,
                   decoration: const InputDecoration(
                     labelText: 'Unique code',
-                    helperText: 'Duplicate names are allowed. Code must be unique.',
+                    helperText:
+                        'Duplicate names are allowed. Code must be unique.',
                   ),
                   validator: (value) {
                     if ((value ?? '').trim().isEmpty) {
@@ -133,7 +134,9 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                   contentPadding: EdgeInsets.zero,
                   value: active,
                   title: const Text('Active'),
-                  subtitle: const Text('Inactive salesmen stay in history but are hidden for new selection.'),
+                  subtitle: const Text(
+                    'Inactive salesmen stay in history but are hidden for new selection.',
+                  ),
                   onChanged: (value) => setDialogState(() => active = value),
                 ),
               ],
@@ -202,10 +205,14 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
         }
 
         final station = snapshot.data!;
-        final activeSalesmen = station.salesmen.where((item) => item.active).toList()
-          ..sort((left, right) => left.displayLabel.compareTo(right.displayLabel));
-        final inactiveSalesmen = station.salesmen.where((item) => !item.active).toList()
-          ..sort((left, right) => left.displayLabel.compareTo(right.displayLabel));
+        final activeSalesmen =
+            station.salesmen.where((item) => item.active).toList()..sort(
+              (left, right) => left.displayLabel.compareTo(right.displayLabel),
+            );
+        final inactiveSalesmen =
+            station.salesmen.where((item) => !item.active).toList()..sort(
+              (left, right) => left.displayLabel.compareTo(right.displayLabel),
+            );
 
         return RefreshIndicator(
           onRefresh: _reload,
@@ -240,8 +247,9 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                           ),
                           if (widget.canEdit)
                             FilledButton.icon(
-                              onPressed:
-                                  _saving ? null : () => _openEditor(station),
+                              onPressed: _saving
+                                  ? null
+                                  : () => _openEditor(station),
                               icon: const Icon(Icons.add_rounded),
                               label: const Text('Add'),
                             ),
@@ -257,6 +265,22 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                           height: 1.4,
                           fontWeight: FontWeight.w600,
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _SalesmanCountPill(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Active',
+                            value: activeSalesmen.length.toString(),
+                          ),
+                          const SizedBox(width: 10),
+                          _SalesmanCountPill(
+                            icon: Icons.groups_2_outlined,
+                            label: 'Total',
+                            value: station.salesmen.length.toString(),
+                          ),
+                        ],
                       ),
                       if (_saving) ...[
                         const SizedBox(height: 12),
@@ -278,7 +302,8 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                             canEdit: widget.canEdit,
                             onEdit: _saving
                                 ? null
-                                : () => _openEditor(station, existing: salesman),
+                                : () =>
+                                      _openEditor(station, existing: salesman),
                             onToggle: _saving
                                 ? null
                                 : () => _toggleActive(station, salesman),
@@ -317,7 +342,8 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
                             canEdit: widget.canEdit,
                             onEdit: _saving
                                 ? null
-                                : () => _openEditor(station, existing: salesman),
+                                : () =>
+                                      _openEditor(station, existing: salesman),
                             onToggle: _saving
                                 ? null
                                 : () => _toggleActive(station, salesman),
@@ -351,10 +377,7 @@ class _SalesmanSettingsScreenState extends State<SalesmanSettingsScreen> {
 }
 
 class _SalesmanHeroCard extends StatelessWidget {
-  const _SalesmanHeroCard({
-    required this.canEdit,
-    this.onBack,
-  });
+  const _SalesmanHeroCard({required this.canEdit, this.onBack});
 
   final bool canEdit;
   final VoidCallback? onBack;
@@ -406,6 +429,61 @@ class _SalesmanHeroCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SalesmanCountPill extends StatelessWidget {
+  const _SalesmanCountPill({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFECEFF8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFDDE3F0)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: kClayPrimary, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  OneLineScaleText(
+                    value,
+                    style: const TextStyle(
+                      color: kClayPrimary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  OneLineScaleText(
+                    label,
+                    style: const TextStyle(
+                      color: kClaySub,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

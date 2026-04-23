@@ -188,6 +188,28 @@ String currentMonthKey() {
   return '${now.year}-$month';
 }
 
+String apiDateKey(DateTime date) {
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '${date.year}-$month-$day';
+}
+
+DateTime currentMonthStartDate([DateTime? baseDate]) {
+  final date = baseDate ?? DateTime.now();
+  return DateTime(date.year, date.month);
+}
+
+DateTime currentMonthEndDate([DateTime? baseDate]) {
+  final date = baseDate ?? DateTime.now();
+  return DateTime(date.year, date.month + 1, 0);
+}
+
+String currentMonthStartDateKey([DateTime? baseDate]) =>
+    apiDateKey(currentMonthStartDate(baseDate));
+
+String currentMonthEndDateKey([DateTime? baseDate]) =>
+    apiDateKey(currentMonthEndDate(baseDate));
+
 Color colorFromHex(String value) {
   final String hex = value.replaceAll('#', '');
   final String normalized = hex.length == 6 ? 'FF$hex' : hex;

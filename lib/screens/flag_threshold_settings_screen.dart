@@ -85,7 +85,6 @@ class _FlagThresholdSettingsScreenState
         shifts: station.shifts,
         pumps: station.pumps,
         baseReadings: station.baseReadings,
-        meterLimits: station.meterLimits,
         inventoryPlanning: station.inventoryPlanning,
         flagThreshold: value,
       );
