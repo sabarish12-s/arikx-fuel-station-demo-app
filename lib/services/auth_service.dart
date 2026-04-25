@@ -98,42 +98,28 @@ class AuthService {
       );
     }
 
-    UserCredential? firebaseCredential;
-    GoogleSignInAccount? account;
-    String? idToken;
-    String? accessToken;
-    try {
-      firebaseCredential = await FirebaseAuth.instance.signInWithProvider(
-        GoogleAuthProvider(),
-      );
-    } on FirebaseAuthException catch (error) {
-      if (error.code == 'operation-not-allowed') {
-        rethrow;
-      }
-    } catch (_) {
-      // Some Android builds use the Google Sign-In plugin flow below.
+    await _getGoogleSignIn();
+    await _clearGoogleSession();
+    final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();
+    final GoogleSignInAccount? account = await freshGoogleSignIn.signIn();
+    if (account == null) {
+      throw Exception('Google Sign-In was cancelled.');
     }
 
-    if (firebaseCredential?.user == null) {
-      await _getGoogleSignIn();
-      await _clearGoogleSession();
-      final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();
-      account = await freshGoogleSignIn.signIn();
-      if (account == null) {
-        throw Exception('Google Sign-In was cancelled.');
-      }
+    final GoogleSignInAuthentication authentication =
+        await account.authentication;
+    final String? idToken = authentication.idToken;
+    final String? accessToken = authentication.accessToken;
+    if ((idToken == null || idToken.isEmpty) &&
+        (accessToken == null || accessToken.isEmpty)) {
+      throw Exception(
+        'Google credentials are empty. Check Firebase Google Sign-In setup.',
+      );
+    }
 
-      final GoogleSignInAuthentication authentication =
-          await account.authentication;
-      idToken = authentication.idToken;
-      accessToken = authentication.accessToken;
-      if ((idToken == null || idToken.isEmpty) &&
-          (accessToken == null || accessToken.isEmpty)) {
-        throw Exception(
-          'Google credentials are empty. Check Firebase Google Sign-In setup.',
-        );
-      }
-
+    UserCredential? firebaseCredential;
+    FirebaseAuthException? firebaseAuthError;
+    try {
       final credential = GoogleAuthProvider.credential(
         idToken: idToken?.isNotEmpty == true ? idToken : null,
         accessToken: accessToken?.isNotEmpty == true ? accessToken : null,
@@ -141,14 +127,30 @@ class AuthService {
       firebaseCredential = await FirebaseAuth.instance.signInWithCredential(
         credential,
       );
+    } on FirebaseAuthException catch (error) {
+      firebaseAuthError = error;
     }
 
     final User? firebaseUser = firebaseCredential?.user;
-    if (firebaseUser == null) {
-      throw Exception('Firebase did not return a signed-in Google user.');
+    if (firebaseUser == null && authBackendBaseUrl.trim().isEmpty) {
+      Error.throwWithStackTrace(
+        firebaseAuthError ??
+            Exception('Firebase did not return a signed-in Google user.'),
+        StackTrace.current,
+      );
     }
 
-    String token = await firebaseUser.getIdToken(true) ?? '';
+    if (firebaseUser == null) {
+      final AuthResponse authResponse = await _signInWithApprovedGoogleUser(
+        idToken: idToken,
+        accessToken: accessToken,
+        account: account,
+      );
+      await _persistAuth(authResponse);
+      return authResponse;
+    }
+
+    final String token = await firebaseUser.getIdToken(true) ?? '';
     if (token.isEmpty) {
       throw Exception('Firebase ID token missing after Google sign-in.');
     }
@@ -156,13 +158,53 @@ class AuthService {
     final AuthUser user = authBackendBaseUrl.trim().isEmpty
         ? _localDemoUser(
             id: firebaseUser.uid,
-            name: firebaseUser.displayName ?? account?.displayName ?? '',
-            email: firebaseUser.email ?? account?.email ?? '',
+            name: firebaseUser.displayName ?? account.displayName ?? '',
+            email: firebaseUser.email ?? account.email,
           )
         : await _fetchApprovedUser(token);
     final AuthResponse authResponse = AuthResponse(user: user, token: token);
     await _persistAuth(authResponse);
     return authResponse;
+  }
+
+  Future<AuthResponse> _signInWithApprovedGoogleUser({
+    required String? idToken,
+    required String? accessToken,
+    required GoogleSignInAccount account,
+  }) async {
+    final Uri uri = Uri.parse('${authBackendBaseUrl.trim()}/auth/google');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'idToken': idToken,
+        'accessToken': accessToken,
+        'googleUserId': account.id,
+        'email': account.email,
+        'name': account.displayName,
+        'photoUrl': account.photoUrl,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_authBackendError(response, 'Access approval failed.'));
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final String customToken = json['customToken']?.toString() ?? '';
+    if (customToken.isEmpty) {
+      throw Exception('Approval service did not return a Firebase token.');
+    }
+    final credential = await FirebaseAuth.instance.signInWithCustomToken(
+      customToken,
+    );
+    final User? firebaseUser = credential.user;
+    final String firebaseIdToken = await firebaseUser?.getIdToken(true) ?? '';
+    if (firebaseIdToken.isEmpty) {
+      throw Exception('Firebase ID token missing after approved sign-in.');
+    }
+    final AuthUser user = AuthUser.fromJson(
+      json['user'] as Map<String, dynamic>? ?? const {},
+    );
+    return AuthResponse(user: user, token: firebaseIdToken);
   }
 
   Future<AuthUser> _fetchApprovedUser(String token) async {
@@ -175,19 +217,21 @@ class AuthService {
       },
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      String message = 'Access approval check failed.';
-      try {
-        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-        message = decoded['message']?.toString() ?? message;
-      } catch (_) {
-        if (response.body.trim().isNotEmpty) {
-          message = response.body.trim();
-        }
-      }
-      throw Exception(message);
+      throw Exception(
+        _authBackendError(response, 'Access approval check failed.'),
+      );
     }
     final json = jsonDecode(response.body) as Map<String, dynamic>;
     return AuthUser.fromJson(json['user'] as Map<String, dynamic>? ?? const {});
+  }
+
+  String _authBackendError(http.Response response, String fallback) {
+    try {
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return decoded['message']?.toString() ?? fallback;
+    } catch (_) {
+      return response.body.trim().isEmpty ? fallback : response.body.trim();
+    }
   }
 
   AuthUser _localDemoUser({

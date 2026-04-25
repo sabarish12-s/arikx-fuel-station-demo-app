@@ -250,6 +250,102 @@ async function createOrUpdateStaff(body) {
   return setAccess(user.uid, 'approved', String(body.role || 'sales'));
 }
 
+async function verifyGoogleIdentity(body) {
+  const idToken = String(body.idToken || '').trim();
+  const accessToken = String(body.accessToken || '').trim();
+  let tokenInfo;
+
+  if (idToken) {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
+    );
+    tokenInfo = await response.json();
+    if (!response.ok) {
+      const error = new Error(tokenInfo.error_description || 'Google ID token is invalid.');
+      error.statusCode = 401;
+      throw error;
+    }
+  } else if (accessToken) {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
+    );
+    tokenInfo = await response.json();
+    if (!response.ok) {
+      const error = new Error(tokenInfo.error_description || 'Google access token is invalid.');
+      error.statusCode = 401;
+      throw error;
+    }
+  } else {
+    const error = new Error('Google token is required.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const verifiedEmail = normalizeEmail(tokenInfo.email);
+  const requestedEmail = normalizeEmail(body.email);
+  if (!verifiedEmail || (requestedEmail && requestedEmail !== verifiedEmail)) {
+    const error = new Error('Google account email could not be verified.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  if (
+    tokenInfo.email_verified !== undefined &&
+    String(tokenInfo.email_verified).toLowerCase() !== 'true'
+  ) {
+    const error = new Error('Google account email is not verified.');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  return {
+    email: verifiedEmail,
+    name: String(body.name || tokenInfo.name || verifiedEmail.split('@')[0]).trim(),
+    photoUrl: String(body.photoUrl || tokenInfo.picture || '').trim(),
+  };
+}
+
+async function firebaseUserForGoogleIdentity(identity) {
+  let user;
+  try {
+    user = await auth().getUserByEmail(identity.email);
+  } catch (error) {
+    if (error.code !== 'auth/user-not-found') {
+      throw error;
+    }
+    user = await auth().createUser({
+      email: identity.email,
+      displayName: identity.name,
+      photoURL: identity.photoUrl || undefined,
+      emailVerified: true,
+    });
+  }
+
+  const updates = {};
+  if (identity.name && user.displayName !== identity.name) {
+    updates.displayName = identity.name;
+  }
+  if (identity.photoUrl && user.photoURL !== identity.photoUrl) {
+    updates.photoURL = identity.photoUrl;
+  }
+  if (!user.emailVerified) {
+    updates.emailVerified = true;
+  }
+  if (Object.keys(updates).length > 0) {
+    user = await auth().updateUser(user.uid, updates);
+  }
+
+  if (normalizeEmail(user.email) === SUPERADMIN_EMAIL) {
+    await ensureSuperadmin(user);
+  } else {
+    const claims = user.customClaims || {};
+    if (!claims.status) {
+      user = await setAccess(user.uid, 'pending', 'sales');
+    }
+  }
+  return auth().getUser(user.uid);
+}
+
 async function route(req, res) {
   if (req.method === 'OPTIONS') {
     send(res, 204, {});
@@ -261,6 +357,14 @@ async function route(req, res) {
 
   if (req.method === 'GET' && pathname === '/health') {
     send(res, 200, { ok: true, app: 'Arikx fuel station auth' });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/auth/google') {
+    const identity = await verifyGoogleIdentity(await readJson(req));
+    const user = await firebaseUserForGoogleIdentity(identity);
+    const customToken = await auth().createCustomToken(user.uid);
+    send(res, 200, { user: authUserJson(user), customToken });
     return;
   }
 
