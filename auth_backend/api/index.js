@@ -239,6 +239,16 @@ async function setAccess(uid, status, role, rejectionReason = '') {
   return auth().getUser(uid);
 }
 
+async function deleteManagedUser(uid) {
+  const user = await auth().getUser(uid);
+  if (normalizeEmail(user.email) === SUPERADMIN_EMAIL) {
+    const error = new Error('The superadmin account cannot be deleted.');
+    error.statusCode = 400;
+    throw error;
+  }
+  await auth().deleteUser(uid);
+}
+
 async function createOrUpdateStaff(body) {
   const email = normalizeEmail(body.email);
   if (!email) {
@@ -487,7 +497,7 @@ async function route(req, res) {
     await requireSuperadmin(req);
     const body = await readJson(req);
     const ids = Array.isArray(body.requestIds) ? body.requestIds : [];
-    await Promise.all(ids.map((uid) => setAccess(String(uid), 'rejected', 'sales', 'Deleted by superadmin.')));
+    await Promise.all(ids.map((uid) => deleteManagedUser(String(uid))));
     send(res, 200, { ok: true });
     return;
   }
@@ -510,7 +520,7 @@ async function route(req, res) {
 
   if (staffMatch && req.method === 'DELETE') {
     await requireSuperadmin(req);
-    await auth().deleteUser(staffMatch[1]);
+    await deleteManagedUser(staffMatch[1]);
     send(res, 200, { ok: true });
     return;
   }

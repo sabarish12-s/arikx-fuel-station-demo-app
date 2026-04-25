@@ -15,7 +15,8 @@ const String deviceAccountAuthKey = String.fromEnvironment(
 
 const String googleWebClientId = String.fromEnvironment(
   'GOOGLE_WEB_CLIENT_ID',
-  defaultValue: '',
+  defaultValue:
+      '62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com',
 );
 
 const String googleClientId = String.fromEnvironment(

@@ -270,6 +270,30 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     await _reload();
   }
 
+  Future<void> _deleteRequest(AccessRequest request) async {
+    final shouldDelete = await showClayConfirmDialog(
+      context: context,
+      title: 'Delete Pending Request',
+      message: 'Delete ${request.email} and remove this pending user?',
+      confirmLabel: 'Delete',
+      icon: Icons.person_remove_alt_1_rounded,
+      destructive: true,
+    );
+
+    if (!shouldDelete) {
+      return;
+    }
+
+    await _service.bulkDeleteRequests([request.id]);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${request.email} deleted.')));
+    await _reload();
+  }
+
   Future<void> _saveStaffRole(ManagedUser user, String role) async {
     await _service.updateStaffRole(userId: user.id, role: role);
     if (!mounted) {
@@ -487,15 +511,33 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            FilledButton(
-                              onPressed: () =>
-                                  _approveRequest(request, selectedRole),
-                              child: const Text('Approve'),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () =>
+                                    _approveRequest(request, selectedRole),
+                                child: const Text('Approve'),
+                              ),
                             ),
                             const SizedBox(width: 10),
-                            OutlinedButton(
-                              onPressed: () => _rejectRequest(request),
-                              child: const Text('Reject'),
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => _rejectRequest(request),
+                                child: const Text('Reject'),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () => _deleteRequest(request),
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 18,
+                                ),
+                                label: const Text('Delete'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFFAD5162),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -918,10 +960,25 @@ class _StaffUserCard extends StatelessWidget {
             _RoleDisplay(role: selectedRole),
           const SizedBox(height: 12),
           if (canManage && !isEditing)
-            _StaffActionButton(
-              icon: Icons.edit_rounded,
-              label: 'Edit role',
-              onTap: onEdit,
+            Row(
+              children: [
+                Expanded(
+                  child: _StaffActionButton(
+                    icon: Icons.edit_rounded,
+                    label: 'Edit role',
+                    onTap: onEdit,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _StaffActionButton(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Delete',
+                    onTap: onDelete,
+                    destructive: true,
+                  ),
+                ),
+              ],
             )
           else if (canManage && isEditing)
             Row(

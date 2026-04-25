@@ -1,6 +1,5 @@
 package com.arikx.fuelstation.demo
 
-import android.accounts.AccountManager
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -16,7 +15,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.google.android.gms.common.AccountPicker
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
@@ -29,10 +27,7 @@ class MainActivity : FlutterActivity() {
         private const val NOTIFICATIONS_CHANNEL = "com.rk.fuels.rk_fuels/notifications"
         private const val DOWNLOAD_NOTIFICATION_CHANNEL_ID = "download_reports"
         private const val NOTIFICATION_PERMISSION_REQUEST_CODE = 4201
-        private const val ACCOUNT_PICKER_REQUEST_CODE = 4202
     }
-
-    private var pendingAccountPickerResult: MethodChannel.Result? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -53,8 +48,6 @@ class MainActivity : FlutterActivity() {
                 } else {
                     result.success(null)
                 }
-            } else if (call.method == "pickGoogleAccount") {
-                pickGoogleAccount(result)
             } else {
                 result.notImplemented()
             }
@@ -105,53 +98,6 @@ class MainActivity : FlutterActivity() {
                 }
                 else -> result.notImplemented()
             }
-        }
-    }
-
-    @Deprecated("Deprecated in Android framework, still used by AccountPicker.")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode != ACCOUNT_PICKER_REQUEST_CODE) {
-            return
-        }
-
-        val result = pendingAccountPickerResult ?: return
-        pendingAccountPickerResult = null
-        if (resultCode != RESULT_OK) {
-            result.error("account_picker_cancelled", "Google account selection was cancelled.", null)
-            return
-        }
-
-        val email = data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME).orEmpty()
-        if (email.isBlank()) {
-            result.error("account_picker_empty", "No Google account was selected.", null)
-            return
-        }
-        result.success(email)
-    }
-
-    private fun pickGoogleAccount(result: MethodChannel.Result) {
-        if (pendingAccountPickerResult != null) {
-            result.error("account_picker_busy", "Google account picker is already open.", null)
-            return
-        }
-
-        pendingAccountPickerResult = result
-        try {
-            val intent = AccountPicker.newChooseAccountIntent(
-                null,
-                null,
-                arrayOf("com.google"),
-                false,
-                null,
-                null,
-                null,
-                null
-            )
-            startActivityForResult(intent, ACCOUNT_PICKER_REQUEST_CODE)
-        } catch (error: Exception) {
-            pendingAccountPickerResult = null
-            result.error("account_picker_failed", error.message, null)
         }
     }
 
