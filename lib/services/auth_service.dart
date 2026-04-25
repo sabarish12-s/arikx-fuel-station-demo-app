@@ -98,6 +98,17 @@ class AuthService {
       );
     }
 
+    final bool useSingleNativeAccountPicker =
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        authBackendBaseUrl.trim().isNotEmpty &&
+        deviceAccountAuthKey.trim().isNotEmpty;
+    if (useSingleNativeAccountPicker) {
+      final AuthResponse authResponse = await _signInWithDeviceGoogleAccount();
+      await _persistAuth(authResponse);
+      return authResponse;
+    }
+
     await _getGoogleSignIn();
     await _clearGoogleSession();
     final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();

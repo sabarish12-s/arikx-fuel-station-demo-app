@@ -1432,6 +1432,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                         lineBarsData: [
                           LineChartBarData(
                             isCurved: true,
+                            curveSmoothness: 0.20,
+                            preventCurveOverShooting: true,
                             color: const Color(0xFF1A3A7A),
                             barWidth: 2.5,
                             dotData: FlDotData(
@@ -1460,6 +1462,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
                           ),
                           LineChartBarData(
                             isCurved: true,
+                            curveSmoothness: 0.20,
+                            preventCurveOverShooting: true,
                             color: const Color(0xFF2AA878),
                             barWidth: 2.5,
                             dotData: FlDotData(

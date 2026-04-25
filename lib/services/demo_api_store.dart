@@ -442,7 +442,7 @@ class DemoApiStore {
       'name': 'Arikx fuel station',
       'code': 'FSD-001',
       'city': 'Demo City',
-      'shifts': ['Morning', 'Afternoon', 'Night'],
+      'shifts': ['Daily'],
       'pumps': [
         {'id': 'pump1', 'label': 'Pump 1'},
         {'id': 'pump2', 'label': 'Pump 2'},
@@ -488,8 +488,8 @@ class DemoApiStore {
       final petrolDay = 3000.0 + ((dayIndex % 5) - 2) * 60.0;
       final dieselDay = 3000.0 + ((dayIndex % 7) - 3) * 45.0;
       final twoTDay = 24.0 + (dayIndex % 4) * 2.0;
-      for (var shiftIndex = 0; shiftIndex < 3; shiftIndex++) {
-        final shiftWeights = [0.36, 0.34, 0.30];
+      for (var shiftIndex = 0; shiftIndex < 1; shiftIndex++) {
+        final shiftWeights = [1.0];
         final pumpPetrolWeights = [0.34, 0.31, 0.19, 0.16];
         final pumpDieselWeights = [0.15, 0.18, 0.34, 0.33];
         final pumpTwoTWeights = [0.35, 0.25, 0.20, 0.20];
@@ -588,12 +588,12 @@ class DemoApiStore {
               ]
             : <Map<String, dynamic>>[];
 
-        final flagged = dayIndex % 8 == 0 && shiftIndex == 2;
+        final flagged = dayIndex % 8 == 0;
         final entry = {
-          'id': 'entry-$date-${shiftIndex + 1}',
+          'id': 'entry-$date',
           'stationId': _stationId,
           'date': date,
-          'shift': ['Morning', 'Afternoon', 'Night'][shiftIndex],
+          'shift': 'Daily',
           'status': 'approved',
           'flagged': flagged,
           'varianceNote': flagged
@@ -979,7 +979,7 @@ class DemoApiStore {
           'entry-$entryDate-custom-${DateTime.now().millisecondsSinceEpoch}',
       'stationId': _stationId,
       'date': entryDate,
-      'shift': data['shift']?.toString() ?? 'Demo Entry',
+      'shift': data['shift']?.toString() ?? 'Daily',
       'status': status,
       'flagged': false,
       'varianceNote': '',
@@ -1037,7 +1037,10 @@ class DemoApiStore {
   }
 
   void _upsertEntry(Map<String, dynamic> entry) {
-    _entries.removeWhere((item) => item['id'] == entry['id']);
+    final entryDate = entry['date']?.toString() ?? '';
+    _entries.removeWhere(
+      (item) => item['id'] == entry['id'] || item['date'] == entryDate,
+    );
     _entries.add(entry);
     _refreshStationStock();
   }
@@ -1185,21 +1188,24 @@ class DemoApiStore {
   }
 
   List<Map<String, dynamic>> _monthlyTrend(String fromDate, String toDate) {
-    return _datesBetween(fromDate, toDate).map((date) {
-      final entries = _entriesForRange(date, date);
-      final totals = _entryTotals(entries);
-      return {
-        'date': date,
-        'revenue': totals['revenue'],
-        'paymentTotal': totals['paymentTotal'],
-        'profit': totals['profit'],
-        'petrolSold': totals['petrolSold'],
-        'dieselSold': totals['dieselSold'],
-        'twoTSold': totals['twoTSold'],
-        'entries': totals['entriesCompleted'],
-        'shifts': totals['shiftsCompleted'],
-      };
-    }).toList();
+    return _datesBetween(fromDate, toDate)
+        .map((date) {
+          final entries = _entriesForRange(date, date);
+          final totals = _entryTotals(entries);
+          return {
+            'date': date,
+            'revenue': totals['revenue'],
+            'paymentTotal': totals['paymentTotal'],
+            'profit': totals['profit'],
+            'petrolSold': totals['petrolSold'],
+            'dieselSold': totals['dieselSold'],
+            'twoTSold': totals['twoTSold'],
+            'entries': totals['entriesCompleted'],
+            'shifts': totals['shiftsCompleted'],
+          };
+        })
+        .where((point) => _double(point['entries']) > 0)
+        .toList();
   }
 
   Map<String, double> _paymentBreakdown(List<Map<String, dynamic>> entries) {
