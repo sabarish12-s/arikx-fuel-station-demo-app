@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rk_fuels/utils/user_facing_errors.dart';
+import 'package:fuel_station_demo_app/utils/user_facing_errors.dart';
 
 void main() {
   group('userFacingErrorMessage', () {

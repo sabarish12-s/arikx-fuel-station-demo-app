@@ -192,7 +192,7 @@ class ReportExportService {
   }) {
     final buffer = StringBuffer();
 
-    buffer.writeln('RK Fuels - Sales Report');
+    buffer.writeln('Arikx fuel station - Sales Report');
     if (fromLabel.isNotEmpty && toLabel.isNotEmpty) {
       buffer.writeln('Period: $fromLabel to $toLabel');
     } else if (report.fromDate.isNotEmpty && report.toDate.isNotEmpty) {
@@ -291,7 +291,7 @@ class ReportExportService {
   }) {
     final buffer = StringBuffer();
 
-    buffer.writeln('RK Fuels - Stock Report');
+    buffer.writeln('Arikx fuel station - Stock Report');
     if (fromLabel.isNotEmpty && toLabel.isNotEmpty) {
       buffer.writeln('Period: $fromLabel to $toLabel');
     }

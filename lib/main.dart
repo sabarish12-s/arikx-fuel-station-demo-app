@@ -5,23 +5,21 @@ import 'firebase_options.dart';
 import 'models/auth_models.dart';
 import 'navigation/app_router.dart';
 import 'services/auth_service.dart';
-import 'services/notification_service.dart';
 import 'widgets/clay_widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await NotificationService.instance.initialize();
-  runApp(const RkFuelsApp());
+  runApp(const FuelStationDemoApp());
 }
 
-class RkFuelsApp extends StatelessWidget {
-  const RkFuelsApp({super.key});
+class FuelStationDemoApp extends StatelessWidget {
+  const FuelStationDemoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RK Fuels',
+      title: 'Arikx fuel station',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5D86EA)),

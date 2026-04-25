@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rk_fuels/models/domain_models.dart';
-import 'package:rk_fuels/utils/fuel_prices.dart';
+import 'package:fuel_station_demo_app/models/domain_models.dart';
+import 'package:fuel_station_demo_app/utils/fuel_prices.dart';
 
 void main() {
   group('mergePriceSnapshots', () {

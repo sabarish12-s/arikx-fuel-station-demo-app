@@ -1,21 +1,13 @@
 {
-  "functions": [
-    {
-      "source": "functions"
-    }
-  ],
-  "hosting": {
-    "public": "build/web",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Arikx fuel station",
+        "supportEmail": "sabarish1199@gmail.com",
+        "authorizedRedirectUris": [
+          "https://fuel-station-demo-app.firebaseapp.com/__/auth/handler"
+        ]
       }
-    ]
+    }
   }
 }

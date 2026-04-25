@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 
 void main() {
-  final input = File('assets/images/hp_logo.webp');
-  final output = File('assets/images/hp_logo.png');
+  final input = File('assets/images/arikx_icon_bg_0A0A0A.png');
+  final output = File('assets/images/arikx_icon_bg_0A0A0A.png');
 
   if (!input.existsSync()) {
     stderr.writeln('Missing input file: ${input.path}');

@@ -7,15 +7,21 @@ import '../config/app_config.dart';
 import '../utils/user_facing_errors.dart';
 import 'api_response_cache.dart';
 import 'auth_service.dart';
+import 'demo_api_store.dart';
 
 enum ApiCachePolicy { cacheFirst, networkFirst }
 
 class ApiClient {
   ApiClient(this._authService, {http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+    : _httpClient = httpClient ?? http.Client(),
+      _hasInjectedHttpClient = httpClient != null;
 
   final AuthService _authService;
   final http.Client _httpClient;
+  final bool _hasInjectedHttpClient;
+
+  bool get _usesDemoBackend =>
+      backendBaseUrl.startsWith('demo://') && !_hasInjectedHttpClient;
 
   Future<Map<String, String>> authorizedHeaders() async {
     final String? token = await _authService.readJwtToken();
@@ -33,6 +39,10 @@ class ApiClient {
     Duration maxCacheAge = const Duration(minutes: 2),
     bool refreshInBackground = false,
   }) async {
+    if (_usesDemoBackend) {
+      return DemoApiStore.instance.request('GET', path);
+    }
+
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final headers = await authorizedHeaders();
     final cacheKey = useCache
@@ -46,8 +56,7 @@ class ApiClient {
         !forceRefresh &&
         cachePolicy == ApiCachePolicy.cacheFirst) {
       final cached = await ApiResponseCache.read(cacheKey);
-      if (cached != null &&
-          ApiResponseCache.ageOf(cached) <= maxCacheAge) {
+      if (cached != null && ApiResponseCache.ageOf(cached) <= maxCacheAge) {
         if (refreshInBackground) {
           unawaited(_refreshCachedGet(uri, path, headers, cacheKey));
         }
@@ -63,8 +72,7 @@ class ApiClient {
     try {
       response = await _httpClient.get(uri, headers: headers);
     } catch (_) {
-      if (cacheKey != null &&
-          !forceRefresh) {
+      if (cacheKey != null && !forceRefresh) {
         final cached = await ApiResponseCache.read(cacheKey);
         if (cached != null) {
           return http.Response(
@@ -89,6 +97,16 @@ class ApiClient {
   }
 
   Future<http.Response> post(String path, {Object? body}) async {
+    if (_usesDemoBackend) {
+      final response = await DemoApiStore.instance.request(
+        'POST',
+        path,
+        body: body,
+      );
+      await _clearCacheAfterMutation(response);
+      return response;
+    }
+
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final response = await _httpClient.post(
       uri,
@@ -100,6 +118,16 @@ class ApiClient {
   }
 
   Future<http.Response> patch(String path, {Object? body}) async {
+    if (_usesDemoBackend) {
+      final response = await DemoApiStore.instance.request(
+        'PATCH',
+        path,
+        body: body,
+      );
+      await _clearCacheAfterMutation(response);
+      return response;
+    }
+
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final response = await _httpClient.patch(
       uri,
@@ -111,6 +139,16 @@ class ApiClient {
   }
 
   Future<http.Response> put(String path, {Object? body}) async {
+    if (_usesDemoBackend) {
+      final response = await DemoApiStore.instance.request(
+        'PUT',
+        path,
+        body: body,
+      );
+      await _clearCacheAfterMutation(response);
+      return response;
+    }
+
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final response = await _httpClient.put(
       uri,
@@ -122,6 +160,12 @@ class ApiClient {
   }
 
   Future<http.Response> delete(String path) async {
+    if (_usesDemoBackend) {
+      final response = await DemoApiStore.instance.request('DELETE', path);
+      await _clearCacheAfterMutation(response);
+      return response;
+    }
+
     final Uri uri = Uri.parse('$backendBaseUrl$path');
     final response = await _httpClient.delete(
       uri,

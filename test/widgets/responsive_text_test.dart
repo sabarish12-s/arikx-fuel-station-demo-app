@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rk_fuels/utils/formatters.dart';
-import 'package:rk_fuels/widgets/app_bottom_nav_bar.dart';
-import 'package:rk_fuels/widgets/responsive_text.dart';
+import 'package:fuel_station_demo_app/utils/formatters.dart';
+import 'package:fuel_station_demo_app/widgets/app_bottom_nav_bar.dart';
+import 'package:fuel_station_demo_app/widgets/responsive_text.dart';
 
 void main() {
   const phoneWidths = <double>[320, 360, 390, 430, 480];

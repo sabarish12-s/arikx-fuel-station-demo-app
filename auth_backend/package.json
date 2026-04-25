@@ -1,0 +1,16 @@
+{
+  "name": "arikx-fuel-station-auth",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "vercel dev",
+    "test": "node --check api/index.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0"
+  },
+  "devDependencies": {
+    "vercel": "^50.35.0"
+  }
+}

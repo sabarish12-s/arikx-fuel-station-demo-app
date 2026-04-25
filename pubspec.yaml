@@ -1,5 +1,5 @@
-name: rk_fuels
-description: "A new Flutter project."
+name: fuel_station_demo_app
+description: "A static demo build of Arikx fuel station."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -43,6 +43,7 @@ dependencies:
   fl_chart: ^0.69.0
   path_provider: ^2.1.5
   share_plus: ^10.1.2
+  firebase_auth: ^6.4.0
 
 dev_dependencies:
   flutter_test:
@@ -103,23 +104,23 @@ flutter_launcher_icons:
   ios: true
   web:
     generate: true
-    image_path: assets/images/hp_logo.png
-    background_color: "#E9EEF7"
-    theme_color: "#1E5CBA"
+    image_path: assets/images/arikx_icon_bg_0A0A0A.png
+    background_color: "#0A0A0A"
+    theme_color: "#0A0A0A"
   windows:
     generate: true
-    image_path: assets/images/hp_logo.png
+    image_path: assets/images/arikx_icon_bg_0A0A0A.png
     icon_size: 48
   macos:
     generate: true
-    image_path: assets/images/hp_logo.png
-  image_path: assets/images/hp_logo.png
-  adaptive_icon_background: "#DCE6FF"
-  adaptive_icon_foreground: assets/images/hp_logo.png
+    image_path: assets/images/arikx_icon_bg_0A0A0A.png
+  image_path: assets/images/arikx_icon_bg_0A0A0A.png
+  adaptive_icon_background: "#0A0A0A"
+  adaptive_icon_foreground: assets/images/arikx_icon_bg_0A0A0A.png
 
 flutter_native_splash:
-  color: "#E9EEF7"
-  image: assets/images/hp_logo.png
+  color: "#0A0A0A"
+  image: assets/images/arikx_icon_bg_0A0A0A.png
   android_12:
-    color: "#E9EEF7"
-    image: assets/images/hp_logo.png
+    color: "#0A0A0A"
+    image: assets/images/arikx_icon_bg_0A0A0A.png

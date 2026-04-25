@@ -1,4 +1,4 @@
-package com.rk.fuels.rk_fuels
+package com.arikx.fuelstation.demo
 
 import android.Manifest
 import android.app.NotificationChannel

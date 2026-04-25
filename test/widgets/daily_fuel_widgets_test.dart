@@ -1,28 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rk_fuels/models/domain_models.dart';
-import 'package:rk_fuels/widgets/daily_fuel_widgets.dart';
+import 'package:fuel_station_demo_app/models/domain_models.dart';
+import 'package:fuel_station_demo_app/widgets/daily_fuel_widgets.dart';
 
-DailyFuelRecordModel _record({
-  bool complete = true,
-  bool exists = true,
-}) {
+DailyFuelRecordModel _record({bool complete = true, bool exists = true}) {
   return DailyFuelRecordModel(
     id: 'station-1:2026-04-18',
     stationId: 'station-1',
     date: '2026-04-18',
-    openingStock: const <String, double>{
-      'petrol': 1285.5,
-      'diesel': 2460.75,
-    },
+    openingStock: const <String, double>{'petrol': 1285.5, 'diesel': 2460.75},
     density: <String, double>{
       'petrol': complete ? 741.225 : 0,
       'diesel': complete ? 832.455 : 0,
     },
-    price: const <String, double>{
-      'petrol': 102.45,
-      'diesel': 94.15,
-    },
+    price: const <String, double>{'petrol': 102.45, 'diesel': 94.15},
     sourceClosingDate: '2026-04-17',
     createdBy: 'sales-1',
     createdByName: 'Sales User',
@@ -41,7 +32,9 @@ Widget _wrap(Widget child) {
 
 void main() {
   group('DailyFuelStatusCard', () {
-    testWidgets('shows pending state when the record is missing', (tester) async {
+    testWidgets('shows pending state when the record is missing', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           const DailyFuelStatusCard(
@@ -58,7 +51,9 @@ void main() {
       expect(find.textContaining('Opening stock source:'), findsNothing);
     });
 
-    testWidgets('shows saved metrics when a complete record exists', (tester) async {
+    testWidgets('shows saved metrics when a complete record exists', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         _wrap(
           DailyFuelStatusCard(
@@ -82,7 +77,9 @@ void main() {
   });
 
   group('DailyFuelEntrySection', () {
-    testWidgets('blocks save when either density value is missing', (tester) async {
+    testWidgets('blocks save when either density value is missing', (
+      tester,
+    ) async {
       Map<String, double>? savedPayload;
 
       await tester.pumpWidget(
@@ -98,6 +95,8 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('Enter Density'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Save Density'));
       await tester.pump();
 
@@ -108,7 +107,9 @@ void main() {
       );
     });
 
-    testWidgets('submits both density values when valid numbers are entered', (tester) async {
+    testWidgets('submits both density values when valid numbers are entered', (
+      tester,
+    ) async {
       Map<String, double>? savedPayload;
 
       await tester.pumpWidget(
@@ -124,10 +125,12 @@ void main() {
         ),
       );
 
+      await tester.tap(find.text('Enter Density'));
+      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).at(0), '744.125');
       await tester.enterText(find.byType(TextField).at(1), '834.875');
       await tester.tap(find.text('Save Density'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(savedPayload, isNotNull);
       expect(savedPayload?['petrol'], 744.125);

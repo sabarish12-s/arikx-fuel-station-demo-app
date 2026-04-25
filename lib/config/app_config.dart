@@ -1,12 +1,16 @@
 const String backendBaseUrl = String.fromEnvironment(
   'BACKEND_BASE_URL',
-  defaultValue: 'https://asia-south1-rk-fuels-app-2026.cloudfunctions.net/api',
+  defaultValue: 'demo://local-static-data',
+);
+
+const String authBackendBaseUrl = String.fromEnvironment(
+  'AUTH_BACKEND_BASE_URL',
+  defaultValue: '',
 );
 
 const String googleWebClientId = String.fromEnvironment(
   'GOOGLE_WEB_CLIENT_ID',
-  defaultValue:
-      '62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com',
+  defaultValue: '',
 );
 
 const String googleClientId = String.fromEnvironment(

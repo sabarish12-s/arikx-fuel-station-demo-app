@@ -694,7 +694,7 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         );
         await _reportExportService.shareFile(
           file,
-          text: 'RK Fuels report ${_fmtDt(from)} to ${_fmtDt(to)}',
+          text: 'Arikx fuel station report ${_fmtDt(from)} to ${_fmtDt(to)}',
         );
       } else {
         await _reportExportService.saveReportToDownloads(
@@ -1014,7 +1014,8 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
         );
         await _reportExportService.shareFile(
           file,
-          text: 'RK Fuels stock report ${_fmtDt(from)} to ${_fmtDt(to)}',
+          text:
+              'Arikx fuel station stock report ${_fmtDt(from)} to ${_fmtDt(to)}',
         );
       } else {
         await _reportExportService.saveStockReportToDownloads(

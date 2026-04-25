@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
@@ -7,10 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/app_config.dart';
 import '../models/auth_models.dart';
-import '../utils/user_facing_errors.dart';
 import 'api_response_cache.dart';
 import 'native_config_service.dart';
-import 'notification_service.dart';
 
 class AuthService {
   static const String _jwtKey = 'jwt_token';
@@ -50,17 +49,10 @@ class AuthService {
               : null
         : (googleClientId.isEmpty ? null : googleClientId);
 
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.android &&
-        (_resolvedServerClientId == null || _resolvedServerClientId!.isEmpty)) {
-      throw Exception(
-        'Google Sign-In is not configured in Firebase for Android. Add Google Sign-In, add the Android SHA1, and download a fresh google-services.json.',
-      );
-    }
-
     _googleSignIn = GoogleSignIn(
       clientId: _resolvedClientId,
       serverClientId: _resolvedServerClientId,
+      scopes: const ['email', 'profile'],
     );
     return _googleSignIn!;
   }
@@ -99,33 +91,6 @@ class AuthService {
     _googleSignIn = null;
   }
 
-  String _extractBackendError(http.Response response) {
-    String? candidate;
-    try {
-      final Object? decoded = jsonDecode(response.body);
-      if (decoded is Map<String, dynamic>) {
-        final String message = decoded['message']?.toString().trim() ?? '';
-        final String error = decoded['error']?.toString().trim() ?? '';
-
-        if (message.isNotEmpty && error.isNotEmpty) {
-          candidate = '$message: $error';
-        } else if (message.isNotEmpty) {
-          candidate = message;
-        } else if (error.isNotEmpty) {
-          candidate = error;
-        }
-      }
-    } catch (_) {
-      // Fall back to the raw response body below.
-    }
-
-    candidate ??= response.body.trim();
-    if (candidate.isEmpty) {
-      candidate = 'Authentication failed with status ${response.statusCode}.';
-    }
-    return userFacingErrorMessage(candidate);
-  }
-
   Future<AuthResponse> signInWithGoogle() async {
     if (!isGoogleSignInSupported) {
       throw Exception(
@@ -133,46 +98,113 @@ class AuthService {
       );
     }
 
-    await _getGoogleSignIn();
-    await _clearGoogleSession();
-    final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();
-    final GoogleSignInAccount? account = await freshGoogleSignIn.signIn();
-    if (account == null) {
-      throw Exception('Google Sign-In was cancelled.');
+    UserCredential? firebaseCredential;
+    GoogleSignInAccount? account;
+    String? idToken;
+    String? accessToken;
+    try {
+      firebaseCredential = await FirebaseAuth.instance.signInWithProvider(
+        GoogleAuthProvider(),
+      );
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'operation-not-allowed') {
+        rethrow;
+      }
+    } catch (_) {
+      // Some Android builds use the Google Sign-In plugin flow below.
     }
 
-    final GoogleSignInAuthentication authentication =
-        await account.authentication;
-    final String? idToken = authentication.idToken;
-    if (idToken == null || idToken.isEmpty) {
-      throw Exception(
-        'Google ID token is empty. Check Firebase Google Sign-In OAuth setup.',
+    if (firebaseCredential?.user == null) {
+      await _getGoogleSignIn();
+      await _clearGoogleSession();
+      final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();
+      account = await freshGoogleSignIn.signIn();
+      if (account == null) {
+        throw Exception('Google Sign-In was cancelled.');
+      }
+
+      final GoogleSignInAuthentication authentication =
+          await account.authentication;
+      idToken = authentication.idToken;
+      accessToken = authentication.accessToken;
+      if ((idToken == null || idToken.isEmpty) &&
+          (accessToken == null || accessToken.isEmpty)) {
+        throw Exception(
+          'Google credentials are empty. Check Firebase Google Sign-In setup.',
+        );
+      }
+
+      final credential = GoogleAuthProvider.credential(
+        idToken: idToken?.isNotEmpty == true ? idToken : null,
+        accessToken: accessToken?.isNotEmpty == true ? accessToken : null,
+      );
+      firebaseCredential = await FirebaseAuth.instance.signInWithCredential(
+        credential,
       );
     }
 
-    final String? fcmToken = await NotificationService.instance.getFcmToken();
-
-    final Map<String, dynamic> payload = {
-      'idToken': idToken,
-      'fcmToken': fcmToken,
-    }..removeWhere((key, value) => value == null);
-
-    final Uri uri = Uri.parse('$backendBaseUrl/auth/google');
-    final http.Response response = await http.post(
-      uri,
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode(payload),
-    );
-
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(_extractBackendError(response));
+    final User? firebaseUser = firebaseCredential?.user;
+    if (firebaseUser == null) {
+      throw Exception('Firebase did not return a signed-in Google user.');
     }
 
-    final Map<String, dynamic> json =
-        jsonDecode(response.body) as Map<String, dynamic>;
-    final AuthResponse authResponse = AuthResponse.fromJson(json);
+    String token = await firebaseUser.getIdToken(true) ?? '';
+    if (token.isEmpty) {
+      throw Exception('Firebase ID token missing after Google sign-in.');
+    }
+
+    final AuthUser user = authBackendBaseUrl.trim().isEmpty
+        ? _localDemoUser(
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName ?? account?.displayName ?? '',
+            email: firebaseUser.email ?? account?.email ?? '',
+          )
+        : await _fetchApprovedUser(token);
+    final AuthResponse authResponse = AuthResponse(user: user, token: token);
     await _persistAuth(authResponse);
     return authResponse;
+  }
+
+  Future<AuthUser> _fetchApprovedUser(String token) async {
+    final Uri uri = Uri.parse('${authBackendBaseUrl.trim()}/auth/me');
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String message = 'Access approval check failed.';
+      try {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+        message = decoded['message']?.toString() ?? message;
+      } catch (_) {
+        if (response.body.trim().isNotEmpty) {
+          message = response.body.trim();
+        }
+      }
+      throw Exception(message);
+    }
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    return AuthUser.fromJson(json['user'] as Map<String, dynamic>? ?? const {});
+  }
+
+  AuthUser _localDemoUser({
+    required String id,
+    required String name,
+    required String email,
+  }) {
+    final normalizedEmail = email.trim().toLowerCase();
+    final isSuperadmin = normalizedEmail == 'sabarish9911@gmail.com';
+    return AuthUser(
+      id: id.isEmpty ? 'demo-user' : id,
+      name: name.trim().isEmpty ? 'Station User' : name.trim(),
+      email: email.trim().isEmpty ? 'station.user@fuelstation.local' : email,
+      role: isSuperadmin ? 'superadmin' : 'sales',
+      status: isSuperadmin ? 'approved' : 'pending',
+      stationId: 'station-demo-01',
+    );
   }
 
   Future<bool> hasJwtToken() async {
@@ -191,6 +223,11 @@ class AuthService {
     final SharedPreferences prefs = await _prefs();
     await prefs.remove(_jwtKey);
     await prefs.remove(_userKey);
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {
+      // Unit tests and desktop previews may not initialize Firebase Auth.
+    }
     await _clearGoogleSession(revoke: true);
   }
 
@@ -209,34 +246,29 @@ class AuthService {
   }
 
   Future<AuthUser?> refreshCurrentUser() async {
-    final String? token = await readJwtToken();
-    if (token == null || token.isEmpty) {
+    final bool hasToken = await hasJwtToken();
+    if (!hasToken) {
       return null;
     }
 
-    final Uri uri = Uri.parse('$backendBaseUrl/auth/me');
-    final http.Response response = await http.get(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-
-    if (response.statusCode == 401) {
-      await signOut();
-      return null;
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(_extractBackendError(response));
+    final AuthUser? cachedUser = await readCurrentUser();
+    final User? firebaseUser = FirebaseAuth.instance.currentUser;
+    if (firebaseUser == null) {
+      return cachedUser;
     }
 
-    final Map<String, dynamic> json =
-        jsonDecode(response.body) as Map<String, dynamic>;
-    final AuthUser user = AuthUser.fromJson(
-      json['user'] as Map<String, dynamic>? ?? const {},
-    );
     final SharedPreferences prefs = await _prefs();
+    final String token = await firebaseUser.getIdToken(true) ?? '';
+    final AuthUser user = authBackendBaseUrl.trim().isEmpty || token.isEmpty
+        ? _localDemoUser(
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName ?? cachedUser?.name ?? '',
+            email: firebaseUser.email ?? cachedUser?.email ?? '',
+          )
+        : await _fetchApprovedUser(token);
+    if (token.isNotEmpty) {
+      await prefs.setString(_jwtKey, token);
+    }
     await prefs.setString(_userKey, jsonEncode(user.toJson()));
     return user;
   }

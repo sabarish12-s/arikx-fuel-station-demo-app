@@ -1,11 +1,11 @@
 {
-    "name": "RK Fuels",
-    "short_name": "RKFuels",
+    "name": "Arikx fuel station",
+    "short_name": "Arikx fuel station",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#E9EEF7",
-    "theme_color": "#1E5CBA",
-    "description": "A new Flutter project.",
+    "background_color": "#0A0A0A",
+    "theme_color": "#0A0A0A",
+    "description": "A static demo build of Arikx fuel station.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

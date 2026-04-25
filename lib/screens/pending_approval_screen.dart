@@ -44,7 +44,7 @@ class PendingApprovalScreen extends StatelessWidget {
                       AppLogo(size: 30),
                       SizedBox(width: 10),
                       Text(
-                        'RK Fuels',
+                        'Arikx fuel station',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,

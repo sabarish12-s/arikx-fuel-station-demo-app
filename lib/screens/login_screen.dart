@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 18),
                         const Text(
-                          'RK Fuels',
+                          'Arikx fuel station',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white,
@@ -146,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          'Secure station operations and daily fuel tracking in one place.',
+                          'Static station operations and daily fuel tracking showcase.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: Colors.white70,
@@ -184,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'This build currently uses the existing Google sign-in flow configured for your project.',
+                          'Google sign-in unlocks a bundled demo workspace with local static data.',
                           style: TextStyle(
                             fontSize: 13,
                             color: kClaySub,

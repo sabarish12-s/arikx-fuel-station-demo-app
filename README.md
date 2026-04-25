@@ -1,4 +1,4 @@
-# RK Fuels (Flutter App)
+# Arikx fuel station (Flutter App)
 
 ## Firebase project
 
@@ -90,6 +90,6 @@ The Render backend needs valid Firebase Cloud Messaging credentials via `FIREBAS
 
 ## App icon and splash
 
-- Logo asset: `assets/images/hp_logo.png`
+- Logo asset: `assets/images/arikx_icon_bg_0A0A0A.png`
 - Launcher icons generated via `flutter_launcher_icons`
 - Splash generated via `flutter_native_splash`

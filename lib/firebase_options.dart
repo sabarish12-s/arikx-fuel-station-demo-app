@@ -41,46 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyA-PEafiRB1Ia9HtWOOWAshismVQF1aVNQ',
-    appId: '1:62828412342:web:60157e768ae8c9ace95517',
-    messagingSenderId: '62828412342',
-    projectId: 'rk-fuels-app-2026',
-    authDomain: 'rk-fuels-app-2026.firebaseapp.com',
-    storageBucket: 'rk-fuels-app-2026.firebasestorage.app',
+    apiKey: 'AIzaSyCp94qf3OwJKSHTh6UiZFYMktOj_C1MIb0',
+    appId: '1:396808102799:web:d9ff74e9b0a1ba1b1661fa',
+    messagingSenderId: '396808102799',
+    projectId: 'fuel-station-demo-app',
+    authDomain: 'fuel-station-demo-app.firebaseapp.com',
+    storageBucket: 'fuel-station-demo-app.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAIKy1Cn4xkNQ_ZeNq04aIG9wZ43x_1a78',
-    appId: '1:62828412342:android:90cccfce4660330ae95517',
-    messagingSenderId: '62828412342',
-    projectId: 'rk-fuels-app-2026',
-    storageBucket: 'rk-fuels-app-2026.firebasestorage.app',
+    apiKey: 'AIzaSyDMZ1evu0MCXfp86D00TZ82vAhjv7WNjAM',
+    appId: '1:396808102799:android:1755362805b3c1691661fa',
+    messagingSenderId: '396808102799',
+    projectId: 'fuel-station-demo-app',
+    storageBucket: 'fuel-station-demo-app.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB-FBmKngNkVmDIjmObkW3hlaCvkI-wvUY',
-    appId: '1:62828412342:ios:6072393fc3203956e95517',
-    messagingSenderId: '62828412342',
-    projectId: 'rk-fuels-app-2026',
-    storageBucket: 'rk-fuels-app-2026.firebasestorage.app',
-    iosBundleId: 'com.rk.fuels.rkFuels',
+    apiKey: 'AIzaSyCp94qf3OwJKSHTh6UiZFYMktOj_C1MIb0',
+    appId: '1:396808102799:web:d9ff74e9b0a1ba1b1661fa',
+    messagingSenderId: '396808102799',
+    projectId: 'fuel-station-demo-app',
+    authDomain: 'fuel-station-demo-app.firebaseapp.com',
+    storageBucket: 'fuel-station-demo-app.firebasestorage.app',
+    iosBundleId: 'com.rk.fuels.demo',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyB-FBmKngNkVmDIjmObkW3hlaCvkI-wvUY',
-    appId: '1:62828412342:ios:6072393fc3203956e95517',
-    messagingSenderId: '62828412342',
-    projectId: 'rk-fuels-app-2026',
-    storageBucket: 'rk-fuels-app-2026.firebasestorage.app',
-    iosBundleId: 'com.rk.fuels.rkFuels',
+    apiKey: 'AIzaSyCp94qf3OwJKSHTh6UiZFYMktOj_C1MIb0',
+    appId: '1:396808102799:web:d9ff74e9b0a1ba1b1661fa',
+    messagingSenderId: '396808102799',
+    projectId: 'fuel-station-demo-app',
+    authDomain: 'fuel-station-demo-app.firebaseapp.com',
+    storageBucket: 'fuel-station-demo-app.firebasestorage.app',
+    iosBundleId: 'com.rk.fuels.demo',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyA-PEafiRB1Ia9HtWOOWAshismVQF1aVNQ',
-    appId: '1:62828412342:web:21f35f64bb5d373ce95517',
-    messagingSenderId: '62828412342',
-    projectId: 'rk-fuels-app-2026',
-    authDomain: 'rk-fuels-app-2026.firebaseapp.com',
-    storageBucket: 'rk-fuels-app-2026.firebasestorage.app',
+    apiKey: 'AIzaSyCp94qf3OwJKSHTh6UiZFYMktOj_C1MIb0',
+    appId: '1:396808102799:web:d9ff74e9b0a1ba1b1661fa',
+    messagingSenderId: '396808102799',
+    projectId: 'fuel-station-demo-app',
+    authDomain: 'fuel-station-demo-app.firebaseapp.com',
+    storageBucket: 'fuel-station-demo-app.firebasestorage.app',
   );
 }

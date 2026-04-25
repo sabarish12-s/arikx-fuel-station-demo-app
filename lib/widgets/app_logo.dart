@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppLogo extends StatelessWidget {
   const AppLogo({super.key, this.size, this.padding = 0, this.backgroundColor});
 
-  static const String assetPath = 'assets/images/hp_logo.webp';
+  static const String assetPath = 'assets/images/arikx_icon_bg_0A0A0A.png';
 
   final double? size;
   final double padding;
@@ -13,11 +13,9 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget logo = Padding(
       padding: EdgeInsets.all(padding),
-      child: ClipOval(
-        child: ColoredBox(
-          color: Colors.white,
-          child: Image.asset(assetPath, fit: BoxFit.cover),
-        ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular((size ?? 40) / 5),
+        child: Image.asset(assetPath, fit: BoxFit.cover),
       ),
     );
 

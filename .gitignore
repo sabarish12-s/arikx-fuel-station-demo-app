@@ -32,6 +32,8 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+firebase-auth-export-check.json
+auth_backend/service-account*.json
 
 # Symbolication related
 app.*.symbols

@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rk_fuels/models/domain_models.dart';
+import 'package:fuel_station_demo_app/models/domain_models.dart';
 
 Map<String, dynamic> _stationJson() {
   return <String, dynamic>{
     'id': 'station-1',
-    'name': 'RK Fuels',
+    'name': 'Arikx fuel station',
     'code': 'RKF',
     'city': 'Salem',
     'shifts': const <String>['morning', 'afternoon', 'night'],

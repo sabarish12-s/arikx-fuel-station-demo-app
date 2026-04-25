@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rk_fuels/widgets/app_date_range_picker.dart';
+import 'package:fuel_station_demo_app/widgets/app_date_range_picker.dart';
 
 void main() {
   group('normalizedAppDateRange', () {

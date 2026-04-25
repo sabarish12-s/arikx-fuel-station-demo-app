@@ -4,9 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:rk_fuels/services/api_client.dart';
-import 'package:rk_fuels/services/api_response_cache.dart';
-import 'package:rk_fuels/services/auth_service.dart';
+import 'package:fuel_station_demo_app/services/api_client.dart';
+import 'package:fuel_station_demo_app/services/api_response_cache.dart';
+import 'package:fuel_station_demo_app/services/auth_service.dart';
 
 void main() {
   setUp(() {
@@ -45,12 +45,16 @@ void main() {
       ]);
       final apiClient = ApiClient(authService, httpClient: client);
 
-      final response = await apiClient.get('/sales/dashboard', useCache: true);
+      final response = await apiClient.get(
+        '/sales/dashboard',
+        useCache: true,
+        refreshInBackground: true,
+      );
 
       expect(response.body, '{"source":"cache"}');
       expect(response.headers['x-rk-cache'], 'hit');
 
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
       final updated = await ApiResponseCache.read(cacheKey);
       expect(updated?.body, '{"source":"network"}');
       expect(client.requests, hasLength(1));
