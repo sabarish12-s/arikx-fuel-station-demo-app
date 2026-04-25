@@ -101,7 +101,19 @@ class AuthService {
     await _getGoogleSignIn();
     await _clearGoogleSession();
     final GoogleSignIn freshGoogleSignIn = await _getGoogleSignIn();
-    final GoogleSignInAccount? account = await freshGoogleSignIn.signIn();
+    final GoogleSignInAccount? account;
+    try {
+      account = await freshGoogleSignIn.signIn();
+    } catch (error) {
+      if (authBackendBaseUrl.trim().isEmpty) {
+        rethrow;
+      }
+      final AuthResponse authResponse = await _signInWithDeviceGoogleAccount(
+        cause: error,
+      );
+      await _persistAuth(authResponse);
+      return authResponse;
+    }
     if (account == null) {
       throw Exception('Google Sign-In was cancelled.');
     }
@@ -141,11 +153,20 @@ class AuthService {
     }
 
     if (firebaseUser == null) {
-      final AuthResponse authResponse = await _signInWithApprovedGoogleUser(
-        idToken: idToken,
-        accessToken: accessToken,
-        account: account,
-      );
+      late AuthResponse authResponse;
+      try {
+        authResponse = await _signInWithApprovedGoogleUser(
+          idToken: idToken,
+          accessToken: accessToken,
+          account: account,
+        );
+      } catch (error) {
+        authResponse = await _signInWithDeviceGoogleAccount(
+          email: account.email,
+          name: account.displayName,
+          cause: error,
+        );
+      }
       await _persistAuth(authResponse);
       return authResponse;
     }
@@ -165,6 +186,64 @@ class AuthService {
     final AuthResponse authResponse = AuthResponse(user: user, token: token);
     await _persistAuth(authResponse);
     return authResponse;
+  }
+
+  Future<AuthResponse> _signInWithDeviceGoogleAccount({
+    String? email,
+    String? name,
+    Object? cause,
+  }) async {
+    final selectedEmail = email?.trim().isNotEmpty == true
+        ? email!.trim()
+        : await NativeConfigService.pickGoogleAccountEmail();
+    if (selectedEmail == null || selectedEmail.trim().isEmpty) {
+      throw Exception(
+        cause == null
+            ? 'No Google account was selected.'
+            : 'Google Sign-In could not open the native account picker.',
+      );
+    }
+
+    final Uri uri = Uri.parse(
+      '${authBackendBaseUrl.trim()}/auth/device-account',
+    );
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+        if (deviceAccountAuthKey.trim().isNotEmpty)
+          'X-Arikx-Demo-Auth': deviceAccountAuthKey.trim(),
+      },
+      body: jsonEncode({
+        'email': selectedEmail.trim(),
+        'name': name?.trim().isNotEmpty == true
+            ? name!.trim()
+            : selectedEmail.split('@').first,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _authBackendError(response, 'Device Google account approval failed.'),
+      );
+    }
+
+    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final String customToken = json['customToken']?.toString() ?? '';
+    if (customToken.isEmpty) {
+      throw Exception('Approval service did not return a Firebase token.');
+    }
+    final credential = await FirebaseAuth.instance.signInWithCustomToken(
+      customToken,
+    );
+    final User? firebaseUser = credential.user;
+    final String firebaseIdToken = await firebaseUser?.getIdToken(true) ?? '';
+    if (firebaseIdToken.isEmpty) {
+      throw Exception('Firebase ID token missing after approved sign-in.');
+    }
+    final AuthUser user = AuthUser.fromJson(
+      json['user'] as Map<String, dynamic>? ?? const {},
+    );
+    return AuthResponse(user: user, token: firebaseIdToken);
   }
 
   Future<AuthResponse> _signInWithApprovedGoogleUser({

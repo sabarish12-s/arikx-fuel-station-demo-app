@@ -8,6 +8,11 @@ const String authBackendBaseUrl = String.fromEnvironment(
   defaultValue: '',
 );
 
+const String deviceAccountAuthKey = String.fromEnvironment(
+  'DEVICE_ACCOUNT_AUTH_KEY',
+  defaultValue: '',
+);
+
 const String googleWebClientId = String.fromEnvironment(
   'GOOGLE_WEB_CLIENT_ID',
   defaultValue: '',

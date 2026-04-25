@@ -2,5 +2,6 @@ node_modules/
 .vercel/
 .env*.local
 service-account*.json
+.device_account_auth_key.local
 
 .vercel

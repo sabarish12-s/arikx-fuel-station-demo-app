@@ -19,4 +19,18 @@ class NativeConfigService {
     }
     return value.trim();
   }
+
+  static Future<String?> pickGoogleAccountEmail() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return null;
+    }
+
+    final String? value = await _channel.invokeMethod<String>(
+      'pickGoogleAccount',
+    );
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+    return value.trim();
+  }
 }
