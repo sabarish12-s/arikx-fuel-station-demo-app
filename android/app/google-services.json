@@ -1,103 +1,45 @@
 {
   "project_info": {
-    "project_number": "62828412342",
-    "project_id": "rk-fuels-app-2026",
-    "storage_bucket": "rk-fuels-app-2026.firebasestorage.app"
+    "project_number": "396808102799",
+    "project_id": "fuel-station-demo-app",
+    "storage_bucket": "fuel-station-demo-app.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:62828412342:android:851932d0375ddd8de95517",
+        "mobilesdk_app_id": "1:396808102799:android:1755362805b3c1691661fa",
         "android_client_info": {
           "package_name": "com.arikx.fuelstation.demo"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "62828412342-v9r4tm2resgjo2bsja5copmjpjme4qv2.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.arikx.fuelstation.demo",
-            "certificate_hash": "88d32d02e888f5e8ba22bbf7eb91c93f8324a6dc"
-          }
-        },
-        {
-          "client_id": "62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAIKy1Cn4xkNQ_ZeNq04aIG9wZ43x_1a78"
+          "current_key": "AIzaSyDMZ1evu0MCXfp86D00TZ82vAhjv7WNjAM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "62828412342-uca1djfp0qabfej0ehkhpe8e8l4hei28.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.rk.fuels.rkFuels"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:62828412342:android:90cccfce4660330ae95517",
+        "mobilesdk_app_id": "1:396808102799:android:6549d6921fafaf511661fa",
         "android_client_info": {
-          "package_name": "com.rk.fuels.rk_fuels"
+          "package_name": "com.rk.fuels.demo"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "62828412342-lk7n5h34h1i08sik3m5gdap2me32720v.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.rk.fuels.rk_fuels",
-            "certificate_hash": "277a6cfacf8cd8e1f3686d97b3fdbb97d5ce0f9a"
-          }
-        },
-        {
-          "client_id": "62828412342-u83qbofqfotqaff56e0m88r57ad03u5l.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.rk.fuels.rk_fuels",
-            "certificate_hash": "88d32d02e888f5e8ba22bbf7eb91c93f8324a6dc"
-          }
-        },
-        {
-          "client_id": "62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAIKy1Cn4xkNQ_ZeNq04aIG9wZ43x_1a78"
+          "current_key": "AIzaSyDMZ1evu0MCXfp86D00TZ82vAhjv7WNjAM"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "62828412342-i9jvc5lnbsebi7g43nn5doiiurva12e2.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "62828412342-uca1djfp0qabfej0ehkhpe8e8l4hei28.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.rk.fuels.rkFuels"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
