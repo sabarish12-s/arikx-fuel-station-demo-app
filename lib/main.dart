@@ -9,8 +9,18 @@ import 'widgets/clay_widgets.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await _initializeFirebase();
   runApp(const FuelStationDemoApp());
+}
+
+Future<void> _initializeFirebase() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 8));
+  } catch (error) {
+    debugPrint('Firebase startup skipped: $error');
+  }
 }
 
 class FuelStationDemoApp extends StatelessWidget {
@@ -71,11 +81,20 @@ class _StartupRouterState extends State<_StartupRouter> {
   }
 
   Future<AuthUser?> _resolveUser() async {
-    final hasToken = await _authService.hasJwtToken();
-    if (!hasToken) {
+    try {
+      final hasToken = await _authService.hasJwtToken().timeout(
+        const Duration(seconds: 4),
+      );
+      if (!hasToken) {
+        return null;
+      }
+      return _authService.refreshCurrentUser().timeout(
+        const Duration(seconds: 8),
+      );
+    } catch (_) {
+      await _authService.signOut();
       return null;
     }
-    return _authService.refreshCurrentUser();
   }
 
   @override
